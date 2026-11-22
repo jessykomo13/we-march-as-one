@@ -2,7 +2,7 @@
 // Simulation : chaque soldat et chaque projectile est simulé individuellement.
 // Collisions dures (les formes ne se traversent pas), obstacles, rivières lentes.
 // ============================================================================
-import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js';
+import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=7';
 
 const G = 1.0;                                   // cellule de la grille spatiale
 const GW = Math.ceil(MAP_W / G) + 1, GH = Math.ceil(MAP_H / G) + 1;

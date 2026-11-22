@@ -3,10 +3,11 @@
 // ============================================================================
 import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
-  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js';
-import { Sim } from './sim.js';
-import { sfx } from './audio.js';
+  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=7';
+import { Sim } from './sim.js?v=7';
+import { sfx } from './audio.js?v=7';
 
+const GAME_VERSION = '7';
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
@@ -528,7 +529,7 @@ function renderMenu() {
       <button class="mode panel" data-act="help"><b>Comment jouer</b>Les règles, les formes et les astuces.</button>
     </div>
     <div class="panel" style="padding:10px;margin-top:14px"><b>Succès ${Object.keys(S.ach || {}).length}/${ACH.length}</b><div class="row" style="margin-top:6px">${ACH.map(a => `<span class="chip" title="${a[2]}" style="${(S.ach || {})[a[0]] ? 'background:#ffd84a' : 'opacity:.45'}">🏆 ${a[1]}</span>`).join('')}</div></div>
-    <p class="small" style="margin-top:18px">Astuce : ajoute cette page à ton écran d'accueil pour l'installer comme une application.</p>
+    <p class="small" style="margin-top:18px"><b>Version ${GAME_VERSION}</b> · Astuce : ajoute cette page à ton écran d'accueil pour l'installer comme une application.</p>
   </div>`;
 }
 
@@ -1119,5 +1120,10 @@ resize();
 level = campaignLevel(1); buildTerrainMeshes(level.terrain);
 show('menu');
 requestAnimationFrame(frame);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  // quand une nouvelle version du jeu est installée, on recharge une fois pour l'utiliser tout de suite
+  let reloaded = false;
+  if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js?v=' + GAME_VERSION, { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
+}
 window.__wmao = { get kingKey() { return kingKey; }, proj: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(activeCam()); return [Math.round((v.x + 1) / 2 * VW), Math.round((1 - v.y) / 2 * VH)]; }, groups, S, get sim() { return sim; }, get screen() { return screen; }, form, startLevel, setMode: m => mode = m, fight, view };
