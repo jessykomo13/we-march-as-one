@@ -148,7 +148,7 @@ export function campaignLevel(n) {
   return { id: n, name: LEVEL_NAMES[n - 1] || 'Niveau ' + n, terrain, enemy, enemyOrder: order, cap, boss: isBoss, city: isCity };
 }
 
-// Modes Tactique (armée fixe) et Rassemblement (budget fixe) : quelques puzzles faits main
+// Modes Tactique (armée fixe) et Rassemblement (armée libre) : quelques puzzles faits main
 export function tacticsLevel(i) {
   const base = campaignLevel([6, 9, 12, 17, 21, 26][i]);
   const army = [[60, 0, 30, 0, 0, 0, 0], [80, 40, 0, 20, 0, 0, 0], [0, 60, 60, 0, 0, 40, 0], [200, 80, 60, 40, 0, 60, 0], [300, 0, 120, 100, 4, 0, 200], [400, 200, 100, 100, 10, 120, 300]][i];
@@ -157,5 +157,5 @@ export function tacticsLevel(i) {
 export function musterLevel(i) {
   const base = campaignLevel([5, 8, 11, 15, 18, 24][i]);
   let v = 0; for (const e of base.enemy) v += SHAPES[e.t].cost;
-  return Object.assign(base, { name: 'Rassemblement ' + (i + 1) + ' — ' + base.name, budget: Math.round(v * 1.1 / 10) * 10, cap: 0 });
+  return Object.assign(base, { name: 'Rassemblement ' + (i + 1) + ' — ' + base.name, cap: 0 });
 }

@@ -404,7 +404,7 @@ function shapeAvailable(t) {
 }
 function counts(team = 0) { const c = [0, 0, 0, 0, 0, 0, 0]; for (const t of form[team].values()) c[t]++; return c; }
 function formationCost(team = 0) { let v = 0; for (const t of form[team].values()) v += SHAPES[t].cost; if (kingKey >= 0 && team === 0) v += SHAPES[0].cost * 9; return v; }
-function costCap() { return mode === 'muster' ? level.budget : (level.cap || 0); }
+function costCap() { return 0; } // plus aucune limite de coût
 
 function zoneOk(team, x, z) {
   if (Math.abs(x) > HW - .3 || Math.abs(z) > HH - .3) return false;
@@ -522,7 +522,7 @@ function renderMenu() {
       <button class="mode panel" data-act="mode" data-v="campaign"><b>Campagne</b>Bâtis ton armée bataille après bataille. 50 niveaux.</button>
       <button class="mode panel" data-act="mode" data-v="command"><b>Commandement</b>Ordres en temps réel et pouvoirs sur le champ de bataille.</button>
       <button class="mode panel" data-act="mode" data-v="tactics"><b>Tactique</b>Puzzles à armée fixe : seuls le placement et les ordres comptent.</button>
-      <button class="mode panel" data-act="mode" data-v="muster"><b>Rassemblement</b>Puzzles à budget fixe : à toi de choisir ton armée.</button>
+      <button class="mode panel" data-act="mode" data-v="muster"><b>Rassemblement</b>Compose librement ton armée avec toutes les formes que tu connais.</button>
       <button class="mode panel" data-act="mode" data-v="sandbox"><b>Bac à sable</b>Éditeur de niveau : peins les deux armées et le terrain.</button>
       <button class="mode panel" data-act="upgrades"><b>Améliorations</b>Arbre de compétences et recrutement.</button>
       <button class="mode panel" data-act="help"><b>Comment jouer</b>Les règles, les formes et les astuces.</button>
@@ -559,7 +559,7 @@ function renderLevels() {
   let h = `<div class="wrap"><div class="hdr"><button data-act="menu">◀ Menu</button><b style="font-size:20px">${{ campaign: 'Campagne', command: 'Commandement', tactics: 'Tactique', muster: 'Rassemblement' }[mode]}</b><span class="sp"></span><span class="chip gold">${fmt(S.gold)} or</span><button class="blue" data-act="upgrades">AMÉLIORATIONS</button></div>`;
   if (mode === 'command') h += `<p class="small">Les niveaux débloqués en Campagne, avec ordres en direct (MARCHE / TENIR) et pouvoirs : Pluie de flèches et Ralliement.</p>`;
   if (mode === 'tactics') h += `<p class="small">Armée imposée, pas de recrutement ni d'améliorations : trouve le bon placement.</p>`;
-  if (mode === 'muster') h += `<p class="small">Budget fixe : choisis et peins ton armée parmi les formes que tu connais.</p>`;
+  if (mode === 'muster') h += `<p class="small">Aucune limite : peins l'armée de ton choix avec toutes les formes que tu connais.</p>`;
   h += `<div class="levels">`;
   for (const L of levelList()) {
     const r = R[L.id] || 0, locked = (mode === 'campaign' || mode === 'command') && L.id > prog + 1;
@@ -634,7 +634,6 @@ function renderTop() {
       h += `<span class="chip" style="color:${col}" title="Force estimée de ton armée par rapport à l'ennemi">⚔ ${Math.round(ratio * 100)}%</span>`;
       h += `<span class="chip red">👥 ${kfmt(level.enemy.length)}</span>`;
     }
-    if (mode !== 'sandbox') h += `<span class="chip${over ? ' over' : ''}" id="cost">Coût ${fmt(cost)}${cap ? ' / ' + fmt(cap) : ''}</span>`;
     else h += `<span class="chip">Bleus ${fmt(form[0].size)} · Rouges ${fmt(form[1].size)}</span>`;
     if (mode === 'campaign' || mode === 'command') h += `<span class="chip gold">${fmt(S.gold)} or</span>`;
   }
