@@ -7,7 +7,14 @@ Pour l'installer sur ton téléphone, ouvre le lien puis :
 - **iPhone** : bouton Partager → **Sur l'écran d'accueil**
 - **Android** : menu ⋮ → **Installer l'application**
 
-Cette version web se trouve dans `web/` (HTML/JS, aucune dépendance). Elle reprend les mécaniques du projet Unity et marche hors ligne une fois installée.
+La version web (dossier `web/`, Three.js, sans build) est en 3D et reprend le jeu au plus près :
+- **7 formes** : Cercle (ligne), Carré (ancre), Triangle (briseur), Losange (rapide), Pentagone (ancre de flanc), Hexagone (tir), Rhombe (remplissage)
+- **Peinture sur grille** : une unité par case, pinceaux 1×1 / 3×3 / 7×7 / 8×8, ANNULER, EFFACER, AUTO, ordres MARCHE / TENIR
+- **Collisions dures** entre soldats, bâtiments, arbres, rivières (lentes) et ponts
+- **Campagne de 50 niveaux** avec notes VICTOIRE / DÉCISIVE / HÉROÏQUE, cités, boss et plafond de coût
+- **Arbre d'améliorations** sur 3 paliers (250 → 1 050 or) et panneau de recrutement, avec **le Roi** (touche deux fois un Cercle : ×10 PV et dégâts, alliés proches +30 % de vitesse)
+- **Modes** Commandement (ordres et pouvoirs en direct), Tactique (armée fixe), Rassemblement (budget fixe) et Bac à sable (éditeur de terrain)
+- **Caméras** 2D, 3D et FLY, jusqu'à 30 000 troupes, succès, sauvegarde locale et mode hors ligne
 
 ---
 

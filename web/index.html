@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0b0d12">
+<meta name="theme-color" content="#cfe2ee">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,733 +14,94 @@
 <title>We March as One</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#0b0d12;color:#e8eaf0;font:14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
-canvas{position:fixed;inset:0;display:block;touch-action:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe2ee;color:#23262d;font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
+canvas#c{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;display:block;touch-action:none}
 .ui{position:fixed;z-index:2}
-button{font:inherit;color:#e8eaf0;background:#232733;border:1px solid #343a4a;border-radius:9px;padding:7px 10px;cursor:pointer;touch-action:manipulation}
-button:active{transform:scale(.97)}
-button.on{background:#2f6fe0;border-color:#4d8bff}
-button.red.on{background:#c23b3b;border-color:#e05555}
-button:disabled{opacity:.4}
-button.big{font-weight:800;font-size:17px;padding:12px 16px;background:linear-gradient(#3d7cff,#2856c9);border-color:#5b8fff}
-#top{top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 6px) 10px 6px;display:flex;gap:8px;align-items:center;background:linear-gradient(#0b0d12ee,#0b0d1200);pointer-events:none}
+.scr{position:fixed;inset:0;z-index:5;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#f2ead8}
+button{font:inherit;font-weight:700;color:#23262d;background:#fffdf7;border:2px solid #23262d;border-radius:8px;padding:7px 11px;cursor:pointer;touch-action:manipulation;box-shadow:0 2px 0 #23262d}
+button:active{transform:translateY(2px);box-shadow:none}
+button.on{background:#23262d;color:#fffdf7}
+button:disabled{opacity:.35}
+button.go{background:#e5484d;color:#fff;border-color:#7a1d21;box-shadow:0 3px 0 #7a1d21;font-size:17px;letter-spacing:.06em;padding:10px 16px}
+button.blue{background:#3b78e7;color:#fff;border-color:#1d3f7a;box-shadow:0 3px 0 #1d3f7a}
+.seg{display:inline-flex}
+.seg button{border-radius:0;margin-left:-2px}
+.seg button:first-child{border-radius:8px 0 0 8px;margin-left:0}
+.seg button:last-child{border-radius:0 8px 8px 0}
+.panel{background:#fffdf7ee;border:2px solid #23262d;border-radius:12px;box-shadow:0 3px 0 #23262d}
+.gold{color:#a77a06;font-weight:900}
+.small{font-size:12px;color:#5b616d}
+.red{color:#d8343a}.blue-t{color:#2c64cf}
+#top{top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;pointer-events:none}
 #top>*{pointer-events:auto}
-@media (max-width:560px){#top h1{display:none}}
-#top h1{font-size:15px;margin:0;letter-spacing:.06em;font-weight:900;color:#cfe0ff;white-space:nowrap}
+.chip{font-weight:900;font-size:13px;background:#fffdf7ee;border:2px solid #23262d;border-radius:8px;padding:6px 9px;white-space:nowrap}
+#top .title{max-width:42vw;overflow:hidden;text-overflow:ellipsis}
 #top .sp{flex:1}
-#stats{font-size:12px;color:#9aa3b5;white-space:nowrap}
-.gold{color:#ffd24a;font-weight:800}
-.seg{display:inline-flex;border-radius:9px;overflow:hidden;border:1px solid #343a4a}
-.seg button{border:0;border-radius:0;padding:6px 9px}
-#sheet{left:0;right:0;bottom:0;background:#11141bf2;border-top:1px solid #2a2f3d;border-radius:14px 14px 0 0;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px);max-height:52vh;display:flex;flex-direction:column}
-#sheet.min #sheetBody{display:none}
-#sheetHead{display:flex;gap:6px;align-items:center}
-#sheetBody{overflow-y:auto;margin-top:8px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
-.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0}
-.card{background:#1a1e28;border:1px solid #2a3040;border-radius:10px;padding:8px;margin:6px 0}
-.card.dim{opacity:.5}
-.lbl{font-weight:700}
-.small{font-size:12px;color:#9aa3b5}
-.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-input[type=range]{width:120px;accent-color:#4d8bff}
-#hud{left:0;right:0;bottom:0;background:#11141bf2;border-top:1px solid #2a2f3d;padding:8px 10px calc(env(safe-area-inset-bottom) + 8px)}
-#hud .count{font-weight:800}
-#result{inset:0;display:flex;align-items:center;justify-content:center;background:#000a}
-#result .box{background:#141821;border:1px solid #2f3646;border-radius:16px;padding:20px;width:min(92vw,420px);text-align:center}
-#result h2{font-size:32px;margin:4px 0 12px}
-#toast{left:50%;top:calc(env(safe-area-inset-top) + 50px);transform:translateX(-50%);background:#1d2230;border:1px solid #33405a;border-radius:10px;padding:8px 14px;max-width:90vw;text-align:center;transition:opacity .3s;pointer-events:none;opacity:0}
+#cost.over{background:#e5484d;color:#fff}
+#bottom{left:0;right:0;bottom:0;padding:8px 8px calc(env(safe-area-inset-bottom) + 8px);display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#bottom>*{pointer-events:auto}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pal{display:flex;gap:5px;overflow-x:auto;padding:4px;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+.slot{min-width:52px;padding:4px 5px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px}
+.slot svg{width:24px;height:24px}
+.slot .n{font-weight:900;font-size:12px}
+#bar{height:14px;border:2px solid #23262d;border-radius:7px;overflow:hidden;display:flex;min-width:120px;flex:1;background:#fffdf7}
+#bar i{display:block;height:100%}
+#toast{left:50%;top:calc(env(safe-area-inset-top) + 58px);transform:translateX(-50%);background:#23262d;color:#fffdf7;border-radius:10px;padding:8px 14px;max-width:90vw;text-align:center;transition:opacity .3s;pointer-events:none;opacity:0;z-index:9;font-weight:600}
+h1.logo{font-size:clamp(36px,10vw,68px);line-height:.92;margin:0;letter-spacing:.01em;font-weight:900}
+.wrap{max-width:940px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 18px) 14px calc(env(safe-area-inset-bottom) + 30px)}
+.modes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:18px}
+.mode{text-align:left;padding:12px 14px;font-weight:600}
+.mode b{display:block;font-size:17px;font-weight:900;margin-bottom:3px}
+.levels{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:12px}
+.lv{padding:8px 6px;text-align:center;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;gap:2px}
+.lv .num{font-size:20px;font-weight:900}
+.lv .nm{font-size:10px;font-weight:600;color:#5b616d}
+.lv.boss{background:#ffe1dc}.lv.city{background:#ece4d2}
+.lv .st{font-size:12px;letter-spacing:1px}
+.off{opacity:.18}
+.hdr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hdr .sp{flex:1}
+.up{display:grid;grid-template-columns:1fr;gap:12px;margin-top:10px}
+@media(min-width:820px){.up{grid-template-columns:1.5fr 1fr}}
+.up>div{min-width:0}
+svg.tree{width:100%;height:auto;display:block}
+.node{cursor:pointer}
+.rec{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed #c9bfa8}
+.rec svg{width:28px;height:28px;flex:none}
+.rec .info{flex:1}
+#result{inset:0;display:flex;align-items:center;justify-content:center;background:#23262d77;z-index:6}
+#result .panel{padding:18px;width:min(92vw,440px);text-align:center}
+#result h2{font-size:40px;margin:2px 0 6px;font-weight:900}
+.badges{display:flex;gap:8px;justify-content:center;margin:8px 0;flex-wrap:wrap}
+.badge{border:2px solid #23262d;border-radius:20px;padding:4px 10px;font-weight:900;font-size:12px;opacity:.25}
+.badge.got{opacity:1;background:#ffd84a}
+.tbl{width:100%;margin:8px 0;border-collapse:collapse}
+.tbl td{padding:3px 4px;text-align:left}.tbl td:last-child{text-align:right;font-weight:800}
+.det{padding:10px 12px;margin-top:8px}
+@media (max-height:520px){
+  #bottom{flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:4px;padding-top:4px}
+  #bottom button{padding:5px 8px;font-size:12px}
+  #bottom button.go{font-size:14px;padding:7px 12px}
+  .slot{min-width:42px;padding:2px 4px}.slot svg{width:18px;height:18px}
+  .pal{padding:2px}
+  #top{padding-top:calc(env(safe-area-inset-top) + 4px)}
+  .chip{padding:4px 7px;font-size:12px}
+  #top button{padding:4px 8px;font-size:12px}
+}
 [hidden]{display:none!important}
 </style>
+<script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>
 </head>
 <body>
 <canvas id="c"></canvas>
-
-<div id="top" class="ui">
-  <h1>WE MARCH AS ONE</h1>
-  <div class="seg" id="modeSeg"><button data-act="mode" data-v="0">Campagne</button><button data-act="mode" data-v="1">Sandbox</button></div>
-  <span class="sp"></span>
-  <span id="stats"></span>
-</div>
-
-<div id="sheet" class="ui"></div>
-<div id="hud" class="ui" hidden></div>
-<div id="result" class="ui" hidden><div class="box" id="resBox"></div></div>
+<div id="top" class="ui" hidden></div>
+<div id="bottom" class="ui" hidden></div>
+<div id="result" class="ui" hidden></div>
+<div id="menu" class="scr" hidden></div>
+<div id="levels" class="scr" hidden></div>
+<div id="upgrades" class="scr" hidden></div>
 <div id="toast" class="ui"></div>
-
-<script>
-"use strict";
-// ======================================================================= données
-const W = 160, H = 90, HW = W / 2, HH = H / 2, CELL = 2;
-const GW = Math.ceil(W / CELL) + 1, GH = Math.ceil(H / CELL) + 1;
-const MAX_UNITS = 30000, TIME_LIMIT = 300;
-const T = [
-  { n: 'Soldat',   sh: 'Carré',    hp: 10, dmg: 2,   range: .35, speed: 3,   cd: .7, size: .7,  cost: 1, rew: 1, enc: 1 },
-  { n: 'Archer',   sh: 'Triangle', hp: 5,  dmg: 1.6, range: 11,  speed: 2.6, cd: 1.3, size: .75, cost: 3, rew: 2, enc: 3, ranged: 1, ps: 24 },
-  { n: 'Bouclier', sh: 'Cercle',   hp: 45, dmg: 2.5, range: .35, speed: 1.8, cd: .9, size: 1.1, cost: 6, rew: 4, enc: 6 },
-  { n: 'Cavalier', sh: 'Losange',  hp: 14, dmg: 3.5, range: .45, speed: 6.5, cd: .8, size: .95, cost: 5, rew: 3, enc: 9 },
-];
-const COL = [['#4d99ff', '#59e0ff', '#3861f2', '#998cff'], ['#ff524d', '#ff9e40', '#cc2938', '#ff66ad']];
-const SK = [
-  { id: 'sol_hp',     name: 'Armure des carrés',      desc: '+20% PV des Soldats',                              cost: 15,  g: 1.45, max: 10, d: 0, pre: [] },
-  { id: 'unlock_shi', name: 'Recruter des Cercles',   desc: 'Débloque les Boucliers (très résistants)',         cost: 150, g: 1,    max: 1,  d: 1, pre: ['sol_hp'] },
-  { id: 'shi_hp',     name: 'Remparts vivants',       desc: '+25% PV des Boucliers',                            cost: 60,  g: 1.5,  max: 8,  d: 2, pre: ['unlock_shi'] },
-  { id: 'sol_dmg',    name: 'Lames affûtées',         desc: '+20% dégâts des Soldats',                          cost: 15,  g: 1.45, max: 10, d: 0, pre: [] },
-  { id: 'unlock_cav', name: 'Recruter des Losanges',  desc: 'Débloque les Cavaliers (rapides, frappe forte)',   cost: 250, g: 1,    max: 1,  d: 1, pre: ['sol_dmg'] },
-  { id: 'cav_dmg',    name: 'Charge',                 desc: '+20% dégâts des Cavaliers',                        cost: 80,  g: 1.5,  max: 8,  d: 2, pre: ['unlock_cav'] },
-  { id: 'cav_spd',    name: 'Destriers',              desc: '+8% vitesse des Cavaliers',                        cost: 70,  g: 1.5,  max: 6,  d: 2, pre: ['unlock_cav'] },
-  { id: 'rally',      name: 'Ralliement',             desc: 'Capacité : +70% vitesse. +durée par niveau',      cost: 200, g: 1.7,  max: 4,  d: 2, pre: ['unlock_cav'] },
-  { id: 'unlock_arc', name: 'Recruter des Triangles', desc: 'Débloque les Archers (tir à distance)',            cost: 40,  g: 1,    max: 1,  d: 0, pre: [] },
-  { id: 'arc_rate',   name: 'Cadence de tir',         desc: '+12% vitesse de tir des Archers',                  cost: 30,  g: 1.5,  max: 8,  d: 1, pre: ['unlock_arc'] },
-  { id: 'arc_range',  name: 'Arcs longs',             desc: '+8% portée des Archers',                           cost: 35,  g: 1.5,  max: 6,  d: 1, pre: ['unlock_arc'] },
-  { id: 'volley',     name: 'Pluie de flèches',       desc: 'Capacité : volée sur zone. +dégâts par niveau',   cost: 120, g: 1.7,  max: 5,  d: 1, pre: ['unlock_arc'] },
-  { id: 'drill',      name: 'Discipline',             desc: '+6% PV de toutes les unités',                      cost: 300, g: 1.6,  max: 10, d: 3, pre: ['unlock_shi', 'unlock_arc'] },
-  { id: 'drums',      name: 'Tambours de guerre',     desc: '+5% vitesse de toutes les unités',                 cost: 180, g: 1.6,  max: 6,  d: 4, pre: ['drill'] },
-  { id: 'command',    name: 'Commandement',           desc: '+6% dégâts de toutes les unités',                  cost: 300, g: 1.6,  max: 10, d: 3, pre: ['unlock_cav', 'unlock_arc'] },
-  { id: 'loot',       name: 'Pillage',                desc: "+12% d'or gagné",                                  cost: 50,  g: 1.6,  max: 10, d: 0, pre: [] },
-];
-const SKN = Object.fromEntries(SK.map(s => [s.id, s]));
-
-// ======================================================================= sauvegarde
-const KEY = 'wmao_web_v1', MAPKEY = 'wmao_web_map_v1';
-let P = load();
-function load() {
-  let p = null;
-  try { p = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  p = Object.assign({ gold: 0, level: 1, best: 1, roster: [20, 0, 0, 0], skill: {}, pl: [] }, p || {});
-  return p;
-}
-const packPl = l => { const a = []; for (const p of l) a.push(+p.x.toFixed(2), +p.z.toFixed(2), p.t, p.o); return a; };
-const unpackPl = (a, l) => { l.length = 0; if (!a) return; for (let i = 0; i + 3 < a.length; i += 4) l.push({ x: a[i], z: a[i + 1], t: a[i + 2], o: a[i + 3] }); };
-function save() { P.pl = packPl(campP); try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} }
-
-const lvl = id => P.skill[id] | 0;
-const unlocked = t => t === 0 || lvl(['', 'unlock_arc', 'unlock_shi', 'unlock_cav'][t]) > 0;
-const prereqOk = s => s.pre.every(p => lvl(p) > 0);
-const skCost = s => Math.round(s.cost * Math.pow(s.g, lvl(s.id)));
-const goldMul = () => 1 + .12 * lvl('loot');
-function stats(t) {
-  const b = T[t], s = { hp: b.hp, dmg: b.dmg, range: b.range, speed: b.speed, cd: b.cd, size: b.size, ranged: !!b.ranged, ps: b.ps || 0 };
-  let hpM = 1 + .06 * lvl('drill'), dmM = 1 + .06 * lvl('command'), spM = 1 + .05 * lvl('drums');
-  if (t === 0) { hpM *= 1 + .2 * lvl('sol_hp'); dmM *= 1 + .2 * lvl('sol_dmg'); }
-  if (t === 1) { s.cd /= 1 + .12 * lvl('arc_rate'); s.range *= 1 + .08 * lvl('arc_range'); }
-  if (t === 2) { hpM *= 1 + .25 * lvl('shi_hp'); }
-  if (t === 3) { dmM *= 1 + .2 * lvl('cav_dmg'); spM *= 1 + .08 * lvl('cav_spd'); }
-  s.hp *= hpM; s.dmg *= dmM; s.speed *= spM; return s;
-}
-const baseStats = t => { const b = T[t]; return { hp: b.hp, dmg: b.dmg, range: b.range, speed: b.speed, cd: b.cd, size: b.size, ranged: !!b.ranged, ps: b.ps || 0 }; };
-
-// ======================================================================= état
-let mode = 0; // 0 campagne, 1 bac à sable
-let state = 'prep';
-const campP = [], campE = [], sbP = [], sbE = [];
-const PL = () => mode === 0 ? campP : sbP;
-const EL = () => mode === 0 ? campE : sbE;
-const placedP = [0, 0, 0, 0], placedE = [0, 0, 0, 0];
-let brushT = 0, brushO = 0, erase = false, paintTeam = 0, brushSize = 4, density = 12, spawnAcc = 0;
-let tab = 0, sheetMin = false;
-let sim = null, speedIdx = 0, paused = false, volleyArmed = false, volleyReady = 0, rallyReady = 0;
-let res = null;
-const typeAllowed = t => mode === 0 ? unlocked(t) : (unlocked(t) || P.best >= T[t].enc);
-
-function recount() {
-  placedP.fill(0); placedE.fill(0);
-  for (const p of PL()) placedP[p.t]++;
-  for (const p of EL()) placedE[p.t]++;
-}
-
-// ======================================================================= formations
-function block(list, team, cx, cz, n, t, o) {
-  if (n <= 0) return;
-  const sp = T[t].size * 1.05, maxW = Math.max(1, Math.floor((H - 6) / sp));
-  let depth = Math.max(1, Math.ceil(Math.sqrt(n / 3)));
-  const width = Math.min(maxW, Math.ceil(n / depth));
-  const dir = team === 0 ? -1 : 1;
-  for (let k = 0; k < n; k++) {
-    const r = Math.floor(k / width), c = k % width;
-    let x = cx + dir * r * sp, z = cz + (c - (width - 1) / 2) * sp;
-    x = team === 0 ? clamp(x, -HW + 1.5, -3.5) : clamp(x, 3.5, HW - 1.5);
-    z = clamp(z, -HH + 1.5, HH - 1.5);
-    list.push({ x, z, t, o });
-  }
-}
-function autoPlace(list, team, useRoster) {
-  const have = [0, 0, 0, 0]; for (const p of list) have[p.t]++;
-  const s = team === 0 ? -1 : 1;
-  for (let t = 0; t < 4; t++) {
-    if (!typeAllowed(t)) continue;
-    const n = useRoster ? P.roster[t] - have[t] : (t === brushT ? 1000 : 0);
-    if (n <= 0) continue;
-    if (t === 2) block(list, team, s * 8, 0, n, t, 0);
-    else if (t === 0) block(list, team, s * 12, 0, n, t, 0);
-    else if (t === 3) { block(list, team, s * 14, 26, n >> 1, t, 0); block(list, team, s * 14, -26, n - (n >> 1), t, 0); }
-    else block(list, team, s * 30, 0, n, t, 1);
-  }
-  recount();
-}
-function rngFrom(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-function genEnemy(L) {
-  campE.length = 0;
-  const r = rngFrom(L * 7919 + 13);
-  const total = Math.round(15 * Math.pow(1.28, L - 1));
-  const w = [1, L >= 3 ? .4 : 0, L >= 6 ? .18 : 0, L >= 9 ? .25 : 0], sum = w.reduce((a, b) => a + b);
-  for (let t = 0; t < 4; t++) {
-    const n = Math.round(total * w[t] / sum); if (n <= 0) continue;
-    const parts = 1 + Math.floor(r() * Math.min(3, 1 + (L >> 2)));
-    for (let k = 0; k < parts; k++) {
-      const pn = k === parts - 1 ? n - Math.floor(n / parts) * (parts - 1) : Math.floor(n / parts);
-      let cz = r() * 50 - 25, cx;
-      if (t === 2) cx = 6 + r() * 4;
-      else if (t === 3) { cx = 14 + r() * 10; cz = (k % 2 ? -1 : 1) * (20 + r() * 15); }
-      else if (t === 1) cx = 30 + r() * 10;
-      else cx = 10 + r() * 8;
-      const o = (t === 1 || (L > 4 && r() < .2)) ? 1 : 0;
-      block(campE, 1, cx, cz, pn, t, o);
-    }
-  }
-  recount();
-}
-function demoSandbox() { sbP.length = 0; sbE.length = 0; block(sbP, 0, -10, 0, 2500, 0, 0); block(sbE, 1, 10, 0, 3000, 0, 0); }
-
-// ======================================================================= simulation
-class Sim {
-  constructor(cap) {
-    this.cap = Math.max(1, cap); this.n = 0;
-    const F = () => new Float32Array(this.cap);
-    this.x = F(); this.z = F(); this.hx = F(); this.hz = F(); this.hp = F(); this.cd = F(); this.dmg = F(); this.range = F();
-    this.speed = F(); this.cool = F(); this.size = F(); this.ps = F(); this.rew = F(); this.deathT = F();
-    this.team = new Uint8Array(this.cap); this.type = new Uint8Array(this.cap); this.order = new Uint8Array(this.cap);
-    this.alive = new Uint8Array(this.cap); this.ranged = new Uint8Array(this.cap);
-    this.target = new Int32Array(this.cap); this.wait = new Int32Array(this.cap); this.next = new Int32Array(this.cap);
-    this.head = new Int32Array(GW * GH);
-    this.aliveC = [0, 0]; this.startC = [0, 0]; this.gold = 0; this.time = 0; this.buff = [1, 1]; this.rallyT = 0;
-    this.finished = false; this.winner = -1; this.cen = [[0, 0], [0, 0]];
-    const PC = 40000; this.PC = PC; this.pn = 0;
-    this.px = new Float32Array(PC); this.pz = new Float32Array(PC); this.tx = new Float32Array(PC); this.tz = new Float32Array(PC);
-    this.pd = new Float32Array(PC); this.pspd = new Float32Array(PC); this.parea = new Float32Array(PC); this.pd0 = new Float32Array(PC); this.parc = new Float32Array(PC);
-    this.ptgt = new Int32Array(PC); this.pteam = new Uint8Array(PC);
-  }
-  add(x, z, t, o, tm, s, rew) {
-    if (this.n >= this.cap) return; const i = this.n++;
-    this.x[i] = x; this.z[i] = z; this.hx[i] = tm === 0 ? 1 : -1; this.hz[i] = 0;
-    this.hp[i] = s.hp; this.cd[i] = Math.random() * s.cd; this.dmg[i] = s.dmg; this.range[i] = s.range;
-    this.speed[i] = s.speed * (.92 + .16 * Math.random()); this.cool[i] = s.cd; this.size[i] = s.size;
-    this.ranged[i] = s.ranged ? 1 : 0; this.ps[i] = s.ps; this.rew[i] = rew;
-    this.team[i] = tm; this.type[i] = t; this.order[i] = o; this.alive[i] = 1; this.target[i] = -1; this.wait[i] = i % 8;
-    this.aliveC[tm]++; this.startC[tm]++;
-  }
-  cx(x) { const c = ((x + HW) / CELL) | 0; return c < 0 ? 0 : c >= GW ? GW - 1 : c; }
-  cz(z) { const c = ((z + HH) / CELL) | 0; return c < 0 ? 0 : c >= GH ? GH - 1 : c; }
-  grid() {
-    this.head.fill(-1);
-    for (let i = 0; i < this.n; i++) { if (!this.alive[i]) continue; const c = this.cz(this.z[i]) * GW + this.cx(this.x[i]); this.next[i] = this.head[c]; this.head[c] = i; }
-  }
-  centroids() {
-    let a = 0, b = 0, c = 0, d = 0, n0 = 0, n1 = 0;
-    for (let i = 0; i < this.n; i++) { if (!this.alive[i]) continue; if (this.team[i] === 0) { a += this.x[i]; b += this.z[i]; n0++; } else { c += this.x[i]; d += this.z[i]; n1++; } }
-    if (n0) this.cen[0] = [a / n0, b / n0]; if (n1) this.cen[1] = [c / n1, d / n1];
-  }
-  step(dt) {
-    if (this.finished) return;
-    this.time += dt;
-    if (this.rallyT > 0) { this.rallyT -= dt; if (this.rallyT <= 0) this.buff[0] = 1; }
-    this.grid(); this.centroids();
-    for (let i = 0; i < this.n; i++) if (this.alive[i]) this.unit(i, dt);
-    this.separate(); this.projectiles(dt);
-    if (this.aliveC[0] <= 0 || this.aliveC[1] <= 0) { this.finished = true; this.winner = this.aliveC[0] > 0 ? 0 : 1; }
-    else if (this.time >= TIME_LIMIT) { this.finished = true; this.winner = this.aliveC[0] / this.startC[0] > this.aliveC[1] / this.startC[1] ? 0 : 1; }
-  }
-  find(i, maxR) {
-    const cx = this.cx(this.x[i]), cz = this.cz(this.z[i]), rings = Math.ceil(maxR / CELL), my = this.team[i];
-    const xi = this.x[i], zi = this.z[i], head = this.head, next = this.next, X = this.x, Z = this.z, TM = this.team, AL = this.alive;
-    let best = -1, bd = maxR * maxR;
-    for (let r = 0; r <= rings; r++) {
-      for (let dz = -r; dz <= r; dz++) {
-        const gz = cz + dz; if (gz < 0 || gz >= GH) continue;
-        const edge = dz === -r || dz === r; const st = edge || r === 0 ? 1 : 2 * r;
-        for (let dx = -r; dx <= r; dx += st) {
-          const gx = cx + dx; if (gx < 0 || gx >= GW) continue;
-          for (let j = head[gz * GW + gx]; j !== -1; j = next[j]) {
-            if (TM[j] === my || !AL[j]) continue;
-            const a = X[j] - xi, b = Z[j] - zi, d = a * a + b * b; if (d < bd) { bd = d; best = j; }
-          }
-        }
-      }
-      const rd = r * CELL; if (best !== -1 && bd <= rd * rd) break;
-    }
-    return best;
-  }
-  unit(i, dt) {
-    this.cd[i] -= dt;
-    let t = this.target[i];
-    const lost = t >= 0 && !this.alive[t]; if (lost) t = -1;
-    if (lost || --this.wait[i] <= 0) {
-      const r = this.order[i] === 1 ? Math.max(this.range[i] + 4, 8) : Math.max(this.range[i] + 2, 16);
-      t = this.find(i, r); this.wait[i] = t >= 0 ? 6 + (i & 3) : 10 + (i & 7);
-    }
-    this.target[i] = t;
-    const spd = this.speed[i] * this.buff[this.team[i]];
-    let mx = 0, mz = 0;
-    if (t >= 0) {
-      const dx = this.x[t] - this.x[i], dz = this.z[t] - this.z[i], d = Math.sqrt(dx * dx + dz * dz) + 1e-5;
-      const reach = this.range[i] + (this.size[i] + this.size[t]) * .5;
-      this.hx[i] = dx / d; this.hz[i] = dz / d;
-      if (d <= reach) {
-        if (this.cd[i] <= 0) { this.cd[i] = this.cool[i]; if (this.ranged[i]) this.fire(i, t); else this.damage(t, this.dmg[i], this.team[i]); }
-      } else { mx = this.hx[i]; mz = this.hz[i]; }
-    } else if (this.order[i] === 0) {
-      const et = 1 - this.team[i];
-      if (this.aliveC[et] > 0) {
-        const dx = this.cen[et][0] - this.x[i], dz = (this.cen[et][1] - this.z[i]) * .35, d = Math.sqrt(dx * dx + dz * dz);
-        if (d > .5) { mx = dx / d; mz = dz / d; this.hx[i] = mx; this.hz[i] = mz; }
-      }
-    }
-    if (mx || mz) { this.x[i] += mx * spd * dt; this.z[i] += mz * spd * dt; }
-  }
-  separate() {
-    const hw = HW - .3, hh = HH - .3, X = this.x, Z = this.z, S = this.size, AL = this.alive, head = this.head, next = this.next;
-    for (let i = 0; i < this.n; i++) {
-      if (!AL[i]) continue;
-      const cx = this.cx(X[i]), cz = this.cz(Z[i]); let checks = 0, ox = 0, oz = 0; const si = S[i];
-      for (let gz = cz - 1; gz <= cz + 1 && checks < 12; gz++) {
-        if (gz < 0 || gz >= GH) continue;
-        for (let gx = cx - 1; gx <= cx + 1 && checks < 12; gx++) {
-          if (gx < 0 || gx >= GW) continue;
-          for (let j = head[gz * GW + gx]; j !== -1 && checks < 12; j = next[j]) {
-            if (j === i || !AL[j]) continue;
-            let dx = X[i] - X[j], dz = Z[i] - Z[j]; const md = (si + S[j]) * .48; let d2 = dx * dx + dz * dz;
-            if (d2 >= md * md) continue; checks++;
-            if (d2 < 1e-6) { dx = ((i * 7919) % 13 - 6) * .01 + .001; dz = ((i * 104729) % 11 - 5) * .01; d2 = dx * dx + dz * dz; }
-            const d = Math.sqrt(d2), w = S[j] / (si + S[j]), push = (md - d) / d * w;
-            ox += dx * push; oz += dz * push;
-          }
-        }
-      }
-      X[i] = clamp(X[i] + ox, -hw, hw); Z[i] = clamp(Z[i] + oz, -hh, hh);
-    }
-  }
-  fire(i, t) { if (this.pn >= this.PC) { this.damage(t, this.dmg[i], this.team[i]); return; } this.spawnP(this.x[i], this.z[i], this.x[t], this.z[t], t, this.dmg[i], this.ps[i], 0, this.team[i], .12); }
-  spawnP(sx, sz, tx, tz, tgt, d, spd, area, tm, arc) {
-    if (this.pn >= this.PC) return; const p = this.pn++;
-    this.px[p] = sx; this.pz[p] = sz; this.tx[p] = tx; this.tz[p] = tz; this.ptgt[p] = tgt; this.pd[p] = d; this.pspd[p] = spd;
-    this.parea[p] = area; this.pteam[p] = tm; this.parc[p] = arc; this.pd0[p] = Math.hypot(tx - sx, tz - sz) + .01;
-  }
-  removeP(p) {
-    const l = --this.pn; if (p === l) return;
-    for (const k of ['px', 'pz', 'tx', 'tz', 'ptgt', 'pd', 'pspd', 'parea', 'pteam', 'pd0', 'parc']) this[k][p] = this[k][l];
-  }
-  projectiles(dt) {
-    for (let p = 0; p < this.pn;) {
-      const t = this.ptgt[p];
-      if (t >= 0 && this.alive[t]) { this.tx[p] = this.x[t]; this.tz[p] = this.z[t]; }
-      const dx = this.tx[p] - this.px[p], dz = this.tz[p] - this.pz[p], d = Math.sqrt(dx * dx + dz * dz), st = this.pspd[p] * dt;
-      if (d <= st) {
-        if (this.parea[p] > 0) this.area(this.tx[p], this.tz[p], this.parea[p], this.pd[p], this.pteam[p]);
-        else if (t >= 0 && this.alive[t]) this.damage(t, this.pd[p], this.pteam[p]);
-        this.removeP(p); continue;
-      }
-      this.px[p] += dx / d * st; this.pz[p] += dz / d * st; p++;
-    }
-  }
-  area(px, pz, r, d, att) {
-    const x0 = this.cx(px - r), x1 = this.cx(px + r), z0 = this.cz(pz - r), z1 = this.cz(pz + r), r2 = r * r;
-    for (let gz = z0; gz <= z1; gz++) for (let gx = x0; gx <= x1; gx++)
-      for (let j = this.head[gz * GW + gx]; j !== -1; j = this.next[j]) {
-        if (this.team[j] === att || !this.alive[j]) continue;
-        const a = this.x[j] - px, b = this.z[j] - pz; if (a * a + b * b <= r2) this.damage(j, d, att);
-      }
-  }
-  damage(t, d, att) {
-    if (!this.alive[t]) return; this.hp[t] -= d;
-    if (this.hp[t] <= 0) { this.alive[t] = 0; this.deathT[t] = this.time; this.aliveC[this.team[t]]--; if (this.team[t] === 1) this.gold += this.rew[t]; }
-  }
-  setOrder(tm, o) { for (let i = 0; i < this.n; i++) if (this.team[i] === tm) { this.order[i] = o; if (o === 0) this.wait[i] = 0; } }
-  volley(px, pz, r, d, k) {
-    for (let a = 0; a < k; a++) {
-      const ang = Math.random() * 6.283, rr = Math.sqrt(Math.random()) * r;
-      this.spawnP(px - 30 + (Math.random() * 8 - 4), pz + (Math.random() * 16 - 8), px + Math.cos(ang) * rr, pz + Math.sin(ang) * rr, -1, d, 26 + Math.random() * 8, 1, 0, .35);
-    }
-  }
-  rally(dur) { this.buff[0] = 1.7; this.rallyT = dur; }
-}
-
-// ======================================================================= caméra & rendu
-const cv = document.getElementById('c'), ctx = cv.getContext('2d', { alpha: false });
-let DPR = 1, VW = 0, VH = 0;
-const cam = { x: 0, z: 0, s: 6 };
-let ROT = false; // portrait : le terrain pivote (bleus en bas, rouges en haut)
-function resize() {
-  DPR = Math.min(2, window.devicePixelRatio || 1); VW = innerWidth; VH = innerHeight;
-  cv.width = VW * DPR | 0; cv.height = VH * DPR | 0; cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
-}
-function fitCam() {
-  ROT = VH > VW * 1.1;
-  if (ROT) { cam.s = Math.min(VW / (H + 4), VH * .62 / (W + 4)); cam.z = 0; cam.x = -(VH * .19) / cam.s; }
-  else { cam.s = Math.min(VW / (W + 4), VH * .6 / (H + 4)); cam.x = 0; cam.z = VH * .17 / cam.s; }
-}
-// écran -> monde
-const wx = (px, py) => ROT ? cam.x - (py - VH / 2) / cam.s : (px - VW / 2) / cam.s + cam.x;
-const wz = (px, py) => ROT ? (px - VW / 2) / cam.s + cam.z : (py - VH / 2) / cam.s + cam.z;
-// déplace la vue d'un delta écran
-function panScreen(dX, dY) { if (ROT) { cam.z -= dX / cam.s; cam.x += dY / cam.s; } else { cam.x -= dX / cam.s; cam.z -= dY / cam.s; } clampCam(); }
-function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-function zoomAt(px, py, f) {
-  const x = wx(px, py), z = wz(px, py); cam.s = clamp(cam.s * f, 1.2, 60);
-  if (ROT) { cam.z = z - (px - VW / 2) / cam.s; cam.x = x + (py - VH / 2) / cam.s; }
-  else { cam.x = x - (px - VW / 2) / cam.s; cam.z = z - (py - VH / 2) / cam.s; }
-  clampCam();
-}
-function clampCam() { cam.x = clamp(cam.x, -HW - 40, HW); cam.z = clamp(cam.z, -HH, HH + 40); }
-
-function drawShapes(n, getX, getZ, getHX, getHZ, getS, filterTeam, filterType) {
-  // trace toutes les formes d'un groupe dans un seul chemin
-  ctx.beginPath();
-  const lod = cam.s * .7 < 3;
-  for (let i = 0; i < n; i++) {
-    if (!filterTeam(i) || !filterType(i)) continue;
-    const x = getX(i), z = getZ(i), s = getS(i), h = s * .5;
-    if (lod) { ctx.rect(x - h, z - h, s, s); continue; }
-    const hx = getHX(i), hz = getHZ(i);
-    switch (filterType.t) {
-      case 0: ctx.rect(x - h, z - h, s, s); break;
-      case 1: { const a = .62 * s, b = .4 * s, c = .48 * s;
-        ctx.moveTo(x + hx * a, z + hz * a); ctx.lineTo(x - hx * b + hz * c, z - hz * b - hx * c); ctx.lineTo(x - hx * b - hz * c, z - hz * b + hx * c); ctx.closePath(); break; }
-      case 2: ctx.moveTo(x + h, z); ctx.arc(x, z, h, 0, 6.2832); break;
-      case 3: { const a = .72 * s, c = .42 * s;
-        ctx.moveTo(x + hx * a, z + hz * a); ctx.lineTo(x + hz * c, z - hx * c); ctx.lineTo(x - hx * a, z - hz * a); ctx.lineTo(x - hz * c, z + hx * c); ctx.closePath(); break; }
-    }
-  }
-  ctx.fill();
-}
-
-let mouse = { x: -1, y: -1, in: false };
-function render() {
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, VW, VH);
-  const s = cam.s * DPR;
-  if (ROT) ctx.setTransform(0, -s, s, 0, DPR * (VW / 2 - cam.z * cam.s), DPR * (VH / 2 + cam.x * cam.s));
-  else ctx.setTransform(s, 0, 0, s, DPR * (VW / 2 - cam.x * cam.s), DPR * (VH / 2 - cam.z * cam.s));
-  ctx.fillStyle = '#19202e'; ctx.fillRect(-HW, -HH, HW, H);
-  ctx.fillStyle = '#2b1b1d'; ctx.fillRect(0, -HH, HW, H);
-  ctx.fillStyle = '#4a4f5c'; ctx.fillRect(-.12, -HH, .24, H);
-
-  if (sim && state !== 'prep') {
-    const S = sim, n = S.n;
-    // morts récents
-    ctx.fillStyle = '#3a3c44'; ctx.beginPath();
-    for (let i = 0; i < n; i++) if (!S.alive[i] && S.time - S.deathT[i] < 3) { const h = S.size[i] * .35; ctx.rect(S.x[i] - h, S.z[i] - h, h * 2, h * 2); }
-    ctx.fill();
-    for (let tm = 0; tm < 2; tm++) for (let t = 0; t < 4; t++) {
-      ctx.fillStyle = COL[tm][t];
-      const ft = i => S.type[i] === t; ft.t = t;
-      drawShapes(n, i => S.x[i], i => S.z[i], i => S.hx[i], i => S.hz[i], i => S.size[i], i => S.alive[i] && S.team[i] === tm, ft);
-    }
-    // projectiles
-    ctx.strokeStyle = '#fff2a0'; ctx.lineWidth = Math.max(.08, 1.2 / cam.s); ctx.beginPath();
-    for (let p = 0; p < S.pn; p++) {
-      const dx = S.tx[p] - S.px[p], dz = S.tz[p] - S.pz[p], d = Math.hypot(dx, dz) + 1e-5;
-      const f = 1 - clamp(d / S.pd0[p], 0, 1), lift = S.parc[p] * S.pd0[p] * 4 * f * (1 - f) * .5;
-      const x = S.px[p] + (ROT ? lift : 0), z = S.pz[p] - (ROT ? 0 : lift);
-      ctx.moveTo(x, z); ctx.lineTo(x - dx / d * .8, z - dz / d * .8);
-    }
-    ctx.stroke();
-  } else {
-    const lists = [PL(), EL()];
-    for (let tm = 0; tm < 2; tm++) {
-      const L = lists[tm];
-      for (let t = 0; t < 4; t++) {
-        ctx.fillStyle = COL[tm][t];
-        const ft = i => L[i].t === t; ft.t = t; const hx = tm === 0 ? 1 : -1;
-        drawShapes(L.length, i => L[i].x, i => L[i].z, () => hx, () => 0, i => T[L[i].t].size, () => true, ft);
-      }
-    }
-  }
-  // curseur
-  if (mouse.in && (state === 'prep' || volleyArmed)) {
-    const r = state === 'prep' ? brushSize : 7;
-    ctx.strokeStyle = state === 'prep' ? (erase ? '#ff6a5a' : '#ffffffcc') : '#ffcc33';
-    ctx.lineWidth = 1.5 / cam.s; ctx.beginPath(); ctx.arc(wx(mouse.x, mouse.y), wz(mouse.x, mouse.y), r, 0, 6.2832); ctx.stroke();
-  }
-}
-
-// ======================================================================= entrées
-const keys = new Set();
-addEventListener('keydown', e => {
-  keys.add(e.key.toLowerCase());
-  if (e.key === ' ' && state === 'battle') { paused = !paused; buildHud(); e.preventDefault(); }
-  if (state === 'prep' && '1234'.includes(e.key)) selectBrush(+e.key - 1);
-});
-addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-
-const ptrs = new Map(); let gesture = null, painting = false, paintErase = false, panning = false;
-cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('pointerdown', e => {
-  cv.setPointerCapture(e.pointerId);
-  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  mouse = { x: e.clientX, y: e.clientY, in: true };
-  if (ptrs.size === 1) {
-    if (e.button === 1) panning = true;
-    else if (state === 'prep') { painting = true; paintErase = e.button === 2; spawnAcc = 0; paintAt(1 / 60); }
-    else if (state === 'battle' && volleyArmed && e.button === 0) fireVolley(wx(e.clientX, e.clientY), wz(e.clientX, e.clientY));
-    else panning = true;
-  } else { painting = false; panning = false; startGesture(); }
-});
-cv.addEventListener('pointermove', e => {
-  const p = ptrs.get(e.pointerId);
-  mouse = { x: e.clientX, y: e.clientY, in: true };
-  if (!p) return;
-  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-  if (ptrs.size >= 2 && gesture) {
-    const [a, b] = [...ptrs.values()]; const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y);
-    panScreen(mx - gesture.mx, my - gesture.my);
-    zoomAt(mx, my, d / gesture.d); gesture = { mx, my, d };
-  } else if (panning) panScreen(dx, dy);
-});
-const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) gesture = null; if (ptrs.size === 0) { painting = false; panning = false; if (e.pointerType !== 'mouse') mouse.in = false; } };
-cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
-cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouse.in = false; });
-function startGesture() { const [a, b] = [...ptrs.values()]; gesture = { mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) }; }
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.pow(1.0015, -e.deltaY)); }, { passive: false });
-
-function inZone(team, x, z) {
-  if (z < -HH + 1 || z > HH - 1) return false;
-  return team === 0 ? (x > -HW + 1 && x < -3) : (x > 3 && x < HW - 1);
-}
-let uiDirty = false;
-function paintAt(dt) {
-  const team = mode === 1 ? paintTeam : 0, list = team === 0 ? PL() : EL();
-  const mx = wx(mouse.x, mouse.y), mz = wz(mouse.x, mouse.y);
-  if (erase || paintErase) {
-    const r2 = brushSize * brushSize, before = list.length;
-    for (let i = list.length - 1; i >= 0; i--) { const p = list[i], a = p.x - mx, b = p.z - mz; if (a * a + b * b < r2) { list[i] = list[list.length - 1]; list.pop(); } }
-    if (list.length !== before) { recount(); uiDirty = true; }
-    return;
-  }
-  if (!typeAllowed(brushT)) return;
-  spawnAcc += density * dt * 30; let n = spawnAcc | 0; spawnAcc -= n;
-  const placed = team === 0 ? placedP : placedE;
-  for (let k = 0; k < n; k++) {
-    if (mode === 0 && placed[brushT] >= P.roster[brushT]) { toast('Plus de ' + T[brushT].n + ' disponibles : recrute-en avec de l\'or.'); break; }
-    if (PL().length + EL().length >= MAX_UNITS) { toast('Limite de ' + MAX_UNITS + ' unités atteinte.'); break; }
-    const a = Math.random() * 6.2832, r = Math.sqrt(Math.random()) * brushSize, x = mx + Math.cos(a) * r, z = mz + Math.sin(a) * r;
-    if (!inZone(team, x, z)) continue;
-    list.push({ x, z, t: brushT, o: brushO }); placed[brushT]++; uiDirty = true;
-  }
-}
-
-// ======================================================================= bataille
-function startBattle() {
-  const pl = PL(), el = EL();
-  if (!pl.length) return toast('Place au moins une unité !');
-  if (!el.length) return toast("Il n'y a aucun ennemi sur le terrain.");
-  save();
-  sim = new Sim(pl.length + el.length);
-  const camp = mode === 0, lm = camp ? 1 + .05 * (P.level - 1) : 1;
-  const ps = [0, 1, 2, 3].map(t => camp ? stats(t) : baseStats(t));
-  const es = [0, 1, 2, 3].map(t => { const s = baseStats(t); s.hp *= lm; s.dmg *= lm; return s; });
-  const rm = camp ? goldMul() * (1 + .08 * (P.level - 1)) : 0;
-  for (const p of pl) sim.add(p.x, p.z, p.t, p.o, 0, ps[p.t], 0);
-  for (const e of el) sim.add(e.x, e.z, e.t, e.o, 1, es[e.t], T[e.t].rew * rm);
-  state = 'battle'; paused = false; volleyArmed = false; volleyReady = 0; rallyReady = 0;
-  renderUI();
-}
-const volleyLvl = () => mode === 1 ? 1 : lvl('volley');
-const rallyLvl = () => mode === 1 ? 1 : lvl('rally');
-function fireVolley(x, z) {
-  const lv = Math.max(1, volleyLvl());
-  sim.volley(x, z, 7, 6 * (1 + .35 * (lv - 1)), 90); volleyReady = sim.time + 12; volleyArmed = false; buildHud();
-}
-function endBattle() {
-  state = 'result'; volleyArmed = false;
-  const win = sim.winner === 0;
-  res = { win, lost: sim.startC[0] - sim.aliveC[0], killed: sim.startC[1] - sim.aliveC[1], gold: 0, bonus: 0 };
-  if (mode === 0) {
-    res.gold = Math.round(sim.gold); res.bonus = win ? Math.round(10 * P.level * goldMul()) : 0;
-    P.gold += res.gold + res.bonus;
-    if (win) { P.level++; P.best = Math.max(P.best, P.level); }
-    save();
-  }
-  renderUI();
-}
-function continueAfter() { state = 'prep'; sim = null; if (mode === 0) genEnemy(P.level); recount(); renderUI(); }
-
-// ======================================================================= interface
-const $ = s => document.querySelector(s);
-let toastT = 0;
-function toast(m) { const t = $('#toast'); if (t.textContent !== m || toastT <= 0) { t.textContent = m; } t.style.opacity = 1; toastT = 3; }
-function selectBrush(t) { if (typeAllowed(t)) { brushT = t; erase = false; renderUI(); } }
-const sw = (tm, t) => `<span class="sw" style="background:${COL[tm][t]}"></span>`;
-const fmt = n => Math.round(n).toLocaleString('fr-FR');
-
-function renderUI() {
-  document.querySelectorAll('#modeSeg button').forEach(b => { b.classList.toggle('on', +b.dataset.v === mode); b.disabled = state !== 'prep'; });
-  $('#sheet').hidden = state !== 'prep';
-  $('#hud').hidden = state !== 'battle';
-  $('#result').hidden = state !== 'result';
-  if (state === 'prep') buildSheet();
-  if (state === 'battle') buildHud();
-  if (state === 'result') buildResult();
-  updateStats();
-}
-function updateStats() {
-  const u = sim && state !== 'prep' ? sim.aliveC[0] + sim.aliveC[1] : PL().length + EL().length;
-  $('#stats').innerHTML = (mode === 0 ? `Bataille ${P.level} · <span class="gold">${fmt(P.gold)} or</span> · ` : '') + `${fmt(u)} unités`;
-}
-
-function buildSheet() {
-  const camp = mode === 0;
-  $('#sheet').className = 'ui' + (sheetMin ? ' min' : '');
-  let h = `<div id="sheetHead">`;
-  if (camp) h += `<div class="seg"><button data-act="tab" data-v="0" class="${tab === 0 ? 'on' : ''}">Armée</button><button data-act="tab" data-v="1" class="${tab === 1 ? 'on' : ''}">Compétences</button></div>`;
-  else h += `<b>Éditeur</b>`;
-  h += `<button data-act="min">${sheetMin ? '▲' : '▼'}</button><span style="flex:1"></span><button class="big" data-act="battle">BATAILLE ⚔</button></div><div id="sheetBody">`;
-  if (tab === 0 || !camp) {
-    h += `<div class="row">`;
-    for (let t = 0; t < 4; t++) if (typeAllowed(t)) h += `<button data-act="brush" data-v="${t}" class="${brushT === t && !erase ? 'on' : ''}">${sw(camp ? 0 : paintTeam, t)}${T[t].sh}</button>`;
-    h += `</div><div class="row"><div class="seg"><button data-act="order" data-v="0" class="${brushO === 0 ? 'on' : ''}">MARCHE</button><button data-act="order" data-v="1" class="${brushO === 1 ? 'on' : ''}">TENIR</button></div>`;
-    h += `<div class="seg"><button data-act="erase" data-v="0" class="${!erase ? 'on' : ''}">Peindre</button><button data-act="erase" data-v="1" class="red ${erase ? 'on' : ''}">Gommer</button></div>`;
-    if (!camp) h += `<div class="seg"><button data-act="team" data-v="0" class="${paintTeam === 0 ? 'on' : ''}">Bleus</button><button data-act="team" data-v="1" class="red ${paintTeam === 1 ? 'on' : ''}">Rouges</button></div>`;
-    h += `</div><div class="row small">Taille <input type="range" id="bs" min="0.5" max="20" step="0.5" value="${brushSize}"> Densité <input type="range" id="bd" min="1" max="60" step="1" value="${density}"></div>`;
-    h += `<div class="row"><button data-act="auto">${camp ? 'Auto-placer la réserve' : 'Bloc de 1000'}</button><button data-act="clear">${camp ? 'Tout retirer' : "Vider l'équipe"}</button>`;
-    if (!camp) h += `<button data-act="savemap">Sauver</button><button data-act="loadmap">Charger</button><button data-act="demo">Démo</button>`;
-    h += `</div><div id="roster">${rosterHtml()}</div>`;
-    h += `<div class="small" style="margin-top:6px">1 doigt : peindre · 2 doigts : déplacer / zoomer · Clic droit : gommer · Molette : zoom</div>`;
-  } else {
-    for (const s of SK) {
-      const lv = lvl(s.id), ok = prereqOk(s), c = skCost(s);
-      h += `<div class="card ${ok ? '' : 'dim'}" style="margin-left:${s.d * 12}px"><div class="lbl">${s.name} <span class="small">${lv}/${s.max}</span></div><div class="small">${s.desc}</div>`;
-      if (!ok) h += `<div class="small">Requiert : ${s.pre.map(p => SKN[p].name).join(', ')}</div>`;
-      else if (lv >= s.max) h += `<div class="gold">MAX</div>`;
-      else h += `<div class="row"><button data-act="skill" data-v="${s.id}" ${P.gold < c ? 'disabled' : ''}>${lv ? 'Améliorer' : 'Débloquer'} (${fmt(c)} or)</button></div>`;
-      h += `</div>`;
-    }
-  }
-  h += `</div>`;
-  const body = $('#sheetBody'), st = body ? body.scrollTop : 0;
-  $('#sheet').innerHTML = h;
-  const nb = $('#sheetBody'); if (nb) nb.scrollTop = st;
-  const bs = $('#bs'), bd = $('#bd');
-  if (bs) bs.oninput = e => brushSize = +e.target.value;
-  if (bd) bd.oninput = e => density = +e.target.value;
-}
-function rosterHtml() {
-  const camp = mode === 0; let h = '';
-  for (let t = 0; t < 4; t++) {
-    if (!typeAllowed(t)) { h += `<div class="small" style="margin:4px 0">🔒 ${T[t].sh} – ${T[t].n} ${camp ? '(voir Compétences)' : '(à rencontrer en campagne)'}</div>`; continue; }
-    h += `<div class="card"><div class="lbl">${sw(0, t)}${T[t].sh} · ${T[t].n} <span class="small">${camp ? `${placedP[t]} / ${P.roster[t]} placés` : `bleus ${placedP[t]} · rouges ${placedE[t]}`}</span></div>`;
-    if (camp) {
-      h += `<div class="row">`;
-      for (const a of [10, 100, 1000]) { const c = a * T[t].cost; h += `<button data-act="buy" data-t="${t}" data-v="${a}" ${P.gold < c ? 'disabled' : ''}>+${a} (${fmt(c)} or)</button>`; }
-      h += `</div>`;
-    }
-    h += `</div>`;
-  }
-  return h;
-}
-function buildHud() {
-  if (!sim) return;
-  const r = (cond, lbl) => cond;
-  const vReady = sim.time >= volleyReady, rReady = sim.time >= rallyReady;
-  let h = `<div class="row"><span class="count" style="color:${COL[0][0]}" id="cB"></span><span class="count" style="color:${COL[1][0]}" id="cR"></span><span class="small" id="cT"></span><span style="flex:1"></span><button data-act="quit">Abandonner</button></div>`;
-  h += `<div class="row"><div class="seg">${[1, 2, 4, 8].map((v, i) => `<button data-act="speed" data-v="${i}" class="${speedIdx === i ? 'on' : ''}">x${v}</button>`).join('')}</div>`;
-  h += `<button data-act="pause" class="${paused ? 'on' : ''}">${paused ? '▶ Reprendre' : '⏸ Pause'}</button></div>`;
-  h += `<div class="row"><button data-act="allorder" data-v="0">Tous : MARCHE</button><button data-act="allorder" data-v="1">Tous : TENIR</button>`;
-  h += volleyLvl() > 0 ? `<button data-act="volley" id="bV" class="${volleyArmed ? 'on' : ''}" ${vReady ? '' : 'disabled'}></button>` : `<span class="small">Pluie : à débloquer</span>`;
-  h += rallyLvl() > 0 ? `<button data-act="rally" id="bR" ${rReady ? '' : 'disabled'}></button>` : `<span class="small">Ralliement : à débloquer</span>`;
-  h += `</div>`;
-  $('#hud').innerHTML = h; updateHud();
-}
-function updateHud() {
-  if (!sim) return;
-  $('#cB').textContent = `Bleus ${fmt(sim.aliveC[0])}/${fmt(sim.startC[0])}`;
-  $('#cR').textContent = `Rouges ${fmt(sim.aliveC[1])}/${fmt(sim.startC[1])}`;
-  $('#cT').textContent = (mode === 0 ? `+${fmt(sim.gold)} or · ` : '') + `${sim.time | 0} s`;
-  const bV = $('#bV'), bR = $('#bR');
-  if (bV) { const ready = sim.time >= volleyReady; bV.disabled = !ready; bV.textContent = volleyArmed ? '🎯 Touche la carte…' : ready ? '🏹 Pluie de flèches' : `🏹 ${Math.ceil(volleyReady - sim.time)} s`; }
-  if (bR) { const ready = sim.time >= rallyReady; bR.disabled = !ready; bR.textContent = ready ? '🚩 Ralliement' : `🚩 ${Math.ceil(rallyReady - sim.time)} s`; }
-}
-function buildResult() {
-  const camp = mode === 0, w = res.win;
-  let h = `<h2 style="color:${w ? '#6fb4ff' : '#ff6a5a'}">${camp ? (w ? 'VICTOIRE !' : 'DÉFAITE') : (w ? 'VICTOIRE BLEUE' : 'VICTOIRE ROUGE')}</h2>`;
-  h += `<p>Ennemis éliminés : <b>${fmt(res.killed)}</b><br>Pertes : <b>${fmt(res.lost)}</b> <span class="small">(elles reviennent pour la prochaine bataille)</span></p>`;
-  if (camp) h += `<p class="gold">Or gagné : ${fmt(res.gold)}${res.bonus ? ' + bonus ' + fmt(res.bonus) : ''}</p><p class="small">${w ? 'Prochaine : bataille ' + P.level : 'Recrute et améliore ton armée, puis réessaie.'}</p>`;
-  h += `<button class="big" data-act="continue" style="width:100%">${camp ? 'Continuer' : "Retour à l'éditeur"}</button>`;
-  $('#resBox').innerHTML = h;
-}
-
-document.addEventListener('click', e => {
-  const b = e.target.closest('button[data-act]'); if (!b) return;
-  const v = b.dataset.v, act = b.dataset.act;
-  switch (act) {
-    case 'mode': if (state === 'prep') { mode = +v; tab = 0; erase = false; paintTeam = 0; recount(); fitCam(); } break;
-    case 'tab': tab = +v; sheetMin = false; break;
-    case 'min': sheetMin = !sheetMin; break;
-    case 'battle': startBattle(); return;
-    case 'brush': brushT = +v; erase = false; break;
-    case 'order': brushO = +v; break;
-    case 'erase': erase = v === '1'; break;
-    case 'team': paintTeam = +v; break;
-    case 'auto': { const team = mode === 0 ? 0 : paintTeam; autoPlace(team === 0 ? PL() : EL(), team, mode === 0); break; }
-    case 'clear': { const team = mode === 0 ? 0 : paintTeam; (team === 0 ? PL() : EL()).length = 0; recount(); break; }
-    case 'savemap': try { localStorage.setItem(MAPKEY, JSON.stringify({ a: packPl(sbP), b: packPl(sbE) })); toast('Carte sauvegardée.'); } catch (er) { toast('Impossible de sauvegarder.'); } break;
-    case 'loadmap': { let m = null; try { m = JSON.parse(localStorage.getItem(MAPKEY)); } catch (er) {} if (m) { unpackPl(m.a, sbP); unpackPl(m.b, sbE); recount(); toast('Carte chargée.'); } else toast('Aucune carte sauvegardée.'); break; }
-    case 'demo': demoSandbox(); recount(); break;
-    case 'buy': { const t = +b.dataset.t, a = +v, c = a * T[t].cost; if (P.gold >= c) { P.gold -= c; P.roster[t] += a; save(); } break; }
-    case 'skill': { const s = SKN[v]; const c = skCost(s); if (P.gold >= c && lvl(s.id) < s.max && prereqOk(s)) { P.gold -= c; P.skill[s.id] = lvl(s.id) + 1; save(); } break; }
-    case 'speed': speedIdx = +v; buildHud(); return;
-    case 'pause': paused = !paused; buildHud(); return;
-    case 'allorder': sim.setOrder(0, +v); toast(+v ? 'Toute l\'armée TIENT sa position.' : 'Toute l\'armée MARCHE !'); return;
-    case 'volley': volleyArmed = !volleyArmed; if (volleyArmed) toast('Touche la zone à bombarder.'); updateHud(); b.classList.toggle('on', volleyArmed); return;
-    case 'rally': sim.rally(4 + 1.5 * rallyLvl()); rallyReady = sim.time + 20; updateHud(); return;
-    case 'quit': sim.finished = true; sim.winner = 1; return;
-    case 'continue': continueAfter(); return;
-  }
-  renderUI();
-});
-
-// ======================================================================= boucle
-let last = performance.now(), uiT = 0;
-function loop(now) {
-  const dt = Math.min(.1, (now - last) / 1000); last = now;
-  // clavier
-  let mx = 0, mz = 0;
-  if (keys.has('z') || keys.has('w') || keys.has('arrowup')) mz -= 1;
-  if (keys.has('s') || keys.has('arrowdown')) mz += 1;
-  if (keys.has('q') || keys.has('a') || keys.has('arrowleft')) mx -= 1;
-  if (keys.has('d') || keys.has('arrowright')) mx += 1;
-  if (mx || mz) { const sp = 500 * dt * (keys.has('shift') ? 2.5 : 1); panScreen(-mx * sp, -mz * sp); }
-
-  if (state === 'prep' && painting && ptrs.size === 1) paintAt(dt);
-  if (state === 'battle' && sim) {
-    if (!paused) { const steps = [1, 2, 4, 8][speedIdx], sdt = Math.min(dt, 1 / 30); for (let s = 0; s < steps && !sim.finished; s++) sim.step(sdt); }
-    if (sim.finished) endBattle();
-  }
-  uiT -= dt;
-  if (uiT <= 0) {
-    uiT = .2;
-    updateStats();
-    if (state === 'battle') updateHud();
-    if (state === 'prep' && uiDirty) { uiDirty = false; const r = $('#roster'); if (r) r.innerHTML = rosterHtml(); }
-  }
-  if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#toast').style.opacity = 0; }
-  render();
-  requestAnimationFrame(loop);
-}
-
-// ======================================================================= démarrage
-addEventListener('resize', () => { const was = ROT; resize(); if ((VH > VW * 1.1) !== was) fitCam(); });
-resize(); fitCam();
-unpackPl(P.pl, campP);
-{ // retire les placements qui dépassent la réserve
-  const c = [0, 0, 0, 0];
-  for (let i = campP.length - 1; i >= 0; i--) { const p = campP[i]; if (p.t > 3 || !unlocked(p.t) || ++c[p.t] > P.roster[p.t]) campP.splice(i, 1); }
-}
-if (!campP.length) autoPlace(campP, 0, true);
-genEnemy(P.level);
-{ let m = null; try { m = JSON.parse(localStorage.getItem(MAPKEY)); } catch (e) {} if (m) { unpackPl(m.a, sbP); unpackPl(m.b, sbE); } else demoSandbox(); }
-recount(); renderUI();
-toast('Peins tes troupes sur la moitié bleue, puis lance la BATAILLE !');
-requestAnimationFrame(loop);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-</script>
+<script type="module" src="js/game.js"></script>
 </body>
 </html>
