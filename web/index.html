@@ -119,6 +119,9 @@ svg.tree{width:100%;height:auto;display:block}
 .byrow svg{width:16px;height:16px;flex:none}.byrow span{width:72px}.byrow b{width:70px;text-align:right}
 .lv.cur{border-color:#2c64cf;box-shadow:0 3px 0 #2c64cf;background:#e8f0ff}
 #result .panel{max-height:92vh;overflow-y:auto}
+#skip{inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#cfe2ee 0%,#9fbad0 100%)}
+#skip .panel{padding:18px;width:min(90vw,380px);text-align:center}
+#skip .hpb{display:flex}#skip .hpb i{display:inline-block}
 [hidden]{display:none!important}
 </style>
 <script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>
@@ -132,6 +135,6 @@ svg.tree{width:100%;height:auto;display:block}
 <div id="levels" class="scr" hidden></div>
 <div id="upgrades" class="scr" hidden></div>
 <div id="toast" class="ui"></div>
-<script type="module" src="js/game.js?v=8"></script>
+<script type="module" src="js/game.js?v=9"></script>
 </body>
 </html>

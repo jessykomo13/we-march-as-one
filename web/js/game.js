@@ -3,11 +3,11 @@
 // ============================================================================
 import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
-  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=8';
-import { Sim } from './sim.js?v=8';
-import { sfx } from './audio.js?v=8';
+  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=9';
+import { Sim } from './sim.js?v=9';
+import { sfx } from './audio.js?v=9';
 
-const GAME_VERSION = '8';
+const GAME_VERSION = '9';
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
@@ -513,6 +513,7 @@ function autoFill() {
 // ============================================================================ écrans
 function show(id) {
   screen = id;
+  if (id !== 'battle' && skipping) stopSkip(true);
   for (const s of ['menu', 'levels', 'upgrades']) $('#' + s).hidden = s !== id;
   $('#top').hidden = !(id === 'setup' || id === 'battle');
   $('#bottom').hidden = !(id === 'setup' || id === 'battle');
@@ -696,7 +697,7 @@ function renderBottom() {
       h += `<div class="seg"><button data-act="liveorder" data-v="0">MARCHE</button><button data-act="liveorder" data-v="1">TENIR</button></div>`;
       h += `<button data-act="power" data-v="volley" id="pV"></button><button data-act="power" data-v="rally" id="pR"></button>`;
     }
-    h += `<span style="flex:1"></span><span class="small" id="tm"></span><button data-act="retreat">Retraite</button></div></div>`;
+    h += `<span style="flex:1"></span><span class="small" id="tm"></span><button class="blue" data-act="skip">⏩ Résultat direct</button><button data-act="retreat">Retraite</button></div></div>`;
     if (sim && sim.kings.length) h = sim.kings.map(k => `<div class="panel bossbar"><b>${sim.team[k] ? '♛ Roi ennemi' : '♛ Ton Roi'}</b><div class="hpb"><i id="kb${k}" style="background:${sim.team[k] ? '#e5484d' : '#f5c542'}"></i></div></div>`).join('') + h;
     $('#bottom').innerHTML = h; updateBattleHud();
   }
@@ -740,6 +741,27 @@ function renderResult() {
   $('#result').innerHTML = h;
 }
 
+// ---------------------------------------------------------------- calcul sans regarder
+let skipping = false;
+function startSkip() {
+  if (!sim || sim.finished) return;
+  skipping = true; power = null;
+  let el = $('#skip');
+  if (!el) { el = document.createElement('div'); el.id = 'skip'; el.className = 'ui'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="panel"><b style="font-size:18px">⏩ Calcul de la bataille…</b><div class="small">Rien n'est affiché : tout le téléphone sert au calcul.</div>
+    <div class="hpb" style="height:16px;margin:10px 0"><i id="skB" style="background:#3b78e7;width:50%"></i><i id="skR" style="background:#e5484d;width:50%"></i></div>
+    <div class="row" style="justify-content:space-between"><b class="blue-t" id="skNB"></b><span class="small" id="skT"></span><b class="red" id="skNR"></b></div>
+    <button data-act="skipwatch" style="margin-top:10px;width:100%">👁 Regarder la suite</button></div>`;
+  el.hidden = false; updateSkip();
+}
+function updateSkip() {
+  if (!sim || !$('#skNB')) return;
+  const a = sim.aliveC[0], b = sim.aliveC[1], t = Math.max(1, a + b);
+  $('#skNB').textContent = fmt(a); $('#skNR').textContent = fmt(b); $('#skT').textContent = Math.floor(sim.time) + ' s de bataille';
+  $('#skB').style.width = (100 * a / t) + '%'; $('#skR').style.width = (100 * b / t) + '%';
+  $('#skB').style.display = $('#skR').style.display = 'inline-block';
+}
+function stopSkip(done) { skipping = false; const el = $('#skip'); if (el) el.hidden = true; if (!done) P.n = 0; }
 function banner(txt, cls = '') {
   const el = document.createElement('div'); el.className = 'banner ' + cls; el.textContent = txt;
   document.body.appendChild(el); setTimeout(() => el.remove(), 1700);
@@ -792,7 +814,7 @@ function fight() {
   else for (const e of level.enemy) sim.add(e.x, e.z, e.t, eo, 1, es[e.t], SHAPES[e.t].reward, !!e.king);
   // formes rencontrées (débloquées dans le bac à sable)
   if (mode !== 'sandbox') for (const e of level.enemy) if (!S.seen.includes(e.t)) S.seen.push(e.t);
-  speed = S.speed || 1; power = null; volleyReady = 0; rallyReady = 0; P.n = 0;
+  speed = S.speed || 1; power = null; volleyReady = 0; rallyReady = 0; P.n = 0; stopSkip(true);
   setUnitShadows(sim.n < 2500 && quality.level === 0);
   quality.big = sim.n > 12000; applyQuality();
   if (form[0].size >= 10000) unlockAch('tenk');
@@ -987,6 +1009,8 @@ document.addEventListener('click', e => {
       else { sim.rally(5); rallyReady = sim.time + 22; toast('Ralliement ! +60% vitesse.'); sfx.rally(); }
       updateBattleHud(); return;
     case 'retreat': sim.finished = true; sim.winner = 1; return;
+    case 'skip': startSkip(); return;
+    case 'skipwatch': stopSkip(); return;
     case 'again': { const L = level; if (mode === 'sandbox') { show('setup'); formDirty = true; return; } startLevel(L.id); return; }
     case 'nextlevel': startLevel(level.id + 1); return;
   }
@@ -1058,9 +1082,11 @@ function drawSim(dt) {
       if (age < 3) corpseGroup[s.team[i]].push(s.x[i], 0, s.z[i], 0, 1, r * (1 - age / 6), .03, -age * .15);
     }
   }
+  const flat = view.mode === '2d';
   for (let p = 0; p < s.pn; p++) {
     const dx = s.tx[p] - s.px[p], dz = s.tz[p] - s.pz[p], d = Math.hypot(dx, dz) + 1e-5;
-    const f = 1 - clamp(d / s.pd0[p], 0, 1), y = .4 + s.parc[p] * s.pd0[p] * 4 * f * (1 - f);
+    // en 2D (vue de dessus) la hauteur ne se voit pas : flèches en ligne droite, sans calcul de courbe
+    let y = .4; if (!flat) { const f = 1 - clamp(d / s.pd0[p], 0, 1); y += s.parc[p] * s.pd0[p] * 4 * f * (1 - f); }
     projGroup.push(s.px[p], y, s.pz[p], dx / d, dz / d, 1, 1);
   }
   drawParticles();
@@ -1099,6 +1125,13 @@ function frame(now) {
     if (demo.finished) startDemo();
     const keep = sim; sim = demo; drawSim(dt); sim = keep;
     view.yaw += dt * .06; updateCam();
+  } else if (screen === 'battle' && sim && skipping) {
+    // calcul sans affichage : on enchaîne les pas le plus vite possible (~40 ms par image), sans rien dessiner
+    const t0 = performance.now();
+    while (!sim.finished && performance.now() - t0 < 40) sim.step(sim.an > 6000 ? 1 / 15 : 1 / 20);
+    sim.events.length = 0; sim.impacts.length = 0;
+    updateSkip();
+    if (sim.finished) { stopSkip(true); endBattle(); }
   } else if (screen === 'battle' && sim) {
     if (speed > 0) {
       // pas fixes, avec budget de temps pour rester fluide sur mobile
@@ -1134,7 +1167,7 @@ function frame(now) {
   waterTex.offset.x += dt * .03; waterTex.offset.y = Math.sin(now / 1400) * .05;
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#toast').style.opacity = 0; }
   // les écrans Niveaux / Améliorations sont opaques : inutile de dessiner la 3D derrière (batterie)
-  if (screen !== 'levels' && screen !== 'upgrades' && !(screen === 'menu' && $('#menu').querySelector('.uphead'))) renderer.render(scene, activeCam());
+  if (!skipping && screen !== 'levels' && screen !== 'upgrades' && !(screen === 'menu' && $('#menu').querySelector('.uphead'))) renderer.render(scene, activeCam());
   requestAnimationFrame(frame);
 }
 

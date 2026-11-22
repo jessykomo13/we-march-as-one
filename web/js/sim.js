@@ -2,7 +2,7 @@
 // Simulation : chaque soldat et chaque projectile est simulé individuellement.
 // Collisions dures (les formes ne se traversent pas), obstacles, rivières lentes.
 // ============================================================================
-import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=8';
+import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=9';
 
 const G = 1.0;                                   // cellule de la grille spatiale
 const GW = Math.ceil(MAP_W / G) + 1, GH = Math.ceil(MAP_H / G) + 1;
@@ -184,7 +184,7 @@ export class Sim {
       const ax = gx + (mx > .38 ? 1 : mx < -.38 ? -1 : 0), az = gz + (mz > .38 ? 1 : mz < -.38 ? -1 : 0);
       const ahead = (ax >= 0 && ax < GW && az >= 0 && az < GH) ? this.dens[az * GW + ax] : 0;
       const full = Math.max(this.dens[c], ahead);
-      if (full > 1.0) spd *= full > 1.4 ? .25 : .5;
+      if (full > 1.25) spd *= full > 1.6 ? .35 : .65;
     }
     // vitesse lissée (évite les à-coups)
     this.vx[i] += (mx * spd - this.vx[i]) * Math.min(1, dt * 10);
@@ -221,16 +221,21 @@ export class Sim {
   // direction vers la case voisine la plus proche de l'ennemi
   flow(i) {
     const F = this.field[this.team[i]], gx = this.cx(this.x[i]), gz = this.cz(this.z[i]);
-    const INF = 0x3fffffff, here = F[gz * GW + gx], N = this.nav;
-    let best = here, bx = 0, bz = 0;
+    const INF = 0x3fffffff, here = F[gz * GW + gx], N = this.nav, D = this.dens;
+    // choix de la case suivante : la plus proche de l'ennemi, MAIS en évitant la foule
+    // (une case pleine « coûte » ~3 cases de détour) -> l'armée s'étale et contourne au lieu de faire la queue
+    const W = 3;
+    let bestScore = here < INF ? here + D[gz * GW + gx] * W : INF, bx = 0, bz = 0;
     for (let dz = -1; dz <= 1; dz++) {
       const z = gz + dz; if (z < 0 || z >= GH) continue;
       for (let dx = -1; dx <= 1; dx++) {
         if (!dx && !dz) continue;
         const x = gx + dx; if (x < 0 || x >= GW) continue;
         if (dx && dz && (N[gz * GW + x] || N[z * GW + gx])) continue;   // ne coupe pas les coins
-        const v = F[z * GW + x];
-        if (v < best) { best = v; bx = dx; bz = dz; }
+        const k = z * GW + x, v = F[k];
+        if (v >= INF || (here < INF && v > here)) continue;            // jamais en arrière
+        const sc = v + D[k] * W + (dx && dz ? .2 : 0);
+        if (sc < bestScore - .05) { bestScore = sc; bx = dx; bz = dz; }
       }
     }
     if (!bx && !bz && here >= INF) {
