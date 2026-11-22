@@ -1,0 +1,16 @@
+{
+  "name": "We March as One",
+  "short_name": "March as One",
+  "description": "Auto-battler incrémental en 3D : peins une armée de formes et écrase les hordes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#cfe2ee",
+  "theme_color": "#cfe2ee",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
