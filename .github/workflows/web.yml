@@ -1,9 +1,9 @@
 # Compile le jeu avec Unity (WebGL) et le publie sur GitHub Pages à chaque push sur main.
 name: Build Unity WebGL + GitHub Pages
 
+# Lancement manuel uniquement (nécessite les secrets de licence Unity).
+# La version web jouable est publiée depuis la branche gh-pages (dossier web/).
 on:
-  push:
-    branches: [main]
   workflow_dispatch: {}
 
 permissions:

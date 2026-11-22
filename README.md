@@ -1,5 +1,16 @@
 # We March as One — recréation Unity
 
+## ▶ Jouer tout de suite
+**https://jessykomo13.github.io/we-march-as-one/**
+
+Pour l'installer sur ton téléphone, ouvre le lien puis :
+- **iPhone** : bouton Partager → **Sur l'écran d'accueil**
+- **Android** : menu ⋮ → **Installer l'application**
+
+Cette version web se trouve dans `web/` (HTML/JS, aucune dépendance). Elle reprend les mécaniques du projet Unity et marche hors ligne une fois installée.
+
+---
+
 Auto-battler incrémental : tu peins une armée de formes sur le champ de bataille, tu donnes tes ordres, et des milliers de soldats s'affrontent. Chaque soldat et chaque flèche est simulé individuellement.
 
 ## Jouer sur le Web (build Unity WebGL)
