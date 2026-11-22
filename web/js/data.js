@@ -13,19 +13,19 @@ export const ENEMY_MAX_Z = -6;
 // Les 7 formes. Les stats sont cachées dans le vrai jeu : valeurs maison, rôles fidèles.
 export const SHAPES = [
   { id: 'circle',   name: 'Cercle',    role: 'Infanterie de ligne : remplit le front et encaisse le premier choc.',
-    hp: 10, dmg: 2.0, range: 0.12, speed: 3.0, cd: 0.8, r: 0.23, cost: 10, reward: 3 },
+    hp: 10, dmg: 2.0, range: 0.12, speed: 3.0, cd: 0.8, r: 0.23, cost: 10, reward: 1.5 },
   { id: 'square',   name: 'Carré',     role: "Ancre : lent et robuste, tient un flanc ou un pont et absorbe les charges.",
-    hp: 34, dmg: 2.0, range: 0.12, speed: 2.0, cd: 0.9, r: 0.24, cost: 25, reward: 8 },
+    hp: 34, dmg: 2.0, range: 0.12, speed: 2.0, cd: 0.9, r: 0.24, cost: 25, reward: 4 },
   { id: 'triangle', name: 'Triangle',  role: 'Briseur : frappe fort pour percer une ligne, mais fragile dans la durée.',
-    hp: 8,  dmg: 6.5, range: 0.12, speed: 3.5, cd: 0.9, r: 0.22, cost: 25, reward: 8 },
+    hp: 8,  dmg: 6.5, range: 0.12, speed: 3.5, cd: 0.9, r: 0.22, cost: 25, reward: 4 },
   { id: 'diamond',  name: 'Losange',   role: 'Liaison : rapide et bon marché, comble les trous entre les blocs.',
-    hp: 9,  dmg: 2.6, range: 0.12, speed: 4.8, cd: 0.7, r: 0.21, cost: 15, reward: 5 },
+    hp: 9,  dmg: 2.6, range: 0.12, speed: 4.8, cd: 0.7, r: 0.21, cost: 15, reward: 2.5 },
   { id: 'pentagon', name: 'Pentagone', role: "Ancre de flanc : très cher, tient seul une voie de côté.",
-    hp: 80, dmg: 7.5, range: 0.15, speed: 2.4, cd: 1.0, r: 0.30, cost: 90, reward: 27 },
+    hp: 80, dmg: 7.5, range: 0.15, speed: 2.4, cd: 1.0, r: 0.30, cost: 90, reward: 13 },
   { id: 'hexagon',  name: 'Hexagone',  role: 'Écran : tire de loin et interdit une zone, mais ne tient pas seul.',
-    hp: 7,  dmg: 2.4, range: 9.0,  speed: 2.6, cd: 1.4, r: 0.23, cost: 35, reward: 10, ranged: true, pspeed: 18 },
+    hp: 7,  dmg: 2.4, range: 9.0,  speed: 2.6, cd: 1.4, r: 0.23, cost: 35, reward: 5, ranged: true, pspeed: 18 },
   { id: 'rhombus',  name: 'Rhombe',    role: 'Remplissage : très bon marché, idéal dans les couloirs étroits.',
-    hp: 6,  dmg: 1.6, range: 0.12, speed: 3.9, cd: 0.7, r: 0.19, cost: 8, reward: 2 },
+    hp: 6,  dmg: 1.6, range: 0.12, speed: 3.9, cd: 0.7, r: 0.19, cost: 8, reward: 1 },
 ];
 export const SHAPE_IDX = Object.fromEntries(SHAPES.map((s, i) => [s.id, i]));
 
@@ -52,6 +52,9 @@ export const NODES = [
   { id: 'volley',  tier: 3, x: 3.25, cost: 800, name: 'Volées',          desc: '+30% portée et cadence des Hexagones',   pre: ['hex'] },
   { id: 'pent',    tier: 3, x: 4, cost: 1050, name: 'Pentagones',        desc: 'Débloque les Pentagones (ancres de flanc)', pre: ['sq2'], unlock: 'pentagon' },
   { id: 'recruit2',tier: 3, x: 5, cost: 900, name: 'Conscription',       desc: '-25% coût de recrutement',               pre: ['recruit1'] },
+  { id: 'armor',   tier: 2, x: 0.5, cost: 420, name: 'Armures',          desc: '+15% PV de toute l\'armée',               pre: ['circ1'] },
+  { id: 'eco3',    tier: 3, x: 0, cost: 1000, name: 'Trésor de guerre', desc: "+50% d'or gagné",                         pre: ['eco2'] },
+  { id: 'drill',   tier: 3, x: 3, cost: 950, name: 'Drill',             desc: '-15% temps entre deux attaques (toute l\'armée)', pre: ['spear'] },
 ];
 export const NODE_BY_ID = Object.fromEntries(NODES.map(n => [n.id, n]));
 
@@ -96,7 +99,7 @@ const LEVEL_NAMES = ['Premier sang', 'La plaine', 'Le gué', 'Les bosquets', 'Le
 // Niveau de campagne n (1..50) — déterministe
 export function campaignLevel(n) {
   const r = rng(n * 92821 + 7);
-  const total = Math.round(Math.min(16000, 16 * Math.pow(1.155, n - 1)));
+  const total = Math.round(Math.min(16000, 16 * Math.pow(1.205, n - 1)));
   const isBoss = n % 10 === 0;
   const isCity = n % 5 === 0 && !isBoss || n === 25 || n === 45;
   const terrain = emptyTerrain();
@@ -155,5 +158,5 @@ export function tacticsLevel(i) {
 export function musterLevel(i) {
   const base = campaignLevel([5, 8, 11, 15, 18, 24][i]);
   let v = 0; for (const e of base.enemy) v += SHAPES[e.t].cost;
-  return Object.assign(base, { name: 'Rassemblement ' + (i + 1) + ' — ' + base.name, budget: Math.round(v * 0.95 / 10) * 10, cap: 0 });
+  return Object.assign(base, { name: 'Rassemblement ' + (i + 1) + ' — ' + base.name, budget: Math.round(v * 1.1 / 10) * 10, cap: 0 });
 }

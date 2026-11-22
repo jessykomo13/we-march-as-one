@@ -5,9 +5,11 @@ import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
   campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js';
 import { Sim } from './sim.js';
+import { sfx } from './audio.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
+const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const CW = Math.round(MAP_W / CELL), CH = Math.round(MAP_H / CELL);
 
@@ -16,7 +18,7 @@ const KEY = 'wmao3d_v1';
 const S = loadSave();
 function loadSave() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  s = Object.assign({ gold: 0, owned: [20, 0, 0, 0, 0, 0, 0], nodes: {}, ratings: { campaign: {}, command: {}, tactics: {}, muster: {} },
+  s = Object.assign({ gold: 0, owned: [30, 0, 0, 0, 0, 0, 0], nodes: {}, ratings: { campaign: {}, command: {}, tactics: {}, muster: {} },
     formations: {}, seen: [0], sandbox: null, firstWin: {} }, s || {});
   for (const k of ['campaign', 'command', 'tactics', 'muster']) s.ratings[k] = s.ratings[k] || {};
   return s;
@@ -41,7 +43,9 @@ function unlockAch(id) {
 function checkTreeAch() { const n = Object.keys(S.nodes).length; if (n >= NODES.length / 2) unlockAch('studied'); if (n >= NODES.length) unlockAch('leaf'); }
 const has = id => !!S.nodes[id];
 const unlockedShape = t => t === 0 || NODES.some(n => n.unlock === SHAPES[t].id && has(n.id));
-const goldMul = () => 1 + (has('eco1') ? .25 : 0) + (has('eco2') ? .35 : 0);
+const goldMul = () => 1 + (has('eco1') ? .25 : 0) + (has('eco2') ? .35 : 0) + (has('eco3') ? .5 : 0);
+const trainLvl = t => (S.train || [])[t] | 0;
+const trainCost = t => Math.round(SHAPES[t].cost * 20 * Math.pow(1.6, trainLvl(t)) / 10) * 10;
 const recruitMul = () => 1 - (has('recruit1') ? .15 : 0) - (has('recruit2') ? .25 : 0);
 const recruitCost = t => Math.max(1, Math.round(SHAPES[t].cost * recruitMul()));
 const campaignProgress = () => { let m = 0; for (const k in S.ratings.campaign) if (S.ratings.campaign[k] >= 1) m = Math.max(m, +k); return m; };
@@ -55,6 +59,9 @@ function playerStats(t, upgraded) {
   if (t === 5 && has('volley')) { s.range *= 1.3; s.cd /= 1.3; }
   if (has('march')) s.speed *= 1.15;
   if (has('spear')) s.dmg *= 1.2;
+  if (has('armor')) s.hp *= 1.15;
+  if (has('drill')) s.cd /= 1.15;
+  const tl = trainLvl(t); s.hp *= 1 + .1 * tl; s.dmg *= 1 + .1 * tl;
   return s;
 }
 
@@ -62,26 +69,65 @@ function playerStats(t, upgraded) {
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-const SKY = new THREE.Color('#cfe2ee');
-scene.background = SKY;
-scene.fog = new THREE.Fog(SKY, 160, 420);
-scene.add(new THREE.HemisphereLight(0xffffff, 0xd9c79c, 1.15));
-const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(-40, 90, 30); scene.add(sun);
 
-// sol
-const groundMat = new THREE.MeshLambertMaterial({ color: '#e7d6a8' });
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  return t;
+}
+// ciel en dégradé
+scene.background = canvasTex(4, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#7fb2dd'); gr.addColorStop(.55, '#bcd9ec'); gr.addColorStop(1, '#efe6cf'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const FOG = new THREE.Color('#e3dccb');
+scene.fog = new THREE.Fog(FOG, 170, 460);
+const hemi = new THREE.HemisphereLight(0xdcecff, 0xc9b27a, 1.25); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(-45, 90, 35);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -85, right: 85, top: 85, bottom: -85, near: 10, far: 260 });
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02; sun.shadow.radius = 3;
+scene.add(sun, sun.target);
+
+// sable : grain + taches, texture répétée
+function sandDraw(base, dark, light) {
+  return (g, w, h) => {
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    const r = () => Math.random();
+    for (let i = 0; i < 6; i++) { const x = r() * w, y = r() * h, rad = 20 + r() * 70, gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, i % 2 ? dark : light); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+    for (let i = 0; i < 9000; i++) { g.fillStyle = r() < .5 ? 'rgba(120,95,50,.10)' : 'rgba(255,250,235,.14)'; g.fillRect(r() * w, r() * h, 1 + r() * 1.5, 1 + r() * 1.5); }
+  };
+}
+const sandTex = canvasTex(512, 512, sandDraw('#ead9ac', 'rgba(190,160,100,.08)', 'rgba(255,245,215,.12)'), [MAP_W / 22, MAP_H / 22]);
+const groundMat = new THREE.MeshLambertMaterial({ map: sandTex });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, MAP_H), groundMat);
-ground.rotation.x = -Math.PI / 2; scene.add(ground);
-const outer = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W * 6, MAP_H * 6), new THREE.MeshLambertMaterial({ color: '#d6c28f' }));
-outer.rotation.x = -Math.PI / 2; outer.position.y = -0.05; scene.add(outer);
-// zones de déploiement (visibles pendant la préparation)
-const zoneB = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, HH - DEPLOY_MIN_Z), new THREE.MeshBasicMaterial({ color: '#3b78e7', transparent: true, opacity: .1, depthWrite: false }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const outerTex = canvasTex(512, 512, sandDraw('#d4bf8a', 'rgba(150,125,70,.2)', 'rgba(240,225,180,.2)'), [MAP_W * 6 / 14, MAP_H * 6 / 14]);
+const outer = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W * 6, MAP_H * 6), new THREE.MeshLambertMaterial({ map: outerTex }));
+outer.rotation.x = -Math.PI / 2; outer.position.y = -0.05; outer.receiveShadow = true; scene.add(outer);
+// bordure du terrain : petit muret de bois
+const fenceMat = new THREE.MeshLambertMaterial({ color: '#9b7a4f' });
+for (const [w, h, x, z] of [[MAP_W + .6, .3, 0, -HH - .15], [MAP_W + .6, .3, 0, HH + .15], [.3, MAP_H, -HW - .15, 0], [.3, MAP_H, HW + .15, 0]]) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, .35, h), fenceMat); m.position.set(x, .17, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+}
+// zones de déploiement + grille de peinture (visibles pendant la préparation)
+const zoneB = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, HH - DEPLOY_MIN_Z), new THREE.MeshBasicMaterial({ color: '#3b78e7', transparent: true, opacity: .12, depthWrite: false }));
 zoneB.rotation.x = -Math.PI / 2; zoneB.position.set(0, .02, (HH + DEPLOY_MIN_Z) / 2); scene.add(zoneB);
-const zoneR = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, HH + ENEMY_MAX_Z), new THREE.MeshBasicMaterial({ color: '#e5484d', transparent: true, opacity: .08, depthWrite: false }));
+const zoneR = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, HH + ENEMY_MAX_Z), new THREE.MeshBasicMaterial({ color: '#e5484d', transparent: true, opacity: .09, depthWrite: false }));
 zoneR.rotation.x = -Math.PI / 2; zoneR.position.set(0, .02, (-HH + ENEMY_MAX_Z) / 2); scene.add(zoneR);
-const border = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(MAP_W, .01, MAP_H)), new THREE.LineBasicMaterial({ color: '#8a7a55' }));
-border.position.y = .03; scene.add(border);
+const gridGeo = (() => {
+  const pts = [];
+  for (let x = -HW; x <= HW + 1e-6; x += CELL) pts.push(x, 0, DEPLOY_MIN_Z, x, 0, HH);
+  for (let z = DEPLOY_MIN_Z; z <= HH + 1e-6; z += CELL) pts.push(-HW, 0, z, HW, 0, z);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); return g;
+})();
+const gridLines = new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: '#2c64cf', transparent: true, opacity: .1, depthWrite: false }));
+gridLines.position.y = .025; scene.add(gridLines);
+const frontLine = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, .18), new THREE.MeshBasicMaterial({ color: '#2c64cf', transparent: true, opacity: .55 }));
+frontLine.rotation.x = -Math.PI / 2; frontLine.position.set(0, .03, DEPLOY_MIN_Z); scene.add(frontLine);
+const border = { visible: true };
 
 // brosse
 const brushMesh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, .01, 1)), new THREE.LineBasicMaterial({ color: '#23262d' }));
@@ -93,7 +139,7 @@ targetRing.rotation.x = -Math.PI / 2; targetRing.position.y = .07; targetRing.vi
 function shapeGeo(t) {
   let g;
   switch (SHAPES[t].id) {
-    case 'circle':   g = new THREE.CylinderGeometry(1, 1, 1, 14); break;
+    case 'circle':   g = new THREE.CylinderGeometry(1, 1, 1, 12); break;
     case 'square':   g = new THREE.BoxGeometry(1.75, 1, 1.75); break;
     case 'triangle': g = new THREE.CylinderGeometry(1.3, 1.3, 1, 3); break;
     case 'diamond':  g = new THREE.OctahedronGeometry(1.15); g.scale(1, 1.25, 1); g.translate(0, .9, 0); return g;
@@ -107,63 +153,143 @@ const GEOS = SHAPES.map((s, t) => shapeGeo(t));
 const TEAMCOL = [['#3b78e7', '#2b5fc0', '#5d95ff', '#4aa3f0', '#1f4aa3', '#6cb7ff', '#3d86d6'],
                  ['#e5484d', '#b8323a', '#ff6a5a', '#f07a3c', '#8f1f2a', '#ff8f73', '#d9415f']];
 
+const _c = new THREE.Color();
 class Group {
-  constructor(geo, color, cap = 256) { this.geo = geo; this.mat = new THREE.MeshLambertMaterial({ color }); this.cap = 0; this.mesh = null; this.n = 0; this.ensure(cap); }
+  // color = couleur de base ; chaque instance peut être éclaircie (flash) ou assombrie (blessure)
+  constructor(geo, color, cap = 256, opts = {}) {
+    this.geo = geo; this.base = new THREE.Color(color);
+    this.mat = opts.mat || new THREE.MeshLambertMaterial({ color: 0xffffff });
+    this.cast = opts.cast !== false; this.cap = 0; this.mesh = null; this.n = 0; this.ensure(cap);
+  }
   ensure(c) {
     if (c <= this.cap) return;
     let nc = Math.max(256, this.cap); while (nc < c) nc *= 2;
-    const old = this.arr;
+    const old = this.arr, oldC = this.col;
     if (this.mesh) { scene.remove(this.mesh); this.mesh.dispose(); }
     this.mesh = new THREE.InstancedMesh(this.geo, this.mat, nc);
-    if (old) this.mesh.instanceMatrix.array.set(old.subarray(0, Math.min(old.length, this.n * 16)));
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(nc * 3), 3);
+    this.mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    if (old) { this.mesh.instanceMatrix.array.set(old.subarray(0, Math.min(old.length, this.n * 16))); this.mesh.instanceColor.array.set(oldC.subarray(0, Math.min(oldC.length, this.n * 3))); }
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    this.mesh.frustumCulled = false; this.mesh.count = 0; this.cap = nc; scene.add(this.mesh);
-    this.arr = this.mesh.instanceMatrix.array;
+    this.mesh.frustumCulled = false; this.mesh.count = 0; this.cap = nc;
+    this.mesh.castShadow = this.cast; this.mesh.receiveShadow = true;
+    scene.add(this.mesh);
+    this.arr = this.mesh.instanceMatrix.array; this.col = this.mesh.instanceColor.array;
   }
   begin() { this.n = 0; }
-  // (hx,hz) = direction vers laquelle pointe la forme
-  push(x, y, z, hx, hz, sxz, sy) {
+  // (hx,hz) = direction vers laquelle pointe la forme ; light : -1 (sombre) .. 0 .. 1 (blanc)
+  push(x, y, z, hx, hz, sxz, sy, light = 0) {
     if (this.n >= this.cap) this.ensure(this.n + 1);
     const a = this.arr, o = this.n * 16;
     a[o] = hz * sxz; a[o + 1] = 0; a[o + 2] = -hx * sxz; a[o + 3] = 0;
     a[o + 4] = 0; a[o + 5] = sy; a[o + 6] = 0; a[o + 7] = 0;
     a[o + 8] = hx * sxz; a[o + 9] = 0; a[o + 10] = hz * sxz; a[o + 11] = 0;
     a[o + 12] = x; a[o + 13] = y; a[o + 14] = z; a[o + 15] = 1;
+    const c = this.col, p = this.n * 3, b = this.base;
+    if (light > 0) { c[p] = b.r + (1 - b.r) * light; c[p + 1] = b.g + (1 - b.g) * light; c[p + 2] = b.b + (1 - b.b) * light; }
+    else { const k = 1 + light; c[p] = b.r * k; c[p + 1] = b.g * k; c[p + 2] = b.b * k; }
     this.n++;
   }
-  end() { this.mesh.count = this.n; this.mesh.instanceMatrix.needsUpdate = true; }
+  end() { this.mesh.count = this.n; this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true; }
 }
-const groups = [0, 1].map(tm => SHAPES.map((s, t) => new Group(GEOS[t], TEAMCOL[tm][t])));
+// légère arête sombre sous chaque forme pour mieux les détacher du sable
+function bevel(g) { g.computeVertexNormals(); return g; }
+const groups = [0, 1].map(tm => SHAPES.map((s, t) => new Group(bevel(GEOS[t]), TEAMCOL[tm][t])));
 const kingGroup = [new Group(GEOS[0], '#f5c542', 4), new Group(GEOS[4], '#7a1020', 4)];
-const corpseGroup = [new Group(new THREE.CylinderGeometry(1, 1, 1, 8).translate(0, .5, 0), '#7f8aa6', 512), new Group(new THREE.CylinderGeometry(1, 1, 1, 8).translate(0, .5, 0), '#a67f7f', 512)];
-const projGroup = new Group(new THREE.BoxGeometry(.08, .08, .7), '#3a2a12', 512);
+const corpseGeo = new THREE.CylinderGeometry(1, 1, 1, 8).translate(0, .5, 0);
+const corpseGroup = [new Group(corpseGeo, '#6d7fa8', 512, { cast: false }), new Group(corpseGeo, '#a87570', 512, { cast: false })];
+const projGroup = new Group(new THREE.BoxGeometry(.07, .07, .75), '#3a2a12', 512, { cast: false });
 const crownGeo = new THREE.ConeGeometry(.9, 1.1, 5).translate(0, .55, 0);
-const crownGroup = new Group(crownGeo, '#ffd84a', 4);
-const allGroups = [...groups[0], ...groups[1], ...kingGroup, ...corpseGroup, projGroup, crownGroup];
+const crownGroup = new Group(crownGeo, '#ffd84a', 4, { mat: new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: '#7a5a00' }) });
+// particules (éclats à la mort d'une unité)
+const partGroup = new Group(new THREE.BoxGeometry(1, 1, 1), '#ffffff', 1024, { cast: false });
+const allGroups = [...groups[0], ...groups[1], ...kingGroup, ...corpseGroup, projGroup, crownGroup, partGroup];
+// ombres des unités seulement quand l'armée n'est pas trop grande (perfs mobile)
+function setUnitShadows(on) { for (const tm of [0, 1]) for (const g of groups[tm]) g.mesh.castShadow = on; }
+
+// particules : pool simple
+const PMAX = 5000, P = { n: 0, x: new Float32Array(PMAX), y: new Float32Array(PMAX), z: new Float32Array(PMAX), vx: new Float32Array(PMAX), vy: new Float32Array(PMAX), vz: new Float32Array(PMAX), life: new Float32Array(PMAX), s: new Float32Array(PMAX), c: [] };
+function burst(x, z, color, n, size = .09, up = 3) {
+  for (let k = 0; k < n; k++) {
+    if (P.n >= PMAX) return; const i = P.n++;
+    const a = Math.random() * 6.283, sp = .8 + Math.random() * 2.2;
+    P.x[i] = x; P.y[i] = .25; P.z[i] = z; P.vx[i] = Math.cos(a) * sp; P.vz[i] = Math.sin(a) * sp; P.vy[i] = up * (.5 + Math.random());
+    P.life[i] = .5 + Math.random() * .5; P.s[i] = size * (.6 + Math.random() * .8); P.c[i] = color;
+  }
+}
+function stepParticles(dt) {
+  for (let i = 0; i < P.n;) {
+    P.life[i] -= dt;
+    if (P.life[i] <= 0) { const l = --P.n; P.x[i] = P.x[l]; P.y[i] = P.y[l]; P.z[i] = P.z[l]; P.vx[i] = P.vx[l]; P.vy[i] = P.vy[l]; P.vz[i] = P.vz[l]; P.life[i] = P.life[l]; P.s[i] = P.s[l]; P.c[i] = P.c[l]; continue; }
+    P.vy[i] -= 12 * dt; P.x[i] += P.vx[i] * dt; P.y[i] += P.vy[i] * dt; P.z[i] += P.vz[i] * dt;
+    if (P.y[i] < .03) { P.y[i] = .03; P.vy[i] *= -.3; P.vx[i] *= .6; P.vz[i] *= .6; }
+    i++;
+  }
+}
+function drawParticles() {
+  partGroup.begin();
+  for (let i = 0; i < P.n; i++) {
+    const s = P.s[i] * Math.min(1, P.life[i] * 3);
+    partGroup.base.setHex(P.c[i]); partGroup.push(P.x[i], P.y[i], P.z[i], .7, .7, s, s, 0);
+  }
+  partGroup.end();
+}
 
 // terrain
 const terrainRoot = new THREE.Group(); scene.add(terrainRoot);
-const treeTrunkGeo = new THREE.CylinderGeometry(.12, .16, .8, 6).translate(0, .4, 0);
-const treeTopGeo = new THREE.ConeGeometry(.75, 1.9, 7).translate(0, 1.6, 0);
+const treeTrunkGeo = new THREE.CylinderGeometry(.12, .17, .8, 6).translate(0, .4, 0);
+const treeTopGeo = new THREE.ConeGeometry(.8, 1.5, 7).translate(0, 1.35, 0);
+const treeTop2Geo = new THREE.ConeGeometry(.6, 1.2, 7).translate(0, 2.05, 0);
+const rockGeo = new THREE.DodecahedronGeometry(.35, 0);
+const wallTex = canvasTex(128, 128, (g, w, h) => {
+  g.fillStyle = '#d9cfb8'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 600; i++) { g.fillStyle = `rgba(120,100,70,${Math.random() * .08})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  g.fillStyle = '#5b6b7a'; for (let y = 18; y < h - 20; y += 40) for (let x = 14; x < w - 20; x += 36) { g.fillRect(x, y, 16, 20); g.fillStyle = '#8fa4b5'; g.fillRect(x + 2, y + 2, 5, 7); g.fillStyle = '#5b6b7a'; }
+}, [1, 1]);
+const waterTex = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = '#6fa9d6'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 90; i++) { const x = Math.random() * w, y = Math.random() * h; g.strokeStyle = `rgba(255,255,255,${.12 + Math.random() * .2})`; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 10, y - 4, x + 22, y); g.stroke(); }
+}, [12, 1]);
+const waterMat = new THREE.MeshLambertMaterial({ map: waterTex, transparent: true, opacity: .92 });
+const ROOFS = ['#a8593c', '#8e4a33', '#6f7c8c', '#9a6b3f'];
+function rnd(seed) { const x = Math.sin(seed * 12.9898) * 43758.5453; return x - Math.floor(x); }
 function buildTerrainMeshes(t) {
   while (terrainRoot.children.length) { const c = terrainRoot.children.pop(); c.geometry?.dispose?.(); }
-  const bMat = new THREE.MeshLambertMaterial({ color: '#c9bea6' }), roofMat = new THREE.MeshLambertMaterial({ color: '#a8714f' });
-  for (const b of t.buildings) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.hgt, b.h), bMat); m.position.set(b.x, b.hgt / 2, b.z); terrainRoot.add(m);
-    const r = new THREE.Mesh(new THREE.BoxGeometry(b.w + .3, .35, b.h + .3), roofMat); r.position.set(b.x, b.hgt + .17, b.z); terrainRoot.add(r);
-  }
+  t.buildings.forEach((b, i) => {
+    const tex = wallTex.clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(b.w / 2.5)), Math.max(1, Math.round(b.hgt / 2)));
+    const wall = new THREE.MeshLambertMaterial({ map: tex });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.hgt, b.h), wall); m.position.set(b.x, b.hgt / 2, b.z);
+    m.castShadow = m.receiveShadow = true; terrainRoot.add(m);
+    // toit à deux pans
+    const roofMat = new THREE.MeshLambertMaterial({ color: ROOFS[i % ROOFS.length] });
+    const rh = Math.min(b.w, b.h) * .35;
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(.01, Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4), roofMat);
+    roof.scale.set(b.w + .5, rh, b.h + .5); roof.position.set(b.x, b.hgt + rh / 2, b.z);
+    roof.castShadow = true; terrainRoot.add(roof);
+  });
   if (t.trees.length) {
-    const trunk = new THREE.InstancedMesh(treeTrunkGeo, new THREE.MeshLambertMaterial({ color: '#7a5a3a' }), t.trees.length);
-    const top = new THREE.InstancedMesh(treeTopGeo, new THREE.MeshLambertMaterial({ color: '#5f9a4e' }), t.trees.length);
-    const m = new THREE.Matrix4();
-    t.trees.forEach((tr, i) => { const s = .8 + ((i * 37) % 10) / 20; m.makeScale(s, s, s).setPosition(tr.x, 0, tr.z); trunk.setMatrixAt(i, m); top.setMatrixAt(i, m); });
-    trunk.frustumCulled = top.frustumCulled = false;
-    terrainRoot.add(trunk, top);
+    const n = t.trees.length;
+    const trunk = new THREE.InstancedMesh(treeTrunkGeo, new THREE.MeshLambertMaterial({ color: '#7a5a3a' }), n);
+    const top = new THREE.InstancedMesh(treeTopGeo, new THREE.MeshLambertMaterial({ color: '#4f8f45' }), n);
+    const top2 = new THREE.InstancedMesh(treeTop2Geo, new THREE.MeshLambertMaterial({ color: '#69a95a' }), n);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    t.trees.forEach((tr, i) => { const sc = .8 + rnd(i) * .6; q.setFromEuler(e.set(0, rnd(i + 3) * 6, 0)); m.compose(new THREE.Vector3(tr.x, 0, tr.z), q, new THREE.Vector3(sc, sc, sc)); trunk.setMatrixAt(i, m); top.setMatrixAt(i, m); top2.setMatrixAt(i, m); });
+    for (const x of [trunk, top, top2]) { x.frustumCulled = false; x.castShadow = true; x.receiveShadow = true; terrainRoot.add(x); }
   }
-  const water = new THREE.MeshLambertMaterial({ color: '#7fb4dc' }), wood = new THREE.MeshLambertMaterial({ color: '#9c7650' });
+  // cailloux décoratifs (hors zones jouables critiques)
+  const nr = 60, rocks = new THREE.InstancedMesh(rockGeo, new THREE.MeshLambertMaterial({ color: '#b5a685' }), nr);
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < nr; i++) { const side = i % 2 ? 1 : -1; const x = side * (HW + 3 + rnd(i) * 30), z = (rnd(i + 7) - .5) * MAP_H * 1.3, sc = .6 + rnd(i + 2) * 2; m.makeScale(sc, sc * .7, sc).setPosition(x, .1, z); rocks.setMatrixAt(i, m); }
+  rocks.castShadow = true; rocks.frustumCulled = false; terrainRoot.add(rocks);
+  const wood = new THREE.MeshLambertMaterial({ color: '#9c7650' }), bank = new THREE.MeshLambertMaterial({ color: '#b9a06e' });
   for (const rv of t.rivers) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, rv.z1 - rv.z0), water); w.rotation.x = -Math.PI / 2; w.position.set(0, .015, (rv.z0 + rv.z1) / 2); terrainRoot.add(w);
-    for (const g of rv.gaps) { const b = new THREE.Mesh(new THREE.BoxGeometry(g[1] - g[0], .12, rv.z1 - rv.z0 + 1), wood); b.position.set((g[0] + g[1]) / 2, .06, (rv.z0 + rv.z1) / 2); terrainRoot.add(b); }
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, rv.z1 - rv.z0), waterMat); w.rotation.x = -Math.PI / 2; w.position.set(0, .02, (rv.z0 + rv.z1) / 2); w.receiveShadow = true; terrainRoot.add(w);
+    for (const z of [rv.z0, rv.z1]) { const bk = new THREE.Mesh(new THREE.BoxGeometry(MAP_W, .12, .4), bank); bk.position.set(0, .05, z); terrainRoot.add(bk); }
+    for (const g of rv.gaps) {
+      const bw = g[1] - g[0], len = rv.z1 - rv.z0 + 1.2;
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(bw, .14, len), wood); deck.position.set((g[0] + g[1]) / 2, .08, (rv.z0 + rv.z1) / 2); deck.castShadow = deck.receiveShadow = true; terrainRoot.add(deck);
+      for (const sx of [g[0] + .1, g[1] - .1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(.15, .4, len), wood); rail.position.set(sx, .3, (rv.z0 + rv.z1) / 2); rail.castShadow = true; terrainRoot.add(rail); }
+    }
   }
 }
 function cellBlocked(t, x, z) {
@@ -193,6 +319,7 @@ function updateCam() {
     ortho.up.set(portrait ? 0 : 1, 0, portrait ? -1 : 0);
     ortho.lookAt(view.tx, 0, view.tz);
   } else if (view.mode === '3d') {
+    if (screen === 'menu') persp.setViewOffset(VW, VH, 0, VH * .2, VW, VH); else if (persp.view) persp.clearViewOffset();
     const yaw = view.yaw;
     const cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
     persp.position.set(view.tx + Math.sin(yaw) * cp * view.dist, sp * view.dist, view.tz + Math.cos(yaw) * cp * view.dist);
@@ -298,7 +425,7 @@ function stamp(px, pz, stroke) {
     if (!zoneOk(team, x, z)) continue;
     if (c[brush.t] >= armyLimit(brush.t)) { if (!stroke.warned) { toast(mode === 'tactics' ? 'Plus de ' + SHAPES[brush.t].name + ' pour ce puzzle.' : 'Tu n\'as plus de ' + SHAPES[brush.t].name + 's : recrute-en dans AMÉLIORATIONS.'); stroke.warned = true; } return; }
     if (form[0].size + form[1].size >= MAX_TROOPS) { toast('Maximum ' + fmt(MAX_TROOPS) + ' troupes.'); return; }
-    F.set(k, brush.t); c[brush.t]++; stroke.push([team, k, -1]);
+    F.set(k, brush.t); c[brush.t]++; stroke.push([team, k, -1]); sfx.paint();
   }
 }
 function undo() {
@@ -324,11 +451,14 @@ function restoreFormation() {
     f.k.forEach((k, i) => { const t = f.t[i]; if (!shapeAvailable(t) || c[t] >= armyLimit(t)) return; const x = cellX(k), z = cellZ(k); if (!zoneOk(0, x, z)) return; form[0].set(k, t); c[t]++; });
     if (f.king >= 0 && form[0].get(f.king) === 0 && has('king')) kingKey = f.king;
     order = f.order || 0;
+    const cap = costCap();
+    if (cap && formationCost(0) > cap) { form[0].clear(); kingKey = -1; autoFill(); setTimeout(() => toast('Ton armée dépassait le plafond de coût : formation refaite automatiquement.'), 50); }
   }
   if (!form[0].size && mode !== 'muster') autoFill();
 }
 // pose automatique : une ligne large devant la zone, par forme
 function autoFill() {
+  const before = new Set(form[0].keys());
   const c = counts(0); let z0 = DEPLOY_MIN_Z + .25;
   const cap = costCap(); let budget = cap ? cap - formationCost(0) : Infinity;
   const orderShapes = [1, 4, 0, 6, 2, 3, 5]; // ancres devant, tireurs derrière
@@ -350,6 +480,8 @@ function autoFill() {
     }
     z0 += row * CELL + CELL;
   }
+  const st = []; for (const [k, t] of form[0]) if (!before.has(k)) st.push([0, k, -1]);
+  if (st.length) undoStack.push(st);
   formDirty = true;
 }
 
@@ -360,12 +492,12 @@ function show(id) {
   $('#top').hidden = !(id === 'setup' || id === 'battle');
   $('#bottom').hidden = !(id === 'setup' || id === 'battle');
   $('#result').hidden = id !== 'result';
-  if (id === 'menu') renderMenu();
+  if (id === 'menu') { renderMenu(); startDemo(); }
   if (id === 'levels') renderLevels();
   if (id === 'upgrades') renderUpgrades();
   if (id === 'setup' || id === 'battle') { renderTop(); renderBottom(); }
   if (id === 'result') renderResult();
-  zoneB.visible = zoneR.visible = id === 'setup';
+  zoneB.visible = zoneR.visible = frontLine.visible = gridLines.visible = id === 'setup';
 }
 
 function shapeSVG(t, fill = '#23262d') {
@@ -383,8 +515,9 @@ function renderMenu() {
   const prog = campaignProgress();
   $('#menu').innerHTML = `<div class="wrap">
     <h1 class="logo">WE MARCH<br>AS ONE</h1>
-    <p class="small" style="font-size:14px;max-width:520px">Commence avec quelques formes et bâtis une armée de dizaines de milliers. Peins tes troupes sur le champ de bataille et envoie-les contre des hordes immenses : chaque soldat est simulé.</p>
-    <div class="row" style="margin-top:6px"><span class="chip gold">${fmt(S.gold)} or</span><span class="chip">Campagne ${prog}/50</span><span class="chip">${fmt(S.owned.reduce((a, b) => a + b))} troupes</span></div>
+    <p class="small" style="font-size:14px;max-width:520px;background:#fffdf7d9;border-radius:10px;padding:6px 9px;color:#3c414c">Commence avec quelques formes et bâtis une armée de dizaines de milliers. Peins tes troupes sur le champ de bataille et envoie-les contre des hordes immenses : chaque soldat est simulé.</p>
+    <div class="row" style="margin-top:6px"><button data-act="mute" style="padding:5px 9px">${sfx.muted ? '🔇' : '🔊'}</button><span class="chip gold">${fmt(S.gold)} or</span><span class="chip">Campagne ${prog}/50</span><span class="chip">${fmt(S.owned.reduce((a, b) => a + b))} troupes</span></div>
+    <div class="spacer"></div>
     <div class="modes">
       <button class="mode panel" data-act="mode" data-v="campaign"><b>Campagne</b>Bâtis ton armée bataille après bataille. 50 niveaux.</button>
       <button class="mode panel" data-act="mode" data-v="command"><b>Commandement</b>Ordres en temps réel et pouvoirs sur le champ de bataille.</button>
@@ -392,10 +525,26 @@ function renderMenu() {
       <button class="mode panel" data-act="mode" data-v="muster"><b>Rassemblement</b>Puzzles à budget fixe : à toi de choisir ton armée.</button>
       <button class="mode panel" data-act="mode" data-v="sandbox"><b>Bac à sable</b>Éditeur de niveau : peins les deux armées et le terrain.</button>
       <button class="mode panel" data-act="upgrades"><b>Améliorations</b>Arbre de compétences et recrutement.</button>
+      <button class="mode panel" data-act="help"><b>Comment jouer</b>Les règles, les formes et les astuces.</button>
     </div>
     <div class="panel" style="padding:10px;margin-top:14px"><b>Succès ${Object.keys(S.ach || {}).length}/${ACH.length}</b><div class="row" style="margin-top:6px">${ACH.map(a => `<span class="chip" title="${a[2]}" style="${(S.ach || {})[a[0]] ? 'background:#ffd84a' : 'opacity:.45'}">🏆 ${a[1]}</span>`).join('')}</div></div>
     <p class="small" style="margin-top:18px">Astuce : ajoute cette page à ton écran d'accueil pour l'installer comme une application.</p>
   </div>`;
+}
+
+function renderHelp() {
+  const shapes = SHAPES.map((sh, t) => `<div class="ncard"><div class="nic">${shapeSVG(t, TEAMCOL[0][t])}</div><div class="ntx"><b>${sh.name}</b> <span class="small">${sh.cost} or · ${sh.ranged ? 'tir à distance' : 'mêlée'}</span><div class="small">${sh.role}</div></div></div>`).join('');
+  $('#menu').innerHTML = `<div class="uphead"><button data-act="menu">◀ Menu</button><b style="font-size:18px">Comment jouer</b></div><div class="wrap" style="padding-top:10px">
+    <div class="panel" style="padding:12px;line-height:1.5">
+    <b>1. Peins ton armée.</b> Choisis une forme dans la palette en bas, puis glisse le doigt dans la zone bleue. Une case = une unité. Pinceaux 1×1 à 8×8, ANNULER, EFFACER, et AUTO pour une ligne toute faite.<br>
+    <b>2. Donne un ordre.</b> MARCHE : l'armée avance et va chercher l'ennemi (elle contourne les bâtiments et prend les ponts). TENIR : elle reste en place jusqu'à ce que l'ennemi arrive.<br>
+    <b>3. COMBATTRE !</b> Chaque soldat vise l'ennemi le plus proche. Une armée large combat sur tout son front ; une armée étroite ne se bat qu'avec ses premiers rangs.<br>
+    <b>4. Gagne de l'or</b> même en perdant. Tes troupes tombées reviennent. Recrute, entraîne tes formes et achète des améliorations, puis reviens plus fort.<br>
+    <b>Notes :</b> ✔ victoire · ◆ DÉCISIVE (moins de 35% de pertes) · ★ HÉROÏQUE (moins de 10%). Chaque nouvelle note rapporte de l'or.<br>
+    <b>Le Roi :</b> avec l'amélioration « La Couronne », touche deux fois un Cercle : ×10 PV et dégâts, et les alliés autour vont 30% plus vite.<br>
+    <b>Caméra :</b> 2D pour peindre, 3D et FLY pour admirer. Deux doigts : déplacer et zoomer (et tourner en 3D).
+    </div><div class="tierlbl">Les 7 formes</div><div class="cards">${shapes}</div></div>`;
+  $('#menu').scrollTop = 0;
 }
 
 // ---------------------------------------------------------------- niveaux
@@ -416,46 +565,55 @@ function renderLevels() {
     const r = R[L.id] || 0, locked = (mode === 'campaign' || mode === 'command') && L.id > prog + 1;
     const lv = (mode === 'campaign' || mode === 'command') ? campaignLevel(L.id) : null;
     const cls = lv ? (lv.boss ? 'boss' : lv.city ? 'city' : '') : '';
-    h += `<button class="lv panel ${cls}" data-act="level" data-v="${L.id}" ${locked ? 'disabled' : ''}><span class="num">${locked ? '🔒' : L.id}</span><span class="nm">${lv ? lv.name : L.name}${lv && lv.cap ? ' · plafond' : ''}</span><span class="st"><span class="${r >= 1 ? '' : 'off'}">✔</span><span class="${r >= 2 ? '' : 'off'}">◆</span><span class="${r >= 3 ? '' : 'off'}">★</span></span></button>`;
+    h += `<button class="lv panel ${cls}" data-act="level" data-v="${L.id}" ${locked ? 'disabled' : ''}><span class="num">${locked ? '🔒' : L.id}</span><span class="nm">${lv ? lv.name : L.name}</span>${lv ? `<span class="nm">👥 ${kfmt(lv.enemy.length)}${lv.terrain.rivers.length ? ' 🌊' : ''}${lv.city ? ' 🏠' : ''}${lv.boss ? ' ♛' : ''}${lv.cap ? ' 💰' : ''}</span>` : ''}<span class="st"><span class="${r >= 1 ? '' : 'off'}">✔</span><span class="${r >= 2 ? '' : 'off'}">◆</span><span class="${r >= 3 ? '' : 'off'}">★</span></span></button>`;
   }
   h += `</div><p class="small" style="margin-top:12px">✔ Victoire · ◆ DÉCISIVE (moins de 35% de pertes) · ★ HÉROÏQUE (moins de 10% de pertes). Rejoue les niveaux pour de meilleures notes et plus d'or.</p></div>`;
   $('#levels').innerHTML = h;
+  // place la vue sur le prochain niveau à jouer
+  const cur = $('#levels').querySelector(`[data-act=level][data-v="${Math.min(50, prog + 1)}"]`);
+  if (cur && (mode === 'campaign' || mode === 'command')) { cur.classList.add('cur'); requestAnimationFrame(() => cur.scrollIntoView({ block: 'center' })); }
 }
 
 // ---------------------------------------------------------------- améliorations
-let selNode = null;
+let upTab = 0;
+function nodeIcon(n) {
+  if (n.unlock) return shapeSVG(SHAPE_IDX[n.unlock]);
+  const g = { king: '♛', eco1: '¤', eco2: '¤', eco3: '¤', recruit1: '+', recruit2: '+', armor: '⛨', drill: '⟳', march: '»', spear: '➶', volley: '➶', circ1: '●', tri2: '▲', sq2: '■' }[n.id] || '▲';
+  return `<span style="font-size:20px;font-weight:900;line-height:24px">${g}</span>`;
+}
 function renderUpgrades() {
-  const Wd = 640, Hd = 430, colW = 105, rowY = t => 40 + (t - 1) * 150;
-  const nx = n => 45 + n.x * colW;
-  let lines = '', nodes = '';
-  for (const n of NODES) for (const p of n.pre) {
-    const a = NODE_BY_ID[p]; const ok = has(p);
-    lines += `<line x1="${nx(a)}" y1="${rowY(a.tier) + 22}" x2="${nx(n)}" y2="${rowY(n.tier) - 22}" stroke="${ok ? '#23262d' : '#b9ae95'}" stroke-width="3" ${ok ? '' : 'stroke-dasharray="6 5"'}/>`;
+  const back = upgradesFrom === 'setup' || upgradesFrom === 'result';
+  let h = `<div class="uphead"><button data-act="tocampaign">◀ Campagne</button><b style="font-size:18px">Améliorations</b><span class="sp"></span><span class="chip gold">${fmt(S.gold)} or</span>${back && level ? `<button class="go" data-act="backlevel" style="font-size:13px;padding:7px 10px">⚔ Retour au combat</button>` : ''}</div>`;
+  h += `<div class="wrap" style="padding-top:8px"><div class="seg" style="margin-bottom:10px"><button data-act="uptab" data-v="0" class="${upTab === 0 ? 'on' : ''}">Arbre de compétences</button><button data-act="uptab" data-v="1" class="${upTab === 1 ? 'on' : ''}">Recruter et entraîner</button></div>`;
+  if (upTab === 0) {
+    const owned = Object.keys(S.nodes).length;
+    h += `<div class="small" style="margin-bottom:6px">${owned}/${NODES.length} acquis · les achats sont définitifs · chaque palier s'ouvre avec le précédent.</div>`;
+    for (let tier = 1; tier <= 3; tier++) {
+      h += `<div class="tierlbl">Palier ${'I'.repeat(tier)}</div><div class="cards">`;
+      for (const n of NODES.filter(x => x.tier === tier).sort((a, b) => a.x - b.x)) {
+        const own = has(n.id), avail = n.pre.every(has), afford = S.gold >= n.cost;
+        const cls = own ? 'own' : avail ? (afford ? 'buy' : 'avail') : 'lock';
+        h += `<div class="ncard ${cls}"><div class="nic">${nodeIcon(n)}</div><div class="ntx"><b>${n.name}</b><div class="small">${n.desc}</div>`;
+        if (!avail && !own) h += `<div class="small req">🔒 Après : ${n.pre.map(p => NODE_BY_ID[p].name).join(' + ')}</div>`;
+        h += `</div>`;
+        h += own ? `<div class="nst">✔ Acquis</div>` : `<button class="${avail && afford ? 'blue' : ''}" data-act="buynode" data-v="${n.id}" ${!avail || !afford ? 'disabled' : ''}>${fmt(n.cost)} or</button>`;
+        h += `</div>`;
+      }
+      h += `</div>`;
+    }
+  } else {
+    h += `<div class="small" style="margin-bottom:6px">Les troupes tombées reviennent après chaque bataille. L'entraînement donne +10% de PV et de dégâts par niveau à une forme.</div>`;
+    for (let t = 0; t < 7; t++) {
+      if (!unlockedShape(t)) { h += `<div class="ncard lock"><div class="nic">${shapeSVG(t, '#8a7a55')}</div><div class="ntx"><b>${SHAPES[t].name}</b><div class="small">À débloquer dans l'arbre de compétences</div></div></div>`; continue; }
+      const c = recruitCost(t), tl = trainLvl(t), tc = trainCost(t);
+      h += `<div class="ncard own2"><div class="nic">${shapeSVG(t, TEAMCOL[0][t])}</div><div class="ntx"><b>${SHAPES[t].name}</b> <b>× ${fmt(S.owned[t])}</b> <span class="lvl">Nv ${tl}</span><div class="small">${SHAPES[t].role}</div>
+        <div class="row" style="margin-top:6px"><span class="small gold">${c} or l'unité</span>${[1, 10, 100].map(a => `<button data-act="recruit" data-t="${t}" data-v="${a}" ${S.gold < a * c ? 'disabled' : ''}>+${a}</button>`).join('')}<button data-act="recruit" data-t="${t}" data-v="max" ${S.gold < c ? 'disabled' : ''}>Max</button></div>
+        <div class="row" style="margin-top:6px"><button class="blue" data-act="train" data-t="${t}" ${S.gold < tc ? 'disabled' : ''}>Entraîner → Nv ${tl + 1} · ${fmt(tc)} or</button></div></div></div>`;
+    }
   }
-  for (const n of NODES) {
-    const owned = has(n.id), avail = n.pre.every(has), x = nx(n), y = rowY(n.tier);
-    const fill = owned ? '#ffd84a' : avail ? '#fffdf7' : '#e6dcc5';
-    const icon = n.unlock ? shapeSVG(SHAPE_IDX[n.unlock]).replace('<svg', `<svg x="${x - 11}" y="${y - 16}" width="22" height="22"`) : `<text x="${x}" y="${y - 1}" text-anchor="middle" font-size="18" font-weight="900">${n.id === 'king' ? '♛' : n.id.startsWith('eco') ? '¤' : n.id.startsWith('recruit') ? '+' : '▲'}</text>`;
-    nodes += `<g class="node" data-act="node" data-v="${n.id}"><rect x="${x - 40}" y="${y - 24}" width="80" height="48" rx="10" fill="${fill}" stroke="${selNode === n.id ? '#3b78e7' : '#23262d'}" stroke-width="${selNode === n.id ? 4 : 2.5}"/>${icon}<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9.5" font-weight="800">${n.name.length > 15 ? n.name.slice(0, 14) + '…' : n.name}</text></g>`;
-  }
-  let tiers = ''; for (let t = 1; t <= 3; t++) tiers += `<text x="6" y="${rowY(t) + 4}" font-size="12" font-weight="900" fill="#8a7a55">${'I'.repeat(t)}</text>`;
-  let det = '';
-  if (selNode) {
-    const n = NODE_BY_ID[selNode], owned = has(n.id), avail = n.pre.every(has);
-    det = `<div class="panel det"><b style="font-size:16px">${n.name}</b> <span class="small">Palier ${'I'.repeat(n.tier)}</span><div style="margin:4px 0">${n.desc}</div>
-      ${n.pre.length ? `<div class="small">Requiert : ${n.pre.map(p => NODE_BY_ID[p].name).join(', ')}</div>` : ''}
-      <div class="row" style="margin-top:6px">${owned ? '<b class="gold">Acquis</b>' : `<button class="blue" data-act="buynode" data-v="${n.id}" ${!avail || S.gold < n.cost ? 'disabled' : ''}>Acheter — ${fmt(n.cost)} or</button>`}</div></div>`;
-  } else det = `<p class="small">Touche un nœud pour voir son effet. Les achats sont définitifs.</p>`;
-  let rec = '';
-  for (let t = 0; t < 7; t++) {
-    if (!unlockedShape(t)) { rec += `<div class="rec" style="opacity:.4">${shapeSVG(t, '#8a7a55')}<div class="info"><b>${SHAPES[t].name}</b><div class="small">À débloquer dans l'arbre</div></div></div>`; continue; }
-    const c = recruitCost(t);
-    rec += `<div class="rec" style="flex-wrap:wrap">${shapeSVG(t, TEAMCOL[0][t])}<div class="info"><b>${SHAPES[t].name}</b> <b class="small">× ${fmt(S.owned[t])}</b> <span class="gold small">${c} or l'unité</span><div class="small">${SHAPES[t].role}</div></div>
-      <div class="row" style="justify-content:flex-end;width:100%">${[1, 10, 100].map(a => `<button data-act="recruit" data-t="${t}" data-v="${a}" ${S.gold < a * c ? 'disabled' : ''}>+${a}</button>`).join('')}<button data-act="recruit" data-t="${t}" data-v="max" ${S.gold < c ? 'disabled' : ''}>Max</button></div></div>`;
-  }
-  $('#upgrades').innerHTML = `<div class="wrap"><div class="hdr"><button data-act="backlevels">◀ Retour aux niveaux</button><b style="font-size:20px">Améliorations</b><span class="sp"></span><span class="chip gold">${fmt(S.gold)} or</span></div>
-    <div class="up"><div class="panel" style="padding:8px"><div style="overflow-x:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch"><svg class="tree" viewBox="0 0 ${Wd} ${Hd}" style="min-width:${Wd}px">${tiers}${lines}${nodes}</svg></div>${det}</div>
-    <div class="panel" style="padding:10px"><b style="font-size:16px">Recruter</b><div class="small">Les troupes tombées reviennent après chaque bataille : tu gardes ton armée.</div>${rec}</div></div></div>`;
+  h += `</div>`;
+  const sc = $('#upgrades').scrollTop;
+  $('#upgrades').innerHTML = h; $('#upgrades').scrollTop = sc;
 }
 
 // ---------------------------------------------------------------- préparation / bataille (HUD)
@@ -465,11 +623,12 @@ function renderTop() {
   const camSeg = `<div class="seg">${['2d', '3d', 'fly'].map(m => `<button data-act="cam" data-v="${m}" class="${view.mode === m ? 'on' : ''}">${m === 'fly' ? 'FLY' : m.toUpperCase()}</button>`).join('')}</div>`;
   let h = `<button data-act="levelsbtn">◀ ${mode === 'sandbox' ? 'Menu' : 'NIVEAUX'}</button><span class="chip title">${level.name}</span>`;
   if (screen === 'setup') {
+    if (mode !== 'sandbox') h += `<span class="chip red">👥 ${kfmt(level.enemy.length)}</span>`;
     if (mode !== 'sandbox') h += `<span class="chip${over ? ' over' : ''}" id="cost">Coût ${fmt(cost)}${cap ? ' / ' + fmt(cap) : ''}</span>`;
     else h += `<span class="chip">Bleus ${fmt(form[0].size)} · Rouges ${fmt(form[1].size)}</span>`;
     if (mode === 'campaign' || mode === 'command') h += `<span class="chip gold">${fmt(S.gold)} or</span>`;
   }
-  h += `<span class="sp"></span>${camSeg}`;
+  h += `<span class="sp"></span><button data-act="mute">${sfx.muted ? '🔇' : '🔊'}</button>${camSeg}`;
   $('#top').innerHTML = h;
   const c = $('#cost'); if (c) c.classList.toggle('over', !!over);
 }
@@ -480,7 +639,7 @@ function renderBottom() {
     for (let t = 0; t < 7; t++) {
       if (!shapeAvailable(t)) continue;
       const lim = armyLimit(t), team = mode === 'sandbox' ? brush.team : 0, used = (team ? c1 : c0)[t];
-      const label = isFinite(lim) ? `${fmt(lim - used)}` : fmt(used);
+      const label = isFinite(lim) ? `${kfmt(used)}/${kfmt(lim)}` : kfmt(used);
       pal += `<button class="slot ${brush.t === t && !brush.erase ? 'on' : ''}" data-act="brush" data-v="${t}">${shapeSVG(t, brush.t === t && !brush.erase ? '#fffdf7' : TEAMCOL[team][t])}<span class="n">${label}</span></button>`;
     }
     pal += `<button class="slot ${brush.erase ? 'on' : ''}" data-act="erase">${shapeSVG(-1, brush.erase ? '#fffdf7' : '#23262d')}<span class="n">Gomme</span></button>`;
@@ -504,6 +663,7 @@ function renderBottom() {
       h += `<button data-act="power" data-v="volley" id="pV"></button><button data-act="power" data-v="rally" id="pR"></button>`;
     }
     h += `<span style="flex:1"></span><span class="small" id="tm"></span><button data-act="retreat">Retraite</button></div></div>`;
+    if (sim && sim.kings.length) h = sim.kings.map(k => `<div class="panel bossbar"><b>${sim.team[k] ? '♛ Roi ennemi' : '♛ Ton Roi'}</b><div class="hpb"><i id="kb${k}" style="background:${sim.team[k] ? '#e5484d' : '#f5c542'}"></i></div></div>`).join('') + h;
     $('#bottom').innerHTML = h; updateBattleHud();
   }
 }
@@ -511,6 +671,7 @@ function updateBattleHud() {
   if (!sim || screen !== 'battle') return;
   const a = sim.aliveC[0], b = sim.aliveC[1];
   $('#nB').textContent = fmt(a); $('#nR').textContent = fmt(b);
+  for (const k of sim.kings) { const el = $('#kb' + k); if (el) el.style.width = Math.max(0, 100 * sim.hp[k] / sim.maxHp[k]) + '%'; }
   $('#bB').style.width = (100 * a / Math.max(1, a + b)) + '%'; $('#bR').style.width = (100 * b / Math.max(1, a + b)) + '%';
   $('#tm').textContent = (mode === 'campaign' || mode === 'command' ? '+' + fmt(sim.gold * goldMul()) + ' or · ' : '') + Math.floor(sim.time) + ' s';
   const pV = $('#pV'), pR = $('#pR');
@@ -531,6 +692,8 @@ function renderResult() {
     h += `<tr><td><b>Total</b></td><td class="gold">+${fmt(r.gKills + r.gWin + r.gRate)} or</td></tr>`;
   }
   h += `</table>`;
+  const rows = r.by.map((v, t) => v[0] ? `<div class="byrow">${shapeSVG(t, TEAMCOL[0][t])}<span>${SHAPES[t].name}</span><div class="hpb"><i style="width:${100 * (v[0] - v[1]) / v[0]}%;background:${TEAMCOL[0][t]}"></i></div><b>${fmt(v[0] - v[1])}/${fmt(v[0])}</b></div>` : '').join('');
+  if (rows) h += `<div class="small" style="text-align:left;margin-top:4px">Survivants par forme</div>${rows}`;
   if (camp && !r.win) h += `<p class="small">Tes troupes tombées reviennent. Recrute, améliore et réessaie !</p>`;
   h += `<div class="row" style="justify-content:center">`;
   if (mode === 'sandbox') h += `<button class="blue" data-act="again">Retour à l'éditeur</button>`;
@@ -543,11 +706,16 @@ function renderResult() {
   $('#result').innerHTML = h;
 }
 
+function banner(txt, cls = '') {
+  const el = document.createElement('div'); el.className = 'banner ' + cls; el.textContent = txt;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1700);
+}
 let toastT = 0;
 function toast(m) { const t = $('#toast'); t.textContent = m; t.style.opacity = 1; toastT = 2.8; }
 
 // ============================================================================ flux de jeu
 function openLevel(L) {
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); resize();
   level = L; undoStack = []; result = null; sim = null; power = null;
   if (mode === 'sandbox') {
     form[0].clear(); form[1].clear(); kingKey = -1;
@@ -584,29 +752,35 @@ function fight() {
   const upgraded = mode === 'campaign' || mode === 'command';
   const ps = SHAPES.map((s, t) => playerStats(t, upgraded));
   for (const [k, t] of form[0]) sim.add(cellX(k), cellZ(k), t, order, 0, ps[t], 0, k === kingKey);
-  const lm = mode === 'sandbox' ? 1 : 1 + .02 * ((level.id || 1) - 1);
+  const lm = mode === 'sandbox' ? 1 : 1 + .03 * ((level.id || 1) - 1);
   const es = SHAPES.map(s => Object.assign({}, s, { hp: s.hp * lm, dmg: s.dmg * lm }));
   const eo = level.enemyOrder === 'hold' ? 1 : 0;
   if (mode === 'sandbox') for (const [k, t] of form[1]) sim.add(cellX(k), cellZ(k), t, eo, 1, es[t], 0, false);
   else for (const e of level.enemy) sim.add(e.x, e.z, e.t, eo, 1, es[e.t], SHAPES[e.t].reward, !!e.king);
   // formes rencontrées (débloquées dans le bac à sable)
   if (mode !== 'sandbox') for (const e of level.enemy) if (!S.seen.includes(e.t)) S.seen.push(e.t);
-  speed = 1; power = null; volleyReady = 0; rallyReady = 0;
+  speed = S.speed || 1; power = null; volleyReady = 0; rallyReady = 0; P.n = 0;
+  setUnitShadows(sim.n < 7000);
+  renderer.setPixelRatio(Math.min(sim.n > 15000 ? 1.5 : 2, window.devicePixelRatio || 1)); resize();
   if (form[0].size >= 10000) unlockAch('tenk');
-  show('battle');
+  show('battle'); sfx.march(); autoCam = true;
+  banner(mode === 'sandbox' ? 'COMBAT !' : order === 1 ? 'TENEZ LA LIGNE !' : 'EN AVANT, MARCHE !');
   if (view.mode === '2d') { /* garde la vue */ }
 }
 function endBattle() {
   const win = sim.winner === 0;
   const army = sim.startC[0], lost = sim.startC[0] - sim.aliveC[0];
-  const r = { win, army, lost, enemies: sim.startC[1], killed: sim.startC[1] - sim.aliveC[1], time: sim.time, rating: 0, gKills: 0, gWin: 0, gRate: 0, first: false };
+  const r = { win, army, lost, enemies: sim.startC[1], killed: sim.startC[1] - sim.aliveC[1], time: sim.time, rating: 0, gKills: 0, gWin: 0, gRate: 0, first: false, by: [] };
+  // pertes par forme (camp bleu)
+  for (let t = 0; t < 7; t++) r.by[t] = [0, 0];
+  for (let i = 0; i < sim.n; i++) if (sim.team[i] === 0) { r.by[sim.type[i]][0]++; if (!sim.alive[i]) r.by[sim.type[i]][1]++; }
   if (win) r.rating = lost / army < .1 ? 3 : lost / army < .35 ? 2 : 1;
   if (mode !== 'sandbox') {
     const R = S.ratings[mode], prev = R[level.id] || 0;
     if (mode === 'campaign' || mode === 'command') {
       const n = level.id, gm = goldMul();
       r.gKills = Math.round(sim.gold * gm);
-      if (win) { r.first = prev === 0; r.gWin = Math.round((40 + 14 * n * Math.pow(1.06, n)) * gm * (r.first ? 1 : .3)); }
+      if (win) { r.first = prev === 0; r.gWin = Math.round((25 + 8 * n * Math.pow(1.07, n)) * gm * (r.first ? 1 : .3)); }
       for (let q = prev + 1; q <= r.rating; q++) if (q >= 2) r.gRate += Math.round((30 + 10 * n * Math.pow(1.06, n)) * gm * (q === 3 ? 1.5 : 1));
       S.gold += r.gKills + r.gWin + r.gRate;
     }
@@ -621,15 +795,21 @@ function endBattle() {
       if ((mode === 'campaign' || mode === 'command') && level.id === 50) unlockAch('end');
     }
   }
-  result = r; show('result');
+  result = r;
+  banner(mode === 'sandbox' ? (win ? 'VICTOIRE BLEUE' : 'VICTOIRE ROUGE') : win ? 'VICTOIRE !' : 'DÉFAITE', win ? 'win' : 'lose');
+  if (win) sfx.win(); else sfx.lose();
+  screen = 'ending';
+  setTimeout(() => { if (result === r) show('result'); }, 1100);
 }
 
 // ============================================================================ entrées
+let autoCam = true;
 const ptrs = new Map(); let gesture = null, painting = false, stroke = null, panning = false, lastStamp = null, lastTap = { t: 0, k: -1 };
 let mouseIn = false, mouseP = { x: 0, y: 0 };
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
   canvas.setPointerCapture(e.pointerId);
+  if (screen === 'battle') autoCam = false;
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
   mouseP = { x: e.clientX, y: e.clientY }; mouseIn = true;
   if (ptrs.size === 1) {
@@ -640,7 +820,7 @@ canvas.addEventListener('pointerdown', e => {
       // double tap sur un cercle -> couronne
       const now = performance.now(), k = nearestCircle(g.x, g.z);
       if (has('king') && (mode === 'campaign' || mode === 'command') && k >= 0) {
-        if (lastTap.k === k && now - lastTap.t < 500) { kingKey = kingKey === k ? -1 : k; formDirty = true; toast(kingKey === k ? '♛ Le Roi est couronné : x10 PV et dégâts, alliés proches +30% vitesse.' : 'Couronne retirée.'); renderBottom(); renderTop(); lastTap = { t: 0, k: -1 }; return; }
+        if (lastTap.k === k && now - lastTap.t < 500) { kingKey = kingKey === k ? -1 : k; formDirty = true; if (kingKey === k) sfx.crown(); toast(kingKey === k ? '♛ Le Roi est couronné : x10 PV et dégâts, alliés proches +30% vitesse.' : 'Couronne retirée.'); renderBottom(); renderTop(); lastTap = { t: 0, k: -1 }; return; }
         lastTap = { t: now, k };
       }
       painting = true; stroke = []; const wasErase = brush.erase; if (e.button === 2) brush.erase = true;
@@ -700,7 +880,12 @@ const endPtr = e => {
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
 canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouseIn = false; });
 function startGesture() { const [a, b] = [...ptrs.values()]; gesture = { mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), ang: Math.atan2(b.y - a.y, b.x - a.x) }; }
-canvas.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.pow(1.0015, -e.deltaY)); }, { passive: false });
+canvas.addEventListener('wheel', e => { e.preventDefault(); autoCam = false; zoomBy(Math.pow(1.0015, -e.deltaY)); }, { passive: false });
+// iPhone : empêche Safari de zoomer / faire défiler la page à la place du jeu
+canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+canvas.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
 const keys = new Set();
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase(); keys.add(k);
@@ -724,30 +909,30 @@ function editTerrain(x, z) {
 }
 
 function castVolley(x, z) {
-  sim.volley(x, z, 7, 9, 110); volleyReady = sim.time + 14; power = null; targetRing.visible = false; updateBattleHud();
+  sim.volley(x, z, 7, 9, 110); sfx.volley(); volleyReady = sim.time + 14; power = null; targetRing.visible = false; updateBattleHud();
 }
 
 // ============================================================================ clics sur l'interface
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act, v = b.dataset.v;
+  if (act !== 'fight') sfx.click();
   switch (act) {
     case 'mode':
       mode = v;
       if (mode === 'sandbox') { const L = sandboxLevel(); openLevel(L); if (S.sandbox) loadSandbox(); return; }
       show('levels'); return;
     case 'menu': show('menu'); return;
-    case 'upgrades': if (screen === 'setup') storeFormation(); upgradesFrom = screen; show('upgrades'); return;
-    case 'backlevels':
-      if (upgradesFrom === 'menu') { show('menu'); return; }
-      if (upgradesFrom === 'setup' && level) { const L = level; openLevel(Object.assign(L)); return; }
-      if (mode === 'sandbox') mode = 'campaign';
-      show('levels'); return;
+    case 'help': renderHelp(); return;
+    case 'upgrades': if (screen === 'setup') storeFormation(); upgradesFrom = screen; upTab = 0; show('upgrades'); $('#upgrades').scrollTop = 0; return;
+    case 'tocampaign': if (mode !== 'campaign' && mode !== 'command') mode = 'campaign'; show('levels'); return;
+    case 'backlevel': if (level && mode !== 'sandbox') { openLevel(level); return; } show('levels'); return;
+    case 'uptab': upTab = +v; renderUpgrades(); return;
+    case 'train': { const t = +b.dataset.t, c = trainCost(t); if (S.gold >= c) { S.gold -= c; S.train = S.train || [0, 0, 0, 0, 0, 0, 0]; S.train[t] = trainLvl(t) + 1; save(); sfx.buy(); toast(SHAPES[t].name + ' : niveau ' + S.train[t] + ' !'); } renderUpgrades(); return; }
     case 'level': startLevel(+v); return;
     case 'levelsbtn': if (screen === 'setup') storeFormation(); if (mode === 'sandbox') { show('menu'); return; } show('levels'); return;
-    case 'node': selNode = v; renderUpgrades(); return;
-    case 'buynode': { const n = NODE_BY_ID[v]; if (!has(v) && n.pre.every(has) && S.gold >= n.cost) { S.gold -= n.cost; S.nodes[v] = 1; save(); checkTreeAch(); if (n.unlock) toast('Nouvelle forme : ' + SHAPES[SHAPE_IDX[n.unlock]].name + ' ! Recrute-en à droite.'); } renderUpgrades(); return; }
-    case 'recruit': { const t = +b.dataset.t, c = recruitCost(t); let a = v === 'max' ? Math.floor(S.gold / c) : +v; a = Math.min(a, Math.floor(S.gold / c)); if (a > 0) { S.gold -= a * c; S.owned[t] += a; save(); } renderUpgrades(); return; }
+    case 'buynode': { const n = NODE_BY_ID[v]; if (!has(v) && n.pre.every(has) && S.gold >= n.cost) { S.gold -= n.cost; S.nodes[v] = 1; save(); checkTreeAch(); sfx.buy(); if (n.unlock) toast('Nouvelle forme : ' + SHAPES[SHAPE_IDX[n.unlock]].name + ' ! Recrute-en à droite.'); } renderUpgrades(); return; }
+    case 'recruit': { const t = +b.dataset.t, c = recruitCost(t); let a = v === 'max' ? Math.floor(S.gold / c) : +v; a = Math.min(a, Math.floor(S.gold / c)); if (a > 0) { S.gold -= a * c; S.owned[t] += a; save(); sfx.buy(); } renderUpgrades(); return; }
     case 'cam': setCamMode(v); return;
     case 'brush': brush.t = +v; brush.erase = false; brush.terrain = null; renderBottom(); return;
     case 'erase': brush.erase = !brush.erase; brush.terrain = null; renderBottom(); return;
@@ -761,11 +946,12 @@ document.addEventListener('click', e => {
     case 'clear': clearForm(); return;
     case 'auto': if (mode === 'sandbox') { sandboxAuto(); } else { autoFill(); } renderBottom(); renderTop(); return;
     case 'fight': fight(); return;
-    case 'speed': speed = +v; renderBottom(); return;
+    case 'mute': sfx.toggle(); b.textContent = sfx.muted ? '🔇' : '🔊'; return;
+    case 'speed': speed = +v; if (speed > 0) { S.speed = speed; save(); } renderBottom(); return;
     case 'liveorder': sim.setOrder(0, +v); toast(+v ? 'Toute l\'armée TIENT sa position.' : 'Toute l\'armée MARCHE !'); return;
     case 'power':
       if (v === 'volley') { power = power === 'volley' ? null : 'volley'; if (power) toast('Touche la zone à bombarder.'); }
-      else { sim.rally(5); rallyReady = sim.time + 22; toast('Ralliement ! +60% vitesse.'); }
+      else { sim.rally(5); rallyReady = sim.time + 22; toast('Ralliement ! +60% vitesse.'); sfx.rally(); }
       updateBattleHud(); return;
     case 'retreat': sim.finished = true; sim.winner = 1; return;
     case 'again': { const L = level; if (mode === 'sandbox') { show('setup'); formDirty = true; return; } startLevel(L.id); return; }
@@ -794,9 +980,8 @@ function sandboxAuto() {
 
 // ============================================================================ rendu par image
 function drawFormation() {
-  for (const tm of [0, 1]) for (const g of groups[tm]) g.begin();
-  kingGroup[0].begin(); kingGroup[1].begin(); crownGroup.begin();
-  for (const g of corpseGroup) g.begin(); projGroup.begin();
+  for (const g of allGroups) g.begin(); P.n = 0;
+  setUnitShadows(form[0].size + form[1].size + (level ? level.enemy.length : 0) < 7000);
   for (const tm of [0, 1]) {
     for (const [k, t] of form[tm]) {
       const r = SHAPES[t].r, x = cellX(k), z = cellZ(k), hz = tm === 0 ? -1 : 1;
@@ -811,19 +996,33 @@ function drawFormation() {
   }
   for (const g of allGroups) g.end();
 }
-function drawSim() {
+const TEAMHEX = [0x3b78e7, 0xe5484d];
+function drawSim(dt) {
   for (const g of allGroups) g.begin();
   const s = sim, n = s.n, now = s.time;
+  // éclats des unités tombées
+  if (s !== demo) { sfx.clash(s.events.length); sfx.arrows(Math.max(0, s.pn - (s._pn || 0))); s._pn = s.pn; }
+  if (s.events.length) {
+    if (s !== demo) for (const i of s.events) if (s.king[i]) sfx.kingDown();
+    const per = s.events.length > 300 ? 1 : s.events.length > 60 ? 2 : 4;
+    for (const i of s.events) burst(s.x[i], s.z[i], s.king[i] ? 0xffd84a : TEAMHEX[s.team[i]], s.king[i] ? 40 : per, s.king[i] ? .18 : .08 + s.r[i] * .15);
+    s.events.length = 0;
+  }
+  if (s.impacts.length) { for (let j = 0; j < s.impacts.length; j += 2) burst(s.impacts[j], s.impacts[j + 1], 0xcbb88a, 3, .07, 2); s.impacts.length = 0; }
+  stepParticles(dt);
   for (let i = 0; i < n; i++) {
     const r = s.r[i];
     if (s.alive[i]) {
-      const tm = s.team[i];
-      // petit rebond quand l'unité est touchée
-      const hitk = now - s.hitT[i] < .12 ? 1.25 : 1;
-      if (s.king[i]) { kingGroup[tm].push(s.x[i], 0, s.z[i], s.hx[i], s.hz[i], r, r * 1.45 * hitk); crownGroup.push(s.x[i], r * 1.45, s.z[i], s.hx[i], s.hz[i], r * .6, r * .75); }
-      else groups[tm][s.type[i]].push(s.x[i], 0, s.z[i], s.hx[i], s.hz[i], r, r * 1.6 * hitk);
-    } else if (now - s.deathT[i] < 2.5) {
-      corpseGroup[s.team[i]].push(s.x[i], 0, s.z[i], 0, 1, r * .9, .03);
+      const tm = s.team[i], ht = now - s.hitT[i];
+      const light = ht < .1 ? .85 : ht < .2 ? .4 : -(1 - s.hp[i] / s.maxHp[i]) * .4;
+      const sq = ht < .12 ? 1.2 : 1;   // petit écrasement quand l'unité est touchée
+      const v = Math.abs(s.vx[i]) + Math.abs(s.vz[i]);
+      const bob = v > .4 ? Math.abs(Math.sin(now * 13 + i * 1.7)) * r * .35 : 0;
+      if (s.king[i]) { kingGroup[tm].push(s.x[i], bob, s.z[i], s.hx[i], s.hz[i], r, r * 1.45 / sq, light); crownGroup.push(s.x[i], r * 1.45 / sq + bob, s.z[i], s.hx[i], s.hz[i], r * .6, r * .75); }
+      else groups[tm][s.type[i]].push(s.x[i], bob, s.z[i], s.hx[i], s.hz[i], r * (sq > 1 ? 1.08 : 1), r * 1.6 / sq, light);
+    } else {
+      const age = now - s.deathT[i];
+      if (age < 3) corpseGroup[s.team[i]].push(s.x[i], 0, s.z[i], 0, 1, r * (1 - age / 6), .03, -age * .15);
     }
   }
   for (let p = 0; p < s.pn; p++) {
@@ -831,7 +1030,19 @@ function drawSim() {
     const f = 1 - clamp(d / s.pd0[p], 0, 1), y = .4 + s.parc[p] * s.pd0[p] * 4 * f * (1 - f);
     projGroup.push(s.px[p], y, s.pz[p], dx / d, dz / d, 1, 1);
   }
+  drawParticles();
   for (const g of allGroups) g.end();
+}
+
+// ---------------------------------------------------------------- bataille de démonstration derrière le menu
+let demo = null;
+function startDemo() {
+  const L = campaignLevel(12); buildTerrainMeshes(L.terrain);
+  demo = new Sim(1400, L.terrain); sim = null;
+  for (let i = 0; i < 700; i++) { const t = [0, 0, 0, 1, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = 8 + Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 0, SHAPES[t], 0); }
+  for (let i = 0; i < 700; i++) { const t = [0, 0, 1, 3, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = -8 - Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 1, SHAPES[t], 0); }
+  view.mode = '3d'; view.tx = 0; view.tz = 0; view.dist = 58; view.pitch = .62; view.yaw = .4; updateCam();
+  P.n = 0; setUnitShadows(true);
 }
 
 let last = performance.now(), hudT = 0;
@@ -849,15 +1060,28 @@ function frame(now) {
   }
   if (view.mode === '3d' && (keys.has('e') || keys.has('r'))) { view.yaw += (keys.has('e') ? 1 : -1) * dt; updateCam(); }
 
-  if (screen === 'battle' && sim) {
+  if (screen === 'menu' && demo) {
+    demo.step(Math.min(dt, 1 / 30));
+    if (demo.finished) startDemo();
+    const keep = sim; sim = demo; drawSim(dt); sim = keep;
+    view.yaw += dt * .06; updateCam();
+  } else if (screen === 'battle' && sim) {
     if (speed > 0) {
       // pas fixes, avec budget de temps pour rester fluide sur mobile
       let acc = dt * speed; const t0 = performance.now();
       while (acc > 1e-4 && !sim.finished) { const h = Math.min(acc, 1 / 30); sim.step(h); acc -= h; if (performance.now() - t0 > 22) break; }
     }
-    drawSim();
+    drawSim(speed > 0 ? dt * speed : 0);
+    // caméra auto : suit la ligne de front tant que le joueur ne touche pas l'écran
+    if (autoCam && view.mode !== 'fly' && sim.aliveC[0] && sim.aliveC[1]) {
+      const mx = (sim.cen[0][0] + sim.cen[1][0]) / 2, mz = (sim.cen[0][1] + sim.cen[1][1]) / 2, k = Math.min(1, dt * .8);
+      view.tx += (mx - view.tx) * k; view.tz += (mz + (view.mode === '2d' && portrait ? view.zoom * VH / VW * .06 : 0) - view.tz) * k; updateCam();
+    }
     hudT -= dt; if (hudT <= 0) { hudT = .2; updateBattleHud(); }
     if (sim.finished) endBattle();
+  } else if ((screen === 'ending' || screen === 'result') && sim) {
+    // fin de bataille : on laisse retomber les éclats au ralenti
+    drawSim(dt * .4);
   } else if (screen === 'setup' || screen === 'result') {
     if (formDirty && screen === 'setup') { drawFormation(); formDirty = false; }
   }
@@ -873,8 +1097,10 @@ function frame(now) {
     }
     if (g && screen === 'battle' && power === 'volley') { targetRing.position.set(g.x, .07, g.z); targetRing.visible = true; }
   }
+  waterTex.offset.x += dt * .03; waterTex.offset.y = Math.sin(now / 1400) * .05;
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#toast').style.opacity = 0; }
-  renderer.render(scene, activeCam());
+  // les écrans Niveaux / Améliorations sont opaques : inutile de dessiner la 3D derrière (batterie)
+  if (screen !== 'levels' && screen !== 'upgrades' && !(screen === 'menu' && $('#menu').querySelector('.uphead'))) renderer.render(scene, activeCam());
   requestAnimationFrame(frame);
 }
 
@@ -883,7 +1109,6 @@ addEventListener('resize', () => { const was = portrait; resize(); if (was !== p
 resize();
 // décor du menu : une petite bataille de démonstration en fond
 level = campaignLevel(1); buildTerrainMeshes(level.terrain);
-fitTo(50, 0); view.mode = '3d'; view.dist = 60; view.yaw = .5; updateCam();
 show('menu');
 requestAnimationFrame(frame);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

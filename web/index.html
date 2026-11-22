@@ -14,7 +14,7 @@
 <title>We March as One</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#cfe2ee;color:#23262d;font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#cfe2ee;color:#23262d;font:14px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none}
 canvas#c{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;display:block;touch-action:none}
 .ui{position:fixed;z-index:2}
 .scr{position:fixed;inset:0;z-index:5;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#f2ead8}
@@ -54,7 +54,7 @@ h1.logo{font-size:clamp(36px,10vw,68px);line-height:.92;margin:0;letter-spacing:
 .mode{text-align:left;padding:12px 14px;font-weight:600}
 .mode b{display:block;font-size:17px;font-weight:900;margin-bottom:3px}
 .levels{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:12px}
-.lv{padding:8px 6px;text-align:center;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;gap:2px}
+.lv{padding:8px 6px;text-align:center;min-height:92px;display:flex;flex-direction:column;justify-content:space-between;gap:2px}
 .lv .num{font-size:20px;font-weight:900}
 .lv .nm{font-size:10px;font-weight:600;color:#5b616d}
 .lv.boss{background:#ffe1dc}.lv.city{background:#ece4d2}
@@ -89,6 +89,35 @@ svg.tree{width:100%;height:auto;display:block}
   .chip{padding:4px 7px;font-size:12px}
   #top button{padding:4px 8px;font-size:12px}
 }
+.uphead{position:sticky;top:0;z-index:3;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:#f2ead8f2;border-bottom:2px solid #23262d}
+.uphead .sp{flex:1}
+.tierlbl{font-weight:900;font-size:13px;letter-spacing:.1em;color:#8a7a55;margin:14px 0 6px;text-transform:uppercase}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.ncard{display:flex;gap:10px;align-items:center;background:#fffdf7;border:2px solid #23262d;border-radius:12px;padding:9px 10px;box-shadow:0 3px 0 #23262d}
+.ncard .nic{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f2ead8;border:2px solid #23262d}
+.ncard .nic svg{width:24px;height:24px}
+.ncard .ntx{flex:1;min-width:0}
+.ncard.own{background:#fff4c2}.ncard.own .nic{background:#ffd84a}
+.ncard.buy{box-shadow:0 3px 0 #2c64cf;border-color:#2c64cf}
+.ncard.lock{opacity:.55;box-shadow:none;border-style:dashed}
+.ncard .nst{font-weight:900;color:#a77a06;white-space:nowrap}
+.ncard .req{color:#8a5a2b}
+.lvl{display:inline-block;background:#23262d;color:#fffdf7;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:900}
+.banner{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);z-index:8;font-weight:900;font-size:clamp(24px,7.5vw,64px);letter-spacing:.03em;color:#fffdf7;-webkit-text-stroke:1.5px #23262d;text-shadow:0 4px 0 #23262d;white-space:normal;width:92vw;text-align:center;line-height:1.05;pointer-events:none;animation:ban 1.7s ease-out forwards}
+.banner.win{color:#ffd84a}.banner.lose{color:#ff8f86}
+@keyframes ban{0%{opacity:0;transform:translate(-50%,-50%) scale(2.2)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}100%{opacity:0;transform:translate(-50%,-60%) scale(1.04)}}
+.bossbar{padding:5px 8px;display:flex;gap:8px;align-items:center;font-size:12px}
+.hpb{flex:1;height:10px;border:2px solid #23262d;border-radius:6px;overflow:hidden;background:#fffdf7}.hpb i{display:block;height:100%}
+#toast{top:calc(env(safe-area-inset-top) + 104px)}
+#menu .uphead{background:#f2ead8}
+#menu{background:linear-gradient(180deg,rgba(242,234,216,.7) 0%,rgba(242,234,216,0) 22%,rgba(242,234,216,0) 40%,rgba(242,234,216,.92) 52%,#f2ead8 100%)}
+#menu .spacer{height:26vh}
+#menu .mode{background:#fffdf7f2}
+#menu .logo{text-shadow:0 3px 0 #fffdf7}
+.byrow{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;margin:3px 0;text-align:left}
+.byrow svg{width:16px;height:16px;flex:none}.byrow span{width:72px}.byrow b{width:70px;text-align:right}
+.lv.cur{border-color:#2c64cf;box-shadow:0 3px 0 #2c64cf;background:#e8f0ff}
+#result .panel{max-height:92vh;overflow-y:auto}
 [hidden]{display:none!important}
 </style>
 <script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>

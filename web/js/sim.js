@@ -22,7 +22,11 @@ export class Sim {
     this.aliveC = [0, 0]; this.startC = [0, 0]; this.gold = 0; this.time = 0;
     this.buff = [1, 1]; this.rallyT = 0; this.kings = [];
     this.finished = false; this.winner = -1; this.cen = [[0, 0], [0, 0]];
-    this.deaths = 0;
+    this.deaths = 0; this.events = []; this.impacts = [];
+    // champs de navigation : distance (en cases) jusqu'à l'ennemi le plus proche, pour chaque camp
+    this.field = [new Int32Array(GW * GH), new Int32Array(GW * GH)];
+    this.queue = new Int32Array(GW * GH);
+    this.lastHit = 0; this.forceMarch = false; this.stepN = 0;
     // projectiles
     const PC = 30000; this.PC = PC; this.pn = 0;
     this.px = new Float32Array(PC); this.pz = new Float32Array(PC); this.tx = new Float32Array(PC); this.tz = new Float32Array(PC);
@@ -88,10 +92,13 @@ export class Sim {
     this.time += dt;
     if (this.rallyT > 0) { this.rallyT -= dt; if (this.rallyT <= 0) this.buff[0] = 1; }
     this.grid(); this.centroids();
+    if (this.stepN++ % 12 === 0) { this.buildField(0); this.buildField(1); }
+    // anti-blocage : si plus personne ne se bat depuis 5 s, tout le monde marche
+    if (!this.forceMarch && this.time - this.lastHit > 5 && this.pn === 0 && this.time > 3) this.forceMarch = true;
     // aura des rois : +30% vitesse aux alliés proches (calculée par unité via kings[])
     const K = this.kings.filter(k => this.alive[k]);
     for (let i = 0; i < this.n; i++) if (this.alive[i]) this.unit(i, dt, K);
-    this.collide(); this.collide();
+    this.collide(); if (this.n < 15000 || (this.stepN & 1)) this.collide();
     this.projectiles(dt);
     if (this.aliveC[0] <= 0 || this.aliveC[1] <= 0) { this.finished = true; this.winner = this.aliveC[0] > 0 ? 0 : 1; }
     else if (this.time >= TIME_LIMIT) { this.finished = true; this.winner = this.aliveC[0] / this.startC[0] > this.aliveC[1] / this.startC[1] ? 0 : 1; }
@@ -123,9 +130,9 @@ export class Sim {
     this.cd[i] -= dt;
     let t = this.target[i];
     const lost = t >= 0 && !this.alive[t]; if (lost) t = -1;
-    const hold = this.order[i] === 1;
+    const holdO = this.order[i] === 1 && !this.forceMarch;
     if (lost || --this.wait[i] <= 0) {
-      const r = hold ? Math.max(this.range[i] + 5, 7) : Math.max(this.range[i] + 2.5, 9);
+      const r = holdO ? Math.max(this.range[i] + 5, 7) : Math.max(this.range[i] + 2.5, 9);
       t = this.find(i, r); this.wait[i] = t >= 0 ? 6 + (i & 3) : 14 + (i & 15);
     }
     this.target[i] = t;
@@ -133,6 +140,7 @@ export class Sim {
     if (K.length) for (const k of K) if (k !== i && this.team[k] === this.team[i]) { const a = this.x[k] - this.x[i], b = this.z[k] - this.z[i]; if (a * a + b * b < 49) { spd *= 1.3; break; } }
     if (this.slow[this.cz(this.z[i]) * GW + this.cx(this.x[i])]) spd *= .4;
     let mx = 0, mz = 0;
+    const hold = this.order[i] === 1 && !this.forceMarch;
     if (t >= 0) {
       const dx = this.x[t] - this.x[i], dz = this.z[t] - this.z[i], d = Math.sqrt(dx * dx + dz * dz) + 1e-5;
       const reach = this.range[i] + this.r[i] + this.r[t] + .04;
@@ -142,20 +150,69 @@ export class Sim {
           this.cd[i] = this.cool[i];
           if (this.ranged[i]) this.fire(i, t); else this.damage(t, this.dmg[i], this.team[i]);
         }
-      } else { mx = this.hx[i]; mz = this.hz[i]; }
+      } else if (d < 3 || this.ranged[i]) { mx = this.hx[i]; mz = this.hz[i]; }
+      else { const f = this.flow(i); if (f) { mx = f[0]; mz = f[1]; } else { mx = this.hx[i]; mz = this.hz[i]; } }
     } else if (!hold) {
-      // MARCHE : avance vers le camp adverse en gardant sa ligne, se rabat vers le centre ennemi
-      const et = 1 - this.team[i];
-      if (this.aliveC[et] > 0) {
-        const dz = this.cen[et][1] - this.z[i], dx = (this.cen[et][0] - this.x[i]) * .25;
-        const d = Math.sqrt(dx * dx + dz * dz);
-        if (d > .5) { mx = dx / d; mz = dz / d; this.hx[i] = mx; this.hz[i] = mz; }
-      }
+      // MARCHE : suit le champ de navigation (contourne bâtiments, prend les ponts) jusqu'à l'ennemi le plus proche
+      const f = this.flow(i);
+      if (f) { mx = f[0]; mz = f[1]; this.hx[i] = mx; this.hz[i] = mz; }
     }
     // vitesse lissée (évite les à-coups)
     this.vx[i] += (mx * spd - this.vx[i]) * Math.min(1, dt * 10);
     this.vz[i] += (mz * spd - this.vz[i]) * Math.min(1, dt * 10);
     this.x[i] += this.vx[i] * dt; this.z[i] += this.vz[i] * dt;
+  }
+
+  // BFS multi-sources depuis toutes les unités ennemies (obstacles infranchissables)
+  buildField(team) {
+    const F = this.field[team], Q = this.queue, B = this.block, et = 1 - team;
+    F.fill(0x3fffffff);
+    let qh = 0, qt = 0;
+    for (let i = 0; i < this.n; i++) {
+      if (!this.alive[i] || this.team[i] !== et) continue;
+      const c = this.cz(this.z[i]) * GW + this.cx(this.x[i]);
+      if (F[c] !== 0) { F[c] = 0; Q[qt++] = c; }
+    }
+    while (qh < qt) {
+      const c = Q[qh++], gx = c % GW, gz = (c / GW) | 0, nd = F[c] + 1;
+      for (let dz = -1; dz <= 1; dz++) {
+        const z = gz + dz; if (z < 0 || z >= GH) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dz) continue;
+          const x = gx + dx; if (x < 0 || x >= GW) continue;
+          const k = z * GW + x;
+          if (F[k] <= nd || B[k] >= 0) continue;
+          // pas de coupe en diagonale à travers un coin de bâtiment
+          if (dx && dz && (B[gz * GW + x] >= 0 || B[z * GW + gx] >= 0)) continue;
+          F[k] = nd; Q[qt++] = k;
+        }
+      }
+    }
+  }
+  // direction vers la case voisine la plus proche de l'ennemi
+  flow(i) {
+    const F = this.field[this.team[i]], gx = this.cx(this.x[i]), gz = this.cz(this.z[i]);
+    let best = F[gz * GW + gx], bx = 0, bz = 0;
+    if (best >= 0x3fffffff) return null;
+    for (let dz = -1; dz <= 1; dz++) {
+      const z = gz + dz; if (z < 0 || z >= GH) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dz) continue;
+        const x = gx + dx; if (x < 0 || x >= GW) continue;
+        const v = F[z * GW + x];
+        if (v < best || (v === best && bx === 0 && bz === 0 && v > 0 && false)) { best = v; bx = dx; bz = dz; }
+      }
+    }
+    if (!bx && !bz) {
+      // déjà dans la case la plus proche : va droit vers le centre de la masse ennemie
+      const et = 1 - this.team[i]; if (!this.aliveC[et]) return null;
+      const ex = this.cen[et][0] - this.x[i], ez = this.cen[et][1] - this.z[i], d = Math.hypot(ex, ez) || 1;
+      return [ex / d, ez / d];
+    }
+    // vise le centre de la case suivante (mouvement fluide)
+    const tx = (gx + bx) * G - HW + G / 2, tz = (gz + bz) * G - HH + G / 2;
+    const ex = tx - this.x[i], ez = tz - this.z[i], d = Math.hypot(ex, ez) || 1;
+    return [ex / d, ez / d];
   }
 
   // collisions dures entre formes + obstacles + bords
@@ -220,7 +277,7 @@ export class Sim {
       if (t >= 0 && this.alive[t]) { this.tx[p] = this.x[t]; this.tz[p] = this.z[t]; }
       const dx = this.tx[p] - this.px[p], dz = this.tz[p] - this.pz[p], d = Math.sqrt(dx * dx + dz * dz), st = this.pspd[p] * dt;
       if (d <= st) {
-        if (this.parea[p] > 0) this.area(this.tx[p], this.tz[p], this.parea[p], this.pd[p], this.pteam[p]);
+        if (this.parea[p] > 0) { this.area(this.tx[p], this.tz[p], this.parea[p], this.pd[p], this.pteam[p]); if (this.impacts.length < 400) this.impacts.push(this.tx[p], this.tz[p]); }
         else if (t >= 0 && this.alive[t]) this.damage(t, this.pd[p], this.pteam[p]);
         this.removeP(p); continue;
       }
@@ -237,9 +294,9 @@ export class Sim {
   }
   damage(t, d, att) {
     if (!this.alive[t]) return;
-    this.hp[t] -= d; this.hitT[t] = this.time;
+    this.hp[t] -= d; this.hitT[t] = this.time; this.lastHit = this.time; this.forceMarch = false;
     if (this.hp[t] <= 0) {
-      this.alive[t] = 0; this.deathT[t] = this.time; this.aliveC[this.team[t]]--; this.deaths++;
+      this.alive[t] = 0; this.deathT[t] = this.time; this.aliveC[this.team[t]]--; this.deaths++; if (this.events.length < 4000) this.events.push(t);
       if (this.team[t] === 1) this.gold += this.reward[t];
     }
   }

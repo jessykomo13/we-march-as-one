@@ -14,7 +14,11 @@ La version web (dossier `web/`, Three.js, sans build) est en 3D et reprend le je
 - **Campagne de 50 niveaux** avec notes VICTOIRE / DÉCISIVE / HÉROÏQUE, cités, boss et plafond de coût
 - **Arbre d'améliorations** sur 3 paliers (250 → 1 050 or) et panneau de recrutement, avec **le Roi** (touche deux fois un Cercle : ×10 PV et dégâts, alliés proches +30 % de vitesse)
 - **Modes** Commandement (ordres et pouvoirs en direct), Tactique (armée fixe), Rassemblement (budget fixe) et Bac à sable (éditeur de terrain)
-- **Caméras** 2D, 3D et FLY, jusqu'à 30 000 troupes, succès, sauvegarde locale et mode hors ligne
+- **Caméras** 2D, 3D et FLY, caméra automatique qui suit le front, jusqu'à 30 000 troupes, succès, sauvegarde locale et mode hors ligne
+- **Navigation intelligente** : les troupes contournent les bâtiments et prennent les ponts pour atteindre l'ennemi le plus proche ; une règle anti-blocage relance toute bataille figée
+- **Graphismes** : ombres douces, sable texturé, eau animée, maisons avec toits et fenêtres, éclats à chaque mort, flash quand une unité est touchée, bataille en direct derrière le menu
+- **Sons synthétisés** (tambours, mêlée, flèches, victoire), avec un bouton pour couper le son
+- **Améliorations** : arbre de 20 nœuds en cartes lisibles sur téléphone, plus le recrutement et l'entraînement de chaque forme (+10 % de PV et de dégâts par niveau)
 
 ---
 
