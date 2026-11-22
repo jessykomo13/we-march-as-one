@@ -11,7 +11,7 @@ La version web (dossier `web/`, Three.js, sans build) est en 3D et reprend le je
 - **7 formes** : Cercle (ligne), Carré (ancre), Triangle (briseur), Losange (rapide), Pentagone (ancre de flanc), Hexagone (tir), Rhombe (remplissage)
 - **Peinture sur grille** : une unité par case, pinceaux 1×1 / 3×3 / 7×7 / 8×8, ANNULER, EFFACER, AUTO, ordres MARCHE / TENIR
 - **Collisions dures** entre soldats, bâtiments, arbres, rivières (lentes) et ponts
-- **Campagne de 50 niveaux** avec notes VICTOIRE / DÉCISIVE / HÉROÏQUE, cités, boss et plafond de coût
+- **Campagne de 50 niveaux** avec notes VICTOIRE / DÉCISIVE / HÉROÏQUE, cités et boss (sans limite de troupes)
 - **Arbre d'améliorations** sur 3 paliers (250 → 1 050 or) et panneau de recrutement, avec **le Roi** (touche deux fois un Cercle : ×10 PV et dégâts, alliés proches +30 % de vitesse)
 - **Modes** Commandement (ordres et pouvoirs en direct), Tactique (armée fixe), Rassemblement (budget fixe) et Bac à sable (éditeur de terrain)
 - **Caméras** 2D, 3D et FLY, caméra automatique qui suit le front, jusqu'à 30 000 troupes, succès, sauvegarde locale et mode hors ligne

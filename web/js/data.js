@@ -143,8 +143,7 @@ export function campaignLevel(n) {
   if (isBoss) { kings.push(enemy.length); enemy.push({ x: 0, z: -30, t: SHAPE_IDX.pentagon, king: true }); }
 
   // plafond de coût à partir du niveau 15
-  let cap = 0;
-  if (n >= 15) { let v = 0; for (const e of enemy) v += SHAPES[e.t].cost * (e.king ? 10 : 1); cap = Math.round(v * 1.15 / 10) * 10; }
+  const cap = 0; // pas de plafond : envoie autant de troupes que tu veux
 
   return { id: n, name: LEVEL_NAMES[n - 1] || 'Niveau ' + n, terrain, enemy, enemyOrder: order, cap, boss: isBoss, city: isCity };
 }

@@ -740,7 +740,6 @@ function openLevel(L) {
   frameArmies(true);
   show('setup');
   if (mode === 'campaign' && level.id === 1 && !S.ratings.campaign[1]) toast('Peins tes troupes dans la zone bleue, choisis MARCHE ou TENIR, puis COMBATTRE !');
-  else if (level.cap) toast('Plafond de coût : ' + fmt(level.cap) + '. Choisis bien tes formes.');
 }
 function startLevel(id) {
   const L = levelList().find(l => l.id === id); if (!L) return;
