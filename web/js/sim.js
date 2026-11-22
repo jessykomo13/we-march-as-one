@@ -37,11 +37,16 @@ export class Sim {
 
   // ------------------------------------------------------------ terrain
   buildTerrain(t) {
-    this.block = new Int16Array(GW * GH).fill(-1);  // index d'obstacle par cellule
+    this.block = new Int16Array(GW * GH).fill(-1);  // collisions : obstacle qui touche la cellule
+    this.nav = new Uint8Array(GW * GH);              // navigation : 1 si le centre de la cellule est dans un obstacle
     this.slow = new Uint8Array(GW * GH);
     this.obs = [];
     const mark = (x0, z0, x1, z1, id) => {
-      for (let gz = this.cz(z0); gz <= this.cz(z1); gz++) for (let gx = this.cx(x0); gx <= this.cx(x1); gx++) this.block[gz * GW + gx] = id;
+      for (let gz = this.cz(z0); gz <= this.cz(z1); gz++) for (let gx = this.cx(x0); gx <= this.cx(x1); gx++) {
+        const c = gz * GW + gx; this.block[c] = id;
+        const cx = gx * G - HW + G / 2, cz = gz * G - HH + G / 2, m = .3;   // marge ≈ rayon d'une unité
+        if (cx > x0 - m && cx < x1 + m && cz > z0 - m && cz < z1 + m) this.nav[c] = 1;
+      }
     };
     for (const b of t.buildings) { const o = { x0: b.x - b.w / 2, x1: b.x + b.w / 2, z0: b.z - b.h / 2, z1: b.z + b.h / 2 }; this.obs.push(o); mark(o.x0, o.z0, o.x1, o.z1, this.obs.length - 1); }
     for (const tr of t.trees) { const o = { x0: tr.x - .45, x1: tr.x + .45, z0: tr.z - .45, z1: tr.z + .45 }; this.obs.push(o); mark(o.x0, o.z0, o.x1, o.z1, this.obs.length - 1); }
@@ -150,7 +155,7 @@ export class Sim {
           this.cd[i] = this.cool[i];
           if (this.ranged[i]) this.fire(i, t); else this.damage(t, this.dmg[i], this.team[i]);
         }
-      } else if (d < 3 || this.ranged[i]) { mx = this.hx[i]; mz = this.hz[i]; }
+      } else if (d < 2.5) { mx = this.hx[i]; mz = this.hz[i]; }
       else { const f = this.flow(i); if (f) { mx = f[0]; mz = f[1]; } else { mx = this.hx[i]; mz = this.hz[i]; } }
     } else if (!hold) {
       // MARCHE : suit le champ de navigation (contourne bâtiments, prend les ponts) jusqu'à l'ennemi le plus proche
@@ -165,7 +170,7 @@ export class Sim {
 
   // BFS multi-sources depuis toutes les unités ennemies (obstacles infranchissables)
   buildField(team) {
-    const F = this.field[team], Q = this.queue, B = this.block, et = 1 - team;
+    const F = this.field[team], Q = this.queue, B = this.nav, et = 1 - team;
     F.fill(0x3fffffff);
     let qh = 0, qt = 0;
     for (let i = 0; i < this.n; i++) {
@@ -181,9 +186,9 @@ export class Sim {
           if (!dx && !dz) continue;
           const x = gx + dx; if (x < 0 || x >= GW) continue;
           const k = z * GW + x;
-          if (F[k] <= nd || B[k] >= 0) continue;
+          if (F[k] <= nd || B[k]) continue;
           // pas de coupe en diagonale à travers un coin de bâtiment
-          if (dx && dz && (B[gz * GW + x] >= 0 || B[z * GW + gx] >= 0)) continue;
+          if (dx && dz && (B[gz * GW + x] || B[z * GW + gx])) continue;
           F[k] = nd; Q[qt++] = k;
         }
       }
@@ -192,15 +197,23 @@ export class Sim {
   // direction vers la case voisine la plus proche de l'ennemi
   flow(i) {
     const F = this.field[this.team[i]], gx = this.cx(this.x[i]), gz = this.cz(this.z[i]);
-    let best = F[gz * GW + gx], bx = 0, bz = 0;
-    if (best >= 0x3fffffff) return null;
+    const INF = 0x3fffffff, here = F[gz * GW + gx], N = this.nav;
+    let best = here, bx = 0, bz = 0;
     for (let dz = -1; dz <= 1; dz++) {
       const z = gz + dz; if (z < 0 || z >= GH) continue;
       for (let dx = -1; dx <= 1; dx++) {
         if (!dx && !dz) continue;
         const x = gx + dx; if (x < 0 || x >= GW) continue;
+        if (dx && dz && (N[gz * GW + x] || N[z * GW + gx])) continue;   // ne coupe pas les coins
         const v = F[z * GW + x];
-        if (v < best || (v === best && bx === 0 && bz === 0 && v > 0 && false)) { best = v; bx = dx; bz = dz; }
+        if (v < best) { best = v; bx = dx; bz = dz; }
+      }
+    }
+    if (!bx && !bz && here >= INF) {
+      // aucune case accessible connue (coincé contre un mur) : se décaler vers une case libre voisine
+      for (let r = 1; r <= 3; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+        const x = gx + dx, z = gz + dz; if (x < 0 || z < 0 || x >= GW || z >= GH) continue;
+        if (F[z * GW + x] < INF) { const ex = dx, ez = dz, d = Math.hypot(ex, ez); return [ex / d, ez / d]; }
       }
     }
     if (!bx && !bz) {
