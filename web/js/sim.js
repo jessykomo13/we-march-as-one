@@ -2,11 +2,11 @@
 // Simulation : chaque soldat et chaque projectile est simulé individuellement.
 // Collisions dures (les formes ne se traversent pas), obstacles, rivières lentes.
 // ============================================================================
-import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=7';
+import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=8';
 
 const G = 1.0;                                   // cellule de la grille spatiale
 const GW = Math.ceil(MAP_W / G) + 1, GH = Math.ceil(MAP_H / G) + 1;
-export const TIME_LIMIT = 240;
+export const TIME_LIMIT = 360;
 
 export class Sim {
   constructor(cap, terrain) {
@@ -18,6 +18,7 @@ export class Sim {
     this.team = new Uint8Array(this.cap); this.type = new Uint8Array(this.cap); this.order = new Uint8Array(this.cap);
     this.alive = new Uint8Array(this.cap); this.ranged = new Uint8Array(this.cap); this.king = new Uint8Array(this.cap);
     this.target = new Int32Array(this.cap); this.wait = new Int32Array(this.cap); this.next = new Int32Array(this.cap);
+    this.al = new Int32Array(this.cap); this.an = 0; this.thead = [new Int32Array(GW * GH), new Int32Array(GW * GH)]; this.dens = new Float32Array(GW * GH); this.tnext = new Int32Array(this.cap); this.cell = new Int32Array(this.cap); this.mass = new Float32Array(this.cap);
     this.head = new Int32Array(GW * GH);
     this.aliveC = [0, 0]; this.startC = [0, 0]; this.gold = 0; this.time = 0;
     this.buff = [1, 1]; this.rallyT = 0; this.kings = [];
@@ -67,7 +68,7 @@ export class Sim {
     this.speed[i] = st.speed * (.94 + .12 * Math.random()); this.cool[i] = st.cd; this.cd[i] = Math.random() * st.cd;
     this.r[i] = st.r * (king ? 2.2 : 1); this.ranged[i] = st.ranged ? 1 : 0; this.ps[i] = st.pspeed || 0;
     this.reward[i] = reward * mul; this.team[i] = team; this.type[i] = t; this.order[i] = order;
-    this.alive[i] = 1; this.king[i] = king ? 1 : 0; this.target[i] = -1; this.wait[i] = i % 8; this.hitT[i] = -9;
+    this.alive[i] = 1; this.king[i] = king ? 1 : 0; this.mass[i] = this.r[i] * this.r[i] * (king ? .1 : 1); this.target[i] = -1; this.wait[i] = i % 8; this.hitT[i] = -9;
     this.aliveC[team]++; this.startC[team]++;
     if (king) this.kings.push(i);
     return i;
@@ -75,18 +76,29 @@ export class Sim {
   cx(x) { const c = ((x + HW) / G) | 0; return c < 0 ? 0 : c >= GW ? GW - 1 : c; }
   cz(z) { const c = ((z + HH) / G) | 0; return c < 0 ? 0 : c >= GH ? GH - 1 : c; }
 
+  // grille spatiale + liste compacte des unités vivantes (les morts ne coûtent plus rien)
   grid() {
-    this.head.fill(-1);
+    this.head.fill(-1); this.thead[0].fill(-1); this.thead[1].fill(-1); this.dens.fill(0);
+    const DN = this.dens, MS = this.mass;
+    const TH = this.thead, TN = this.tnext, TM = this.team;
+    const AL = this.alive, X = this.x, Z = this.z, head = this.head, next = this.next, al = this.al, cell = this.cell;
+    let an = 0;
     for (let i = 0; i < this.n; i++) {
-      if (!this.alive[i]) continue;
-      const c = this.cz(this.z[i]) * GW + this.cx(this.x[i]);
-      this.next[i] = this.head[c]; this.head[c] = i;
+      if (!AL[i]) continue;
+      let gx = ((X[i] + HW) / G) | 0, gz = ((Z[i] + HH) / G) | 0;
+      if (gx < 0) gx = 0; else if (gx >= GW) gx = GW - 1;
+      if (gz < 0) gz = 0; else if (gz >= GH) gz = GH - 1;
+      const c = gz * GW + gx;
+      next[i] = head[c]; head[c] = i; cell[i] = c; al[an++] = i;
+      DN[c] += MS[i] * 5.5;   // occupation de la case (≈1 quand elle est pleine)
+      const th = TH[TM[i]]; TN[i] = th[c]; th[c] = i;   // grille séparée par camp (recherche d'ennemis)
     }
+    this.an = an;
   }
   centroids() {
     let a = 0, b = 0, c = 0, d = 0, n0 = 0, n1 = 0;
-    for (let i = 0; i < this.n; i++) {
-      if (!this.alive[i]) continue;
+    for (let k = 0; k < this.an; k++) {
+      const i = this.al[k];
       if (this.team[i] === 0) { a += this.x[i]; b += this.z[i]; n0++; } else { c += this.x[i]; d += this.z[i]; n1++; }
     }
     if (n0) this.cen[0] = [a / n0, b / n0]; if (n1) this.cen[1] = [c / n1, d / n1];
@@ -102,8 +114,8 @@ export class Sim {
     if (!this.forceMarch && this.time - this.lastHit > 5 && this.pn === 0 && this.time > 3) this.forceMarch = true;
     // aura des rois : +30% vitesse aux alliés proches (calculée par unité via kings[])
     const K = this.kings.filter(k => this.alive[k]);
-    for (let i = 0; i < this.n; i++) if (this.alive[i]) this.unit(i, dt, K);
-    this.collide(); if (this.n < 15000 || (this.stepN & 1)) this.collide();
+    for (let k = 0, an = this.an, al = this.al; k < an; k++) { const i = al[k]; if (this.alive[i]) this.unit(i, dt, K); }
+    this.collide(); if (this.an < 8000) this.collide();
     this.projectiles(dt);
     if (this.aliveC[0] <= 0 || this.aliveC[1] <= 0) { this.finished = true; this.winner = this.aliveC[0] > 0 ? 0 : 1; }
     else if (this.time >= TIME_LIMIT) { this.finished = true; this.winner = this.aliveC[0] / this.startC[0] > this.aliveC[1] / this.startC[1] ? 0 : 1; }
@@ -111,8 +123,12 @@ export class Sim {
 
   // ennemi le plus proche (anneaux de cellules)
   find(i, maxR) {
-    const cx = this.cx(this.x[i]), cz = this.cz(this.z[i]), rings = Math.ceil(maxR / G), my = this.team[i];
-    const xi = this.x[i], zi = this.z[i], head = this.head, next = this.next, X = this.x, Z = this.z, TM = this.team, AL = this.alive;
+    const my = this.team[i], c0 = this.cell[i], rings = Math.ceil(maxR / G);
+    // la carte de navigation connaît déjà la distance (en cases) jusqu'à l'ennemi le plus proche :
+    // s'il est trop loin, inutile de chercher
+    if (this.field[my][c0] > rings + 2) return -1;
+    const cx = c0 % GW, cz = (c0 / GW) | 0;
+    const xi = this.x[i], zi = this.z[i], head = this.thead[1 - my], next = this.tnext, X = this.x, Z = this.z, AL = this.alive;
     let best = -1, bd = maxR * maxR;
     for (let r = 0; r <= rings; r++) {
       for (let dz = -r; dz <= r; dz++) {
@@ -121,7 +137,7 @@ export class Sim {
         for (let dx = -r; dx <= r; dx += st) {
           const gx = cx + dx; if (gx < 0 || gx >= GW) continue;
           for (let j = head[gz * GW + gx]; j !== -1; j = next[j]) {
-            if (TM[j] === my || !AL[j]) continue;
+            if (!AL[j]) continue;
             const a = X[j] - xi, b = Z[j] - zi, d = a * a + b * b; if (d < bd) { bd = d; best = j; }
           }
         }
@@ -162,6 +178,14 @@ export class Sim {
       const f = this.flow(i);
       if (f) { mx = f[0]; mz = f[1]; this.hx[i] = mx; this.hz[i] = mz; }
     }
+    // foule : on ralentit quand la place devant est déjà occupée (évite d'écraser les rangs)
+    if (mx || mz) {
+      const c = this.cell[i], gx = c % GW, gz = (c / GW) | 0;
+      const ax = gx + (mx > .38 ? 1 : mx < -.38 ? -1 : 0), az = gz + (mz > .38 ? 1 : mz < -.38 ? -1 : 0);
+      const ahead = (ax >= 0 && ax < GW && az >= 0 && az < GH) ? this.dens[az * GW + ax] : 0;
+      const full = Math.max(this.dens[c], ahead);
+      if (full > 1.0) spd *= full > 1.4 ? .25 : .5;
+    }
     // vitesse lissée (évite les à-coups)
     this.vx[i] += (mx * spd - this.vx[i]) * Math.min(1, dt * 10);
     this.vz[i] += (mz * spd - this.vz[i]) * Math.min(1, dt * 10);
@@ -173,9 +197,9 @@ export class Sim {
     const F = this.field[team], Q = this.queue, B = this.nav, et = 1 - team;
     F.fill(0x3fffffff);
     let qh = 0, qt = 0;
-    for (let i = 0; i < this.n; i++) {
-      if (!this.alive[i] || this.team[i] !== et) continue;
-      const c = this.cz(this.z[i]) * GW + this.cx(this.x[i]);
+    for (let k = 0; k < this.an; k++) {
+      const i = this.al[k]; if (!this.alive[i] || this.team[i] !== et) continue;
+      const c = this.cell[i];
       if (F[c] !== 0) { F[c] = 0; Q[qt++] = c; }
     }
     while (qh < qt) {
@@ -229,34 +253,41 @@ export class Sim {
   }
 
   // collisions dures entre formes + obstacles + bords
+  // collisions dures : chaque paire n'est testée qu'une fois (même case + 4 cases voisines « en avant »)
   collide() {
-    const X = this.x, Z = this.z, R = this.r, AL = this.alive, head = this.head, next = this.next, n = this.n;
-    for (let i = 0; i < n; i++) {
-      if (!AL[i]) continue;
-      const cx = this.cx(X[i]), cz = this.cz(Z[i]); const ri = R[i];
-      const wi = this.king[i] ? 0.1 : 1;
-      for (let gz = cz - 1; gz <= cz + 1; gz++) {
-        if (gz < 0 || gz >= GH) continue;
-        for (let gx = cx - 1; gx <= cx + 1; gx++) {
-          if (gx < 0 || gx >= GW) continue;
-          for (let j = head[gz * GW + gx]; j !== -1; j = next[j]) {
-            if (j <= i || !AL[j]) continue;
-            let dx = X[i] - X[j], dz = Z[i] - Z[j]; const md = ri + R[j]; let d2 = dx * dx + dz * dz;
-            if (d2 >= md * md) continue;
-            if (d2 < 1e-8) { dx = (Math.random() - .5) * .01; dz = (Math.random() - .5) * .01; d2 = dx * dx + dz * dz + 1e-8; }
-            const d = Math.sqrt(d2), pen = (md - d) / d;
-            // les gros (et les rois) poussent plus qu'ils ne sont poussés
-            const mi = ri * ri * wi, mj = R[j] * R[j] * (this.king[j] ? 0.1 : 1), sum = mi + mj;
-            const ai = mj / sum, aj = mi / sum;
-            X[i] += dx * pen * ai; Z[i] += dz * pen * ai;
-            X[j] -= dx * pen * aj; Z[j] -= dz * pen * aj;
-          }
+    const X = this.x, Z = this.z, R = this.r, M = this.mass, AL = this.alive, head = this.head, next = this.next, cell = this.cell, al = this.al;
+    const starts = this._starts || (this._starts = new Int32Array(5));
+    for (let k = 0, an = this.an; k < an; k++) {
+      const i = al[k]; if (!AL[i]) continue;
+      const ri = R[i], mi = M[i], c = cell[i], gx = c % GW, gz = (c / GW) | 0;
+      let ns = 0;
+      starts[ns++] = next[i];                              // même case : après i
+      if (gx + 1 < GW) starts[ns++] = head[c + 1];         // E
+      if (gz + 1 < GH) {
+        const b = c + GW;
+        if (gx > 0) starts[ns++] = head[b - 1];            // SO
+        starts[ns++] = head[b];                            // S
+        if (gx + 1 < GW) starts[ns++] = head[b + 1];       // SE
+      }
+      let xi = X[i], zi = Z[i];
+      for (let q = 0; q < ns; q++) {
+        for (let j = starts[q]; j !== -1; j = next[j]) {
+          let dx = xi - X[j], dz = zi - Z[j]; const md = ri + R[j]; let d2 = dx * dx + dz * dz;
+          if (d2 >= md * md || !AL[j]) continue;
+          if (d2 < 1e-8) { dx = (Math.random() - .5) * .01; dz = (Math.random() - .5) * .01; d2 = dx * dx + dz * dz + 1e-8; }
+          const d = Math.sqrt(d2), pen = (md - d) / d, mj = M[j], inv = pen / (mi + mj);
+          // les gros (et les rois) poussent plus qu'ils ne sont poussés
+          const ai = mj * inv, aj = mi * inv;
+          xi += dx * ai; zi += dz * ai; X[j] -= dx * aj; Z[j] -= dz * aj;
         }
       }
-      // obstacles
-      const b = this.block[this.cz(Z[i]) * GW + this.cx(X[i])];
-      if (b >= 0) this.pushOut(i, this.obs[b]);
-      // bords
+      X[i] = xi; Z[i] = zi;
+    }
+    // obstacles et bords
+    for (let k = 0, an = this.an; k < an; k++) {
+      const i = al[k], ri = R[i];
+      const bx = ((X[i] + HW) / G) | 0, bz = ((Z[i] + HH) / G) | 0;
+      if (bx >= 0 && bx < GW && bz >= 0 && bz < GH) { const b = this.block[bz * GW + bx]; if (b >= 0) this.pushOut(i, this.obs[b]); }
       const lx = HW - ri, lz = HH - ri;
       if (X[i] < -lx) X[i] = -lx; else if (X[i] > lx) X[i] = lx;
       if (Z[i] < -lz) Z[i] = -lz; else if (Z[i] > lz) Z[i] = lz;

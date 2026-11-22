@@ -1,6 +1,6 @@
 // Hors-ligne : on demande TOUJOURS la dernière version au serveur (sans cache HTTP),
 // et on ne sert la copie locale que si on est hors ligne.
-const VERSION = '7';
+const VERSION = '8';
 const CACHE = 'wmao-' + VERSION;
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './three.module.min.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).catch(() => {})); self.skipWaiting(); });

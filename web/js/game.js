@@ -3,11 +3,11 @@
 // ============================================================================
 import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
-  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=7';
-import { Sim } from './sim.js?v=7';
-import { sfx } from './audio.js?v=7';
+  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=8';
+import { Sim } from './sim.js?v=8';
+import { sfx } from './audio.js?v=8';
 
-const GAME_VERSION = '7';
+const GAME_VERSION = '8';
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
@@ -68,8 +68,26 @@ function playerStats(t, upgraded) {
 
 // ============================================================================ Three.js
 const canvas = $('#c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// sur les écrans haute densité (téléphones) l'anticrénelage coûte cher et ne se voit pas
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 1.5, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+// qualité adaptative : si le jeu descend sous ~35 images/s, on baisse la résolution (et les ombres), puis on remonte si ça va mieux
+const quality = { level: 0, big: false, ema: 16, slowT: 0, fastT: 0 };
+const QUALITY_PR = [2, 1.5, 1.2, 1];
+function applyQuality() {
+  const dpr = window.devicePixelRatio || 1;
+  let pr = Math.min(dpr, QUALITY_PR[quality.level]);
+  if (quality.big) pr = Math.min(pr, 1.5);
+  renderer.setPixelRatio(pr);
+  sun.castShadow = quality.level < 2;
+  if (typeof resize === 'function') resize();
+}
+function trackQuality(frameMs) {
+  quality.ema += (frameMs - quality.ema) * .05;
+  if (quality.ema > 28) { quality.slowT += frameMs; quality.fastT = 0; } else if (quality.ema < 17) { quality.fastT += frameMs; quality.slowT = 0; } else { quality.slowT = quality.fastT = 0; }
+  if (quality.slowT > 1500 && quality.level < QUALITY_PR.length - 1) { quality.level++; quality.slowT = 0; quality.ema = 20; applyQuality(); setUnitShadows(false); }
+  else if (quality.fastT > 6000 && quality.level > 0) { quality.level--; quality.fastT = 0; applyQuality(); }
+}
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -191,7 +209,13 @@ class Group {
     else { const k = 1 + light; c[p] = b.r * k; c[p + 1] = b.g * k; c[p + 2] = b.b * k; }
     this.n++;
   }
-  end() { this.mesh.count = this.n; this.mesh.instanceMatrix.needsUpdate = true; this.mesh.instanceColor.needsUpdate = true; }
+  end() {
+    // n'envoie au GPU que la partie utilisée des tampons
+    const m = this.mesh, n = this.n; m.count = n;
+    const im = m.instanceMatrix, ic = m.instanceColor;
+    im.clearUpdateRanges(); ic.clearUpdateRanges();
+    if (n) { im.addUpdateRange(0, n * 16); ic.addUpdateRange(0, n * 3); im.needsUpdate = true; ic.needsUpdate = true; }
+  }
 }
 // légère arête sombre sous chaque forme pour mieux les détacher du sable
 function bevel(g) { g.computeVertexNormals(); return g; }
@@ -725,7 +749,7 @@ function toast(m) { const t = $('#toast'); t.textContent = m; t.style.opacity = 
 
 // ============================================================================ flux de jeu
 function openLevel(L) {
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); resize();
+  quality.big = false; applyQuality();
   level = L; undoStack = []; result = null; sim = null; power = null;
   if (mode === 'sandbox') {
     form[0].clear(); form[1].clear(); kingKey = -1;
@@ -769,8 +793,8 @@ function fight() {
   // formes rencontrées (débloquées dans le bac à sable)
   if (mode !== 'sandbox') for (const e of level.enemy) if (!S.seen.includes(e.t)) S.seen.push(e.t);
   speed = S.speed || 1; power = null; volleyReady = 0; rallyReady = 0; P.n = 0;
-  setUnitShadows(sim.n < 7000);
-  renderer.setPixelRatio(Math.min(sim.n > 15000 ? 1.5 : 2, window.devicePixelRatio || 1)); resize();
+  setUnitShadows(sim.n < 2500 && quality.level === 0);
+  quality.big = sim.n > 12000; applyQuality();
   if (form[0].size >= 10000) unlockAch('tenk');
   show('battle'); sfx.march(); autoCam = true;
   banner(mode === 'sandbox' ? 'COMBAT !' : order === 1 ? 'TENEZ LA LIGNE !' : 'EN AVANT, MARCHE !');
@@ -990,7 +1014,7 @@ function sandboxAuto() {
 // ============================================================================ rendu par image
 function drawFormation() {
   for (const g of allGroups) g.begin(); P.n = 0;
-  setUnitShadows(form[0].size + form[1].size + (level ? level.enemy.length : 0) < 7000);
+  setUnitShadows(form[0].size + form[1].size + (level ? level.enemy.length : 0) < 2500 && quality.level === 0);
   for (const tm of [0, 1]) {
     for (const [k, t] of form[tm]) {
       const r = SHAPES[t].r, x = cellX(k), z = cellZ(k), hz = tm === 0 ? -1 : 1;
@@ -1047,16 +1071,17 @@ function drawSim(dt) {
 let demo = null;
 function startDemo() {
   const L = campaignLevel(12); buildTerrainMeshes(L.terrain);
-  demo = new Sim(1400, L.terrain); sim = null;
-  for (let i = 0; i < 700; i++) { const t = [0, 0, 0, 1, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = 8 + Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 0, SHAPES[t], 0); }
-  for (let i = 0; i < 700; i++) { const t = [0, 0, 1, 3, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = -8 - Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 1, SHAPES[t], 0); }
+  demo = new Sim(800, L.terrain); sim = null;
+  for (let i = 0; i < 400; i++) { const t = [0, 0, 0, 1, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = 8 + Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 0, SHAPES[t], 0); }
+  for (let i = 0; i < 400; i++) { const t = [0, 0, 1, 3, 2, 5, 6][i % 7]; const x = -25 + (i % 100) * .5, z = -8 - Math.floor(i / 100) * .5; if (!cellBlocked(L.terrain, x, z)) demo.add(x, z, t, 0, 1, SHAPES[t], 0); }
   view.mode = '3d'; view.tx = 0; view.tz = 0; view.dist = 58; view.pitch = .62; view.yaw = .4; updateCam();
   P.n = 0; setUnitShadows(true);
 }
 
 let last = performance.now(), hudT = 0;
 function frame(now) {
-  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const frameMs = now - last; const dt = Math.min(.1, frameMs / 1000); last = now;
+  if (screen === 'battle' || screen === 'setup' || screen === 'menu') trackQuality(Math.min(frameMs, 100));
   // clavier : déplacement caméra
   let kx = 0, kz = 0;
   if (keys.has('w') || keys.has('z') || keys.has('arrowup')) kz -= 1;
@@ -1078,7 +1103,7 @@ function frame(now) {
     if (speed > 0) {
       // pas fixes, avec budget de temps pour rester fluide sur mobile
       let acc = dt * speed; const t0 = performance.now();
-      while (acc > 1e-4 && !sim.finished) { const h = Math.min(acc, 1 / 30); sim.step(h); acc -= h; if (performance.now() - t0 > 22) break; }
+      while (acc > 1e-4 && !sim.finished) { const h = Math.min(acc, sim.an > 15000 ? 1 / 18 : sim.an > 6000 ? 1 / 24 : 1 / 30); sim.step(h); acc -= h; if (performance.now() - t0 > 22) break; }
     }
     drawSim(speed > 0 ? dt * speed : 0);
     // caméra auto : suit la ligne de front tant que le joueur ne touche pas l'écran
@@ -1126,4 +1151,4 @@ if ('serviceWorker' in navigator) {
   if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
   navigator.serviceWorker.register('sw.js?v=' + GAME_VERSION, { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
 }
-window.__wmao = { get kingKey() { return kingKey; }, proj: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(activeCam()); return [Math.round((v.x + 1) / 2 * VW), Math.round((1 - v.y) / 2 * VH)]; }, groups, S, get sim() { return sim; }, get screen() { return screen; }, form, startLevel, setMode: m => mode = m, fight, view };
+window.__wmao = { stampAt: (x, z) => { const st = []; stamp(x, z, st); }, drawSimOnly: () => drawSim(0), get kingKey() { return kingKey; }, proj: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(activeCam()); return [Math.round((v.x + 1) / 2 * VW), Math.round((1 - v.y) / 2 * VH)]; }, groups, S, get sim() { return sim; }, get screen() { return screen; }, form, startLevel, setMode: m => mode = m, fight, view };
