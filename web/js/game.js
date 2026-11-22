@@ -623,7 +623,17 @@ function renderTop() {
   const camSeg = `<div class="seg">${['2d', '3d', 'fly'].map(m => `<button data-act="cam" data-v="${m}" class="${view.mode === m ? 'on' : ''}">${m === 'fly' ? 'FLY' : m.toUpperCase()}</button>`).join('')}</div>`;
   let h = `<button data-act="levelsbtn">◀ ${mode === 'sandbox' ? 'Menu' : 'NIVEAUX'}</button><span class="chip title">${level.name}</span>`;
   if (screen === 'setup') {
-    if (mode !== 'sandbox') h += `<span class="chip red">👥 ${kfmt(level.enemy.length)}</span>`;
+    if (mode !== 'sandbox') {
+      // force estimée : valeur (coût) de ton armée améliorée vs celle de l'ennemi
+      const up = mode === 'campaign' || mode === 'command', lm = 1 + .03 * ((level.id || 1) - 1);
+      let mine = 0, foe = 0;
+      for (const t of form[0].values()) { const st = playerStats(t, up); mine += SHAPES[t].cost * Math.sqrt(st.hp * st.dmg / (SHAPES[t].hp * SHAPES[t].dmg)); }
+      if (kingKey >= 0) mine += SHAPES[0].cost * 9;
+      for (const e of level.enemy) foe += SHAPES[e.t].cost * lm * (e.king ? 10 : 1);
+      const ratio = foe ? mine / foe : 1, col = ratio >= 1.3 ? '#1f9d55' : ratio >= .9 ? '#c98a00' : '#d8343a';
+      h += `<span class="chip" style="color:${col}" title="Force estimée de ton armée par rapport à l'ennemi">⚔ ${Math.round(ratio * 100)}%</span>`;
+      h += `<span class="chip red">👥 ${kfmt(level.enemy.length)}</span>`;
+    }
     if (mode !== 'sandbox') h += `<span class="chip${over ? ' over' : ''}" id="cost">Coût ${fmt(cost)}${cap ? ' / ' + fmt(cap) : ''}</span>`;
     else h += `<span class="chip">Bleus ${fmt(form[0].size)} · Rouges ${fmt(form[1].size)}</span>`;
     if (mode === 'campaign' || mode === 'command') h += `<span class="chip gold">${fmt(S.gold)} or</span>`;
