@@ -98,14 +98,15 @@ function parkedCar(x,z,ry,g,paint,kind){
   const pc={x,z,ry,paint:P,kind,ranges:[]};c.userData.pcar=pc;
   const al=Math.abs(Math.cos(ry))>0.5;addObstacle({type:"box",x,z,hx:al?0.95:2.2,hz:al?2.2:0.95,pcar:pc});
 }
-function carMesh(P,kind,driver){
+const HEADL=mat({color:0xffffff,emissive:0xfff2c0,emissiveIntensity:0.15}),TAILL=mat({color:0xb3261e,emissive:0xff2010,emissiveIntensity:0.1});
+function carMesh(P,kind,driver,lit){
   const c=new THREE.Group();
   const van=kind==="van",pol=kind==="police";
   put(BX(1.78,0.62,4.3),P,0,0.58,0,c);put(BX(1.6,van?1.0:0.55,van?3.2:2.2),van?P:KM.glass,0,van?1.38:1.15,van?-0.3:-0.15,c);
   if(!van)put(BX(1.62,0.06,2.0),P,0,1.44,-0.15,c);
   for(const [sx,sz] of [[-0.82,1.35],[0.82,1.35],[-0.82,-1.35],[0.82,-1.35]])put(geo("wheel",()=>new THREE.CylinderGeometry(0.33,0.33,0.22,12).rotateZ(Math.PI/2)),KM.tire,sx,0.33,sz,c);
-  put(BX(1.5,0.12,0.05),KM.chrome,0,0.62,2.16,c);put(BX(1.7,0.1,0.05),KM.red,0,0.75,-2.16,c);
-  for(const sx of [-0.6,0.6])put(BX(0.3,0.12,0.04),KM.white,sx,0.75,2.16,c);
+  const on=driver||lit;put(BX(1.5,0.12,0.05),KM.chrome,0,0.62,2.16,c);put(BX(1.7,0.1,0.05),on?TAILL:KM.red,0,0.75,-2.16,c);
+  for(const sx of [-0.6,0.6])put(BX(0.3,0.12,0.04),on?HEADL:KM.white,sx,0.75,2.16,c);
   if(pol){put(BX(1.8,0.25,1.2),KM.white,0,0.6,0.1,c);put(BX(0.9,0.12,0.28),KM.blue,0,1.5,-0.1,c);}
   if(kind==="ambulance"){put(BX(1.82,0.2,4.32),KM.red,0,1.0,0,c);}
   if(driver){put(geo("drvHead",()=>new THREE.SphereGeometry(0.13,10,8)),mat({color:driver}),0.38,1.25,0.15,c);put(BX(0.4,0.35,0.3),KM.dark,0.38,0.98,0.1,c);}

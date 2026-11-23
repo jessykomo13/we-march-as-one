@@ -85,6 +85,6 @@ function updateCamera(dt){
   if(camera.position.y<0.1)camera.position.y=0.1;
   camera.lookAt(R.focus);
   if(cam.shake>0){cam.shake=Math.max(0,cam.shake-dt*1.6);camera.position.add(new V3(rand(-1,1),rand(-1,1),rand(-1,1)).multiplyScalar(cam.shake*0.12));}
-  const sc=galleryOn?GAL_C:player.root;sun.position.copy(sc).add(new V3(-6,11,4));sun.target.position.copy(sc);
+  const sc=galleryOn?GAL_C:player.root;sun.position.copy(sc).add(DAYSUN);sun.target.position.copy(sc);
 }
 

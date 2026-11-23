@@ -6,7 +6,7 @@ const SET_DEFAULT={
   quality:"haute",shadows:"haute",dist:"normale",res:100,fov:40,fpsShow:false,
   master:80,sfx:90,siren:70,voice:true,voiceVol:90,
   sens:100,invertY:false,vibrate:true,autoCam:true,
-  crowd:22,prints:true,help:true
+  crowd:22,prints:true,help:true,cycle:"24",weather:true,farView:1
 };
 const QUALITY={
   basse:{shadows:"off",dist:"courte",res:70},
@@ -83,6 +83,7 @@ function renderMenu(){
       +rng2("res","Résolution",50,100,5," %")+rng2("fov","Champ de vision",30,70,1,"°")+tog("fpsShow","Afficher les FPS");
     h+=`<div class="sec">Son</div>`+rng2("master","Volume général",0,100,5," %")+rng2("sfx","Effets (coups, chutes)",0,100,5," %")+rng2("siren","Sirènes",0,100,5," %")+tog("voice","Voix des passants")+rng2("voiceVol","Volume des voix",0,100,5," %");
     h+=`<div class="sec">Commandes</div>`+rng2("sens","Sensibilité caméra",30,250,10," %")+tog("invertY","Inverser l'axe vertical")+tog("vibrate","Vibrations")+tog("autoCam","Caméra qui se replace derrière");
+    h+=`<div class="sec">Monde</div>`+sel("cycle","Durée d'une journée",[["12","12 minutes"],["24","24 minutes"],["48","48 minutes"],["jour","Toujours le jour"],["nuit","Toujours la nuit"]])+tog("weather","Météo (pluie, nuages)")+sel("farView","Vue au loin (campagne)",[["0.5","Courte (mobile)"],["1","Normale"],["1.5","Très loin"]]);
     h+=`<div class="sec">Jeu</div>`+rng2("crowd","Nombre de passants",0,60,2,"")+tog("prints","Traces de pas")+tog("help","Aide des touches à l'écran");
     h+=`<div class="col">${T("reset","Réglages par défaut")}${T("back","Retour")}</div>`;
   }else if(menuTab==="save"||menuTab==="load"){

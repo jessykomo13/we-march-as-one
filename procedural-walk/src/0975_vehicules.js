@@ -19,7 +19,7 @@ const speedoEl=document.createElement("div");speedoEl.id="speedo";document.body.
 body.driving.touch #kickBtn,body.driving.touch #crouchBtn,body.driving.touch #aimBtn,body.driving.touch #lootBtn{display:none!important}
 body.driving.touch #runBtn{display:none!important}`;document.head.appendChild(st);}
 function makeVehicle(x,z,yawDeg,paint,kind){
-  const m=carMesh(paint,kind,null);scene.add(m);m.traverse(o=>{if(o.isMesh){o.castShadow=true;}});
+  const m=carMesh(paint,kind,null,true);scene.add(m);m.traverse(o=>{if(o.isMesh){o.castShadow=true;}});
   const head=driverDummy();head.position.set(0.38,0,0.15);head.visible=false;m.add(head);
   const V={m,head,x,z,yaw:yawDeg,vel:new V3(),v:0,steer:0,y:groundAt(x,z),vy:0,paint,kind,hp:100,van:kind==="van",owned:false,lastUse:clockT,o:null,pitch:0,roll:0,sink:0};
   V.o=addObstacle({type:"circle",x,z,r:1.25,veh:V});VEH.push(V);placeVehicle(V);return V;

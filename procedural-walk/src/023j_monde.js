@@ -97,7 +97,7 @@ function buildHighways(ch,X,Z,r,base,mid,detail){
     }
     // lampadaires, panneaux, panneaux publicitaires
     if(!H.small&&Math.abs(Math.round(mid0/40))%2===0){const [mx,mz]=hwyAt(H,mid0,0),y=groundAt(mx,mz);put(CY(0.1,0.12,9,8),OM.metal,mx,y+4.5,mz,mid);put(BX(H.ax==="ns"?5:0.3,0.15,H.ax==="ns"?0.3:5),OM.metal,mx,y+9,mz,mid);
-      for(const sd of [-2.4,2.4]){const [lx,lz]=hwyAt(H,mid0,sd);put(BX(0.8,0.15,0.8),KM.white,lx,y+8.9,lz,mid);}}
+      for(const sd of [-2.4,2.4]){const [lx,lz]=hwyAt(H,mid0,sd);put(BX(0.8,0.15,0.8),OM.lamp,lx,y+8.9,lz,mid);}}
     const seg=Math.round(mid0/40);
     if(!wet&&Math.abs(seg)%5===2){for(const dir of [1,-1]){const t=townAhead(H,mid0,dir);if(!t)continue;const sd=dir>0?1:-1,[px,pz]=hwyAt(H,mid0,sd*(hw+2.2)),y=groundAt(px,pz);
       put(CY(0.12,0.12,6,8),OM.metal,px+(H.ax==="ns"?0:-2.5),y+3,pz+(H.ax==="ns"?-2.5:0),mid);put(CY(0.12,0.12,6,8),OM.metal,px+(H.ax==="ns"?0:2.5),y+3,pz+(H.ax==="ns"?2.5:0),mid);
