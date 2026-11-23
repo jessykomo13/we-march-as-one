@@ -5914,6 +5914,7 @@ class PlayerBrain{
     if(w.shooting){w.wish.set(0,0,0);w.run=false;if(w.shooting.h){const to=new V3().subVectors(w.shooting.h.rim,w.root);w.faceYaw=Math.atan2(to.x,-to.z)/D2R;}return;}
     if(sitRequest&&MIS.canTalk&&missionTalk()){sitRequest=false;return;}
     if(sitRequest&&EV.canAccept&&acceptEvent()){sitRequest=false;return;}
+    if(sitRequest&&theftAction()){sitRequest=false;return;}
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
@@ -6979,17 +6980,15 @@ function tryEnterVehicle(){
   if(drive||player.ko||player.fly||player.sit.state!=="none")return false;
   const n=nearestCar(player.root);if(!n)return false;
   if(player.swim&&!(n.V&&n.V.boat))return false;
-  let V=n.V;
-  if(n.pc){const pc=n.pc;TAKEN.add(carKey(pc.x,pc.z));unbakeParked(pc);removeObstacle(n.o);
-    V=makeVehicle(pc.x,pc.z,180-pc.ry/D2R,pc.paint,pc.kind);V.stolen=true;}
-  enterVehicle(V);return true;
+  if(n.pc||(n.V&&n.V.locked))return startTheft(n);   // on doit d'abord la voler (vitre, crochetage, double des clés)
+  enterVehicle(n.V);return true;
 }
 function enterVehicle(V){
   drive=V;if(V.o){removeObstacle(V.o);V.o=null;}
   player.rig.model.visible=false;V.head.visible=true;dressDriver(V.head);document.body.classList.add("driving");
   player.vel.set(0,0,0);V.lastUse=clockT;DRV.camDist0=cam.dist;
   if(V.stolen&&!V.owned){V.owned=true;// vol de voiture : délit si quelqu'un le voit
-    const victim={isCop:false,_crime:null,brain:{},root:V.m.position};registerCrime(victim,false);
+    if(!V.quiet){const victim={isCop:false,_crime:null,brain:{},root:V.m.position};registerCrime(victim,false);}
     hudMsg(V.spec?`${V.spec.name} volée ! `+pick(["Fonce !","Le moteur démarre…","Tu as forcé la portière."]):"Voiture volée !");}
   else hudMsg(V.boat?(V.kind==="airboat"?"Hydroglisseur ! Fonce dans le bayou":"À la barre !"):V.spec?V.spec.name+" — en voiture !":"En voiture !");
   if(!V.boat){DRV.fov0=camera.fov;}
@@ -7103,7 +7102,7 @@ function stepVehicle(V,dt,inp){
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
   updateBoatSpots(dt);updateSails(dt);updateDamage(dt);updateRadio(dt);
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":nearestCar(player.root,3.2).V&&!nearestCar(player.root,3.2).V.locked?"E : conduire":"E : voler la voiture"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
@@ -7127,11 +7126,12 @@ function updateVehicles(dt){
 }
 // bouton contextuel (mobile) : Conduire / Descendre
 function driveCtx(sit){
+  if(TH.cur){sit.style.display="none";return true;}
   if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
   document.getElementById("punchBtn").textContent="Poing";document.getElementById("guardBtn").textContent="Garde";
   {const ih=!player.swim&&player.sit.state==="none"?interiorHint():null;if(ih&&ih[1]&&!nearStoppedCar()&&!nearestCar(player.root,3.2)){sit.style.display="block";sit.textContent=ih[1];return true;}}
   if(player.sit.state==="none"&&!player.ko&&!player.swim&&nearStoppedCar()){sit.style.display="block";sit.textContent="Braquer";return true;}
-  if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":"Conduire";return true;}}
+  if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":n.V&&!n.V.locked?"Conduire":"Voler";return true;}}
   return false;
 }
 // ================================================================ MODULE 28 : dégâts des véhicules
@@ -7565,6 +7565,131 @@ function updateInteriors(dt){
 function interiorHint(){const I=INT.cur;if(I&&inRoom(I,player.root))for(const L of I.loot)if(!INT.looted.has(L.id)&&Math.hypot(L.x-player.root.x,L.z-player.root.z)<1.6)return ["E : fouiller "+L.label,"Fouiller"];
   if(INT.near){const info=bldInfo(INT.near.o),key=bldKey(INT.near.o);if(info.pub||INT.broken.has(key))return ["E : entrer","Entrer"];if(info.str>=99)return ["Porte blindée",""];const h=INT.hits.get(key)||0;return [`Porte verrouillée — coups de pied pour l'enfoncer (${Math.round(h/info.str*100)} %)`,"Porte"];}
   return null;}
+// ================================================================ VOL DE VOITURE (façon GTA)
+// E près d'une voiture garée : on ne monte plus direct. Trois façons de la voler :
+//  1. Casser la vitre : 1 s, mais bruyant → les passants autour appellent la police, les caméras filment, et si la
+//     voiture a une alarme elle hurle (encore plus de témoins).
+//  2. Crocheter la serrure (kit de crochetage) : mini-jeu de goupilles, discret (seuls les témoins tout proches et les
+//     caméras qui regardent te voient). 3 ratés → la serrure se bloque (et l'alarme part si la voiture en a une).
+//     Impossible sur les serrures électroniques (sport, cabriolets, supercars).
+//  3. Double des clés (programmateur de clés) : lecture du signal + 3 fréquences à caler + copie. Long mais
+//     indétectable : aucune étoile. Marche sur toutes les voitures, même les supercars.
+// Les outils s'achètent chez « Le Bidouilleur » (Barrio Coral, icône 🔑 sur la carte). Certaines vieilles voitures
+// ne sont même pas verrouillées.
+const TOOLS={crochet:false,prog:false};
+const TH={cur:null,init:false,alarms:[],blocked:new Set(),stats:{vitre:0,crochet:0,prog:0,open:0,alarm:0}};
+const BIDOUILLE={x:-250.6,z:284.5,name:"Le Bidouilleur"};
+{const st=document.createElement("style");st.textContent=`
+#theft{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);width:min(380px,92vw);display:none;background:rgba(14,16,22,.88);color:#fff;border-radius:14px;padding:10px 12px;font:600 14px system-ui;z-index:30;box-shadow:0 4px 18px rgba(0,0,0,.4)}
+.touch #theft{bottom:auto;top:56px}
+#theft .t{font:800 15px system-ui;margin-bottom:4px}#theft .s{opacity:.85;font-size:12.5px;margin-bottom:6px;min-height:16px}
+#theft .bar{position:relative;height:18px;border-radius:9px;background:#2a2e38;overflow:hidden;margin:6px 0;display:none}
+#theft .zone{position:absolute;top:0;bottom:0;background:#3fbf6a}#theft .nd{position:absolute;top:-2px;bottom:-2px;width:4px;margin-left:-2px;background:#fff;border-radius:2px}
+#theft .pg{position:absolute;left:0;top:0;bottom:0;background:#4a8ae8}
+#theft .btns{display:flex;flex-direction:column;gap:6px}
+#theft button{all:unset;cursor:pointer;background:#2b3140;border-radius:10px;padding:8px 10px;font:600 13.5px system-ui;color:#fff;border:1px solid rgba(255,255,255,.18)}
+#theft button.off{opacity:.45}#theft button b{color:#ffd23a}#theft button small{display:block;font-weight:500;opacity:.75;font-size:11.5px}`;document.head.appendChild(st);}
+const thEl=document.createElement("div");thEl.id="theft";thEl.innerHTML=`<div class="t"></div><div class="s"></div><div class="bar"><i class="pg"></i><i class="zone"></i><i class="nd"></i></div><div class="btns"></div>`;document.body.appendChild(thEl);
+const thT=thEl.querySelector(".t"),thS=thEl.querySelector(".s"),thBar=thEl.querySelector(".bar"),thZone=thEl.querySelector(".zone"),thNd=thEl.querySelector(".nd"),thPg=thEl.querySelector(".pg"),thBtns=thEl.querySelector(".btns");
+// sécurité de la voiture (déterministe par place de parking)
+function carSecurity(pc){
+  const h=Math.abs(Math.sin(pc.x*3.7+pc.z*9.1)*43758.5)%1,k=carModelOf(pc.kind),lux=/super|hyper|sport|cabrio/.test(k),emerg=pc.kind==="police"||pc.kind==="ambulance";
+  const old=/citadine|berline|van|pickup|muscle/.test(k);
+  return {k,name:emerg?(pc.kind==="police"?"Voiture de police":"Ambulance"):CAR_MODELS[k].name,open:old&&!emerg&&h<0.1,
+    alarm:lux||emerg||k==="suv"||(h*7%1)<({berline:0.5,muscle:0.4,citadine:0.25}[k]??0.2),elec:lux||emerg,pins:lux?4:k==="suv"?3:2,lux};}
+// prendre la voiture garée (la vraie remplace celle cuite dans le décor)
+function takeParked(n){if(n.V){n.V.locked=false;n.V.stolen=true;return n.V;}const pc=n.pc;TAKEN.add(carKey(pc.x,pc.z));unbakeParked(pc);removeObstacle(n.o);
+  const V=makeVehicle(pc.x,pc.z,180-pc.ry/D2R,pc.paint,pc.kind);V.stolen=true;return V;}
+function thSpot(n){return n.pc||{x:n.V.x,z:n.V.z,kind:n.V.kind};}
+function startTheft(n){
+  const sec=carSecurity(thSpot(n));
+  if(sec.open&&!n.V){TH.stats.open++;const V=takeParked(n);hudMsg("La portière n'était pas verrouillée !");enterVehicle(V);return true;}
+  TH.cur={n,sec,mode:"choix",t:0,at:player.root.clone(),seen:false,ck:0};showTheft();return true;}
+function cancelTheft(msg){if(!TH.cur)return;TH.cur=null;thEl.style.display="none";if(msg)hudMsg(msg,2);}
+function thButton(html,fn,off){const b=document.createElement("button");b.innerHTML=html;if(off)b.className="off";b.onclick=e=>{e.stopPropagation();fn();};b.addEventListener("touchend",e=>{e.preventDefault();e.stopPropagation();fn();},{passive:false});thBtns.appendChild(b);return b;}
+function showTheft(){
+  const C=TH.cur,sec=C.sec;thEl.style.display="block";thBtns.innerHTML="";thBar.style.display="none";
+  thT.textContent=`${sec.name} — verrouillée`;thS.textContent=(sec.alarm?"🚨 Alarme":"Pas d'alarme")+(sec.elec?" · serrure électronique":" · serrure mécanique")+(isTouch()?"":" · touches 1, 2, 3");
+  thButton(`1. Casser la vitre <b>rapide</b><small>Bruyant : les passants appellent la police${sec.alarm?", l'alarme hurle":""}, les caméras filment</small>`,()=>chooseTheft("vitre"));
+  const P0=thSpot(C.n),blk=TH.blocked.has(carKey(P0.x,P0.z)),cOk=TOOLS.crochet&&!sec.elec&&!blk;
+  thButton(`2. Crocheter la serrure <b>discret</b><small>${blk?"Serrure bloquée : casse la vitre ou fais un double":!TOOLS.crochet?"Il te faut un kit de crochetage (Le Bidouilleur, 🔑 sur la carte)":sec.elec?"Impossible : serrure électronique":"Mini-jeu : appuie quand l'aiguille est dans le vert"}</small>`,()=>cOk?chooseTheft("crochet"):hudMsg(blk?"Serrure bloquée":!TOOLS.crochet?"Il te faut un kit de crochetage":"Serrure électronique : il faut un double des clés",2),!cOk);
+  thButton(`3. Faire un double des clés <b>indétectable</b><small>${TOOLS.prog?"Lis le signal, cale 3 fréquences, copie la clé : aucune étoile":"Il te faut un programmateur de clés (Le Bidouilleur)"}</small>`,()=>TOOLS.prog?chooseTheft("prog"):hudMsg("Il te faut un programmateur de clés (Le Bidouilleur)",2),!TOOLS.prog);
+  thButton("Annuler",()=>cancelTheft());
+}
+function newZone(C,w){C.zw=w;C.zc=w/2+0.04+Math.random()*(1-w-0.08);}
+function chooseTheft(m){const C=TH.cur;if(!C)return;C.mode=m;C.t=0;C.fails=0;C.ok=0;thBtns.innerHTML="";
+  if(m==="vitre"){thT.textContent="Tu casses la vitre…";thS.textContent="";atkRequest="punch";}
+  else if(m==="crochet"){thT.textContent="Crochetage";C.need=C.sec.pins;C.spd=2.2;newZone(C,0.2);thBar.style.display="block";}
+  else{C.mode="prog1";thT.textContent="Programmateur de clés";thS.textContent="Lecture du signal de la clé…";thBar.style.display="block";}
+  if(isTouch()&&(m==="crochet"))thButton("Tourner la goupille",()=>theftHit());}
+// E / clic pendant un mini-jeu
+function theftAction(){const C=TH.cur;if(!C)return false;if(C.mode==="crochet"||C.mode==="prog2"){theftHit();return true;}
+  if(C.mode==="choix"){hudMsg(isTouch()?"Choisis une option":"Choisis 1, 2 ou 3",1.5);return true;}return true;}
+function theftHit(){const C=TH.cur;if(!C||(C.mode!=="crochet"&&C.mode!=="prog2"))return;
+  const inZone=Math.abs(C.nd-C.zc)<C.zw/2;
+  if(inZone){C.ok++;playSound("slap",0.04);C.spd*=1.18;newZone(C,Math.max(0.1,C.zw*0.88));
+    if(C.ok>=C.need){if(C.mode==="crochet"){TH.stats.crochet++;finishTheft("Serrure crochetée !");}else{C.mode="prog3";C.t=0;thS.textContent="Copie de la clé…";thButtonsClear();}}}
+  else{C.fails++;playSound("thud",0.25);
+    if(C.mode==="crochet"){floatText(player,"Raté !","#ffb07a");if(C.fails>=3){const al=C.sec.alarm,P0=thSpot(C.n);TH.blocked.add(carKey(P0.x,P0.z));cancelTheft(al?"La serrure se bloque… l'alarme hurle !":"La goupille casse, la serrure est bloquée.");if(al){const V=takeParkedSilently(C.n);if(V)startAlarm(V);}}}
+    else floatText(player,"Fréquence perdue","#9fc0ff");}
+  if(TH.cur)thS.textContent=C.mode==="crochet"?`Goupilles : ${C.ok}/${C.need} · ratés ${C.fails}/3`:C.mode==="prog2"?`Fréquences calées : ${C.ok}/${C.need}`:thS.textContent;}
+function thButtonsClear(){thBtns.innerHTML="";}
+// la voiture reste garée mais devient un « vrai » véhicule (pour faire sonner l'alarme)
+function takeParkedSilently(n){if(n.V)return n.V;try{const V=takeParked(n);V.locked=true;V.stolen=false;return V;}catch(e){return null;}}
+function finishTheft(msg){const C=TH.cur;if(!C)return;cancelTheft();const V=takeParked(C.n);V.quiet=true;V.owned=true;hudMsg(`${msg} ${C.sec.name}`,2.2);enterVehicle(V);if(C.mode==="vitre"&&C.sec.alarm)startAlarm(V);}
+// délit bruyant : tout le monde autour entend (pas besoin de voir), les caméras qui regardent filment
+function noisyCrime(pos,R,why){
+  if(CREA.on&&CREA.noCops)return;const victim={isCop:false,_crime:null,brain:{},root:pos.clone?pos.clone():new V3(pos.x,0,pos.z)};
+  registerCrime(victim,false);const c=victim._crime;if(!c)return;c.pts=Math.max(c.pts,2);c.sev=Math.max(c.sev,2);
+  for(const w of walkers){if(w===player||w.isCop||w.ko||w.resident)continue;if(hdist(w.root,pos)<R&&w.brain.witness){w.brain.witness(w,c);if(Math.random()<0.35)bark(w,["Hé ! Au voleur !","Il vole une voiture !","J'appelle la police !"]);}}
+  for(const w of walkers)if(w.isCop&&!w.ko&&hdist(w.root,pos)<R*1.4){reportCrime(c,why||"Vol de voiture signalé !","cop");break;}
+}
+// alarme : klaxon par à-coups + clignotants, 12 s
+function startAlarm(V){TH.stats.alarm++;V.alarmT=12;V.alarmK=0;noisyCrime(new V3(V.x,0,V.z),34,"Alarme de voiture !");if(!TH.alarms.includes(V))TH.alarms.push(V);}
+function updateAlarms(dt){
+  for(const V of TH.alarms.slice()){if(!VEH.includes(V)||V.dead){TH.alarms.splice(TH.alarms.indexOf(V),1);continue;}
+    V.alarmT-=dt;V.alarmK-=dt;const on=V.alarmT>0;
+    if(on&&V.alarmK<=0){V.alarmK=0.55;const d=hdist(V.m.position,player.root);if(d<70)hornSound(clamp01(1-d/70)*0.9);V._blink=!V._blink;V.m.traverse(o=>{if(o.isMesh&&(o.material===HEADL||o.material===KM.white||o.material===ALARM_L))o.material=V._blink?ALARM_L:HEADL;});
+      if(Math.random()<0.25)noisyCrime(new V3(V.x,0,V.z),22);}
+    if(!on){V.m.traverse(o=>{if(o.isMesh&&o.material===ALARM_L)o.material=HEADL;});TH.alarms.splice(TH.alarms.indexOf(V),1);}}
+}
+const ALARM_L=mat({color:0xffd060,emissive:0xffb020,emissiveIntensity:2.2});
+// le vendeur d'outils
+function thInit(){TH.init=true;
+  try{POI_ICON.bidouille=["🔑","#ffd23a"];POIS.push({type:"bidouille",x:BIDOUILLE.x,z:BIDOUILLE.z,name:"Le Bidouilleur (outils de vol)"});}catch(e){}
+  SHOP_OFFER.bidouille={get price(){return !TOOLS.crochet?120:!TOOLS.prog?2500:0;},label:()=>!TOOLS.crochet?"un kit de crochetage":!TOOLS.prog?"un programmateur de clés (double des clés)":"rien, tu as tous les outils",hp:0,stam:0,msg:["Fais-en bon usage…"],
+    done:()=>TOOLS.crochet&&TOOLS.prog,buy(){if(!TOOLS.crochet){TOOLS.crochet=true;return "Kit de crochetage acheté ! Approche-toi d'une voiture et appuie sur E.";}TOOLS.prog=true;return "Programmateur de clés acheté ! Tu peux faire le double des clés de n'importe quelle voiture.";}};
+  shopSpots.push({name:BIDOUILLE.name,kind:"bidouille",x:BIDOUILLE.x,z:BIDOUILLE.z,fixed:true});
+  try{addAmb("vendeur",BIDOUILLE.x-0.9,BIDOUILLE.z,90);}catch(e){}
+  // établi + enseigne
+  const g=new THREE.Group(),y=groundAt(BIDOUILLE.x,BIDOUILLE.z),X=BIDOUILLE.x-1.0,Z=BIDOUILLE.z;
+  put(BX(0.7,0.85,1.6),KM.plank||OM.wood,X,y+0.42,Z,g);for(let k=0;k<4;k++)put(BX(0.16,0.08,0.3),[KM.red,KM.blue,OM.metal,KM.white][k],X,y+0.9,Z-0.55+k*0.36,g);
+  put(BX(0.06,1.9,0.06),OM.metal,X-0.3,y+1.4,Z+0.75,g);const s=put(BX(0.05,0.5,1.6),signMat("🔑 Le Bidouilleur","#1f1f2a","#ffd23a",{w:384,h:96}),X-0.3,y+2.2,Z,g);
+  scene.add(g);addObstacle({type:"box",x:X,z:Z,hx:0.35,hz:0.8});
+}
+function updateTheft(dt){
+  if(!TH.init)thInit();
+  updateAlarms(dt);
+  const C=TH.cur;if(!C)return;
+  if(player.ko||drive||hdist(player.root,C.at)>2.2||menuOpen){cancelTheft(player.ko||drive||menuOpen?null:"Tu t'es éloigné de la voiture.");return;}
+  C.t+=dt;
+  // face à la voiture
+  {const p=thSpot(C.n),to=new V3(p.x-player.root.x,0,p.z-player.root.z);if(to.lengthSq()>0.01){player.targetYaw=Math.atan2(to.x,-to.z)/D2R;}}
+  if(C.mode==="vitre"){if(C.t>0.45&&!C.broke){C.broke=true;glassSound();cam.shake=Math.min(1,cam.shake+0.3);TH.stats.vitre++;noisyCrime(player.root,26,"Vitre cassée : on t'a entendu !");}if(C.t>1.0)finishTheft("Vitre cassée !");return;}
+  if(C.mode==="crochet"||C.mode==="prog2"){C.nd=0.5+0.5*Math.sin(C.t*C.spd*Math.PI/1.6);thNd.style.left=(C.nd*100)+"%";thZone.style.left=((C.zc-C.zw/2)*100)+"%";thZone.style.width=(C.zw*100)+"%";thPg.style.width="0";
+    // crochetage : un témoin tout proche ou une caméra peut te voir
+    if(C.mode==="crochet"){C.ck-=dt;if(C.ck<=0&&!C.seen){C.ck=1;let seen=false;
+      for(const w of walkers){if(w===player||w.ko||w.resident)continue;const d=hdist(w.root,player.root);if((w.isCop&&d<22&&canSee(w,player,22,200))||(!w.isCop&&d<9&&canSee(w,player,9,170))){seen=true;break;}}
+      if(!seen)for(const cm of cams)if(camSees(cm,player.root)){seen=true;break;}
+      if(seen){C.seen=true;const v={isCop:false,_crime:null,brain:{},root:player.root.clone()};registerCrime(v,false);hudMsg("Quelqu'un t'a vu crocheter la voiture !",2);}}}
+    return;}
+  if(C.mode==="prog1"){const k=clamp01(C.t/2.6);thPg.style.width=(k*100)+"%";thZone.style.width="0";thNd.style.left="-10%";if(k>=1){C.mode="prog2";C.t=0;C.need=3;C.ok=0;C.spd=1.6;newZone(C,0.16);thS.textContent="Cale les 3 fréquences : appuie quand l'aiguille est dans le vert";if(isTouch())thButton("Caler la fréquence",()=>theftHit());}return;}
+  if(C.mode==="prog3"){const k=clamp01(C.t/1.6);thPg.style.width=(k*100)+"%";thZone.style.width="0";thNd.style.left="-10%";if(k>=1){TH.stats.prog++;finishTheft("Clé copiée, personne n'a rien vu.");}return;}
+}
+function glassSound(){const c=actx;if(!c)return;try{const t=c.currentTime,n=c.createBufferSource(),b=c.createBuffer(1,c.sampleRate*0.6,c.sampleRate),a=b.getChannelData(0);
+  for(let i=0;i<a.length;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/a.length,3)*(Math.random()<0.02?3:1);n.buffer=b;const f=c.createBiquadFilter();f.type="highpass";f.frequency.value=2500;const g=c.createGain();g.gain.value=0.7;n.connect(f).connect(g).connect(sfxOut());n.start(t);}catch(e){}}
+addEventListener("keydown",e=>{const C=TH.cur;if(!C||C.mode!=="choix")return;const m={Digit1:"vitre",Numpad1:"vitre",Digit2:"crochet",Numpad2:"crochet",Digit3:"prog",Numpad3:"prog"}[e.code];if(!m)return;
+  const b=thBtns.querySelectorAll("button")[{vitre:0,crochet:1,prog:2}[m]];if(b)b.onclick(e);});
 // ================================================================ module 13 : noms de rues, GPS, grande carte
 // --- noms de rues (inventés) : avenues nord-sud, rues est-ouest
 const AVENUES=[],RUES=[];for(let i=-NCH;i<=NCH;i++){AVENUES.push("Avenue "+AV_N[(i+14)%AV_N.length]);RUES.push("Rue "+RU_N[(i+14)%RU_N.length]);}
@@ -8076,14 +8201,16 @@ function updateShops(dt){
   if(!shopNear){shopPrompt.style.display="none";return;}
   const O=SHOP_OFFER[shopNear.kind];
   shopPrompt.style.display=isTouch()?"none":"block";
-  shopPrompt.innerHTML=wanted.level>0?`${shopNear.name} : <i>fermé pour toi (recherché)</i>`:`E : acheter ${O.label(shopNear.name)} · <b>${O.price} €</b>${money<O.price?" <i>(pas assez)</i>":""}`;
+  shopPrompt.innerHTML=O.done&&O.done()?`${shopNear.name} : tu as tous les outils`:wanted.level>0&&shopNear.kind!=="bidouille"?`${shopNear.name} : <i>fermé pour toi (recherché)</i>`:`E : acheter ${O.label(shopNear.name)} · <b>${O.price} €</b>${money<O.price?" <i>(pas assez)</i>":""}`;
 }
 function tryBuy(){
   const s=shopNear;if(!s)return false;
-  if(wanted.level>0){hudMsg("Le vendeur refuse de te servir",2);return true;}
+  if(wanted.level>0&&s.kind!=="bidouille"){hudMsg("Le vendeur refuse de te servir",2);return true;}
   const O=SHOP_OFFER[s.kind];
   if(money<O.price){hudMsg(`Il te faut ${O.price} € — fais des missions pour Nino`,2.5);return true;}
+  if(O.done&&O.done()){hudMsg("Tu as déjà tous les outils.",2);return true;}
   money-=O.price;moneyEl.textContent=money+" €";shopStats.bought++;shopStats.spent+=O.price;
+  if(O.buy){hudMsg(O.buy(),3.5);playSound("slap",0.03);return true;}
   player.hp=Math.min(player.maxHp,player.hp+O.hp);player.stamina=Math.min(100,(player.stamina??100)+O.stam);
   if(O.endu)player.enduBoost=(player.enduBoost||0)+1;
   const div=document.createElement("div");div.className="dmg";div.textContent=O.hp>=20?`+${O.hp} PV`:"Endurance !";div.style.color="#7dffa1";document.getElementById("bubbles").appendChild(div);
@@ -8690,7 +8817,7 @@ function gatherSave(){
     player:{x:+player.root.x.toFixed(3),z:+player.root.z.toFixed(3),yaw:+player.yaw.toFixed(1),hp:Math.max(20,Math.round(player.hp)),stamina:Math.round(player.stamina??100),hand:player.hand,look:playerLook,endu:player.enduBoost||0},
     money,jog:jogOn,npc:npcTarget,voice:voiceOn,prints:showPrints,
     wanted:{level:wanted.level,heat:wanted.heat,x:wanted.lastSeenPos.x,z:wanted.lastSeenPos.z,ev:{...wanted.evidence}},
-    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),day:+DAY.t.toFixed(2),taken:[...TAKEN].slice(-300)};
+    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),day:+DAY.t.toFixed(2),taken:[...TAKEN].slice(-300),tools:{...TOOLS}};
 }
 function saveGame(force){
   if(window.__noSave||galleryOn||(arrestEl.style.display==="flex"&&!force))return false;
@@ -8703,7 +8830,7 @@ function applySave(d){
   if(P.look)try{setPlayerLook(P.look);}catch(e){}
   const x=clamp(+P.x||0,W_MIN+40,W_MAX-40),z=clamp(+P.z||0,W_MIN+40,W_MAX-40);
   if(d.day!=null)DAY.t=clamp(+d.day||9.5,0,23.99);
-  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
+  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));if(d.tools){TOOLS.crochet=!!d.tools.crochet;TOOLS.prog=!!d.tools.prog;}}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
   player.root.set(x,0,z);pushOutOfObstacles(player.root,0.3);
   player.yaw=player.targetYaw=+P.yaw||0;player.vel.set(0,0,0);player.setRig(player.rig,true);
   player.hp=clamp(+P.hp||100,1,100);player.stamina=clamp(+P.stamina||100,0,100);
@@ -8957,7 +9084,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateInteriors(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAmbience(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateInteriors(dt);updateTheft(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAmbience(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
@@ -8994,7 +9121,7 @@ function tick(dt,time){
     const L=player.L,R=player.R;
     window.__air=(window.__air||0)+((player.L.stepping&&player.R.stepping)?1:0);window.__maxH=Math.max(window.__maxH||0,player.height/(player.LEG*player.P.standRatio+player.P.ankleHeight));window.__dbg={fd:hdist(L.footPos,R.footPos),L:hdist(L.footPos,player.pelvisPos),R:hdist(R.footPos,player.pelvisPos),h:player.height,hMax:player.LEG*player.P.standRatio+player.P.ankleHeight,steps:player.stepCount,cross:new V3().subVectors(R.footPos,L.footPos).dot(rightOf(player.yaw)),spd:player.speed,n:walkers.length};
   }
-window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__INT=INT;window.__enterBld=()=>tryEnterBuilding();window.__doorHit=f=>doorHit(f);window.__wallFront=()=>{const w=wallInFront();return w&&{x:w.o.x,z:w.o.z,hx:w.o.hx,hz:w.o.hz,info:bldInfo(w.o)};};window.__bldInfo=o=>bldInfo(o);window.__mkVeh=(x,z,y,k)=>makeVehicle(x,z,y,paintMat(carPaintHex(carModelOf(k),Math.random())),k);window.__rmVeh=V=>removeVehicle(V);window.__enterVeh=V=>enterVehicle(V);window.__chunkLoaded=(cx,cz)=>chunks.has(ckey(cx,cz));window.__ANIMALS=ANIMALS;window.__HERDS=HERDS;window.__zone=(x,z)=>zoneAt(x,z);window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
+window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__INT=INT;window.__enterBld=()=>tryEnterBuilding();window.__doorHit=f=>doorHit(f);window.__wallFront=()=>{const w=wallInFront();return w&&{x:w.o.x,z:w.o.z,hx:w.o.hx,hz:w.o.hz,info:bldInfo(w.o)};};window.__bldInfo=o=>bldInfo(o);window.__TH=TH;window.__giveMoney=n=>giveMoney(n);window.__TOOLS=TOOLS;window.__theftHit=()=>theftHit();window.__chooseTheft=m=>chooseTheft(m);window.__carSec=pc=>carSecurity(pc);window.__mkVeh=(x,z,y,k)=>makeVehicle(x,z,y,paintMat(carPaintHex(carModelOf(k),Math.random())),k);window.__rmVeh=V=>removeVehicle(V);window.__enterVeh=V=>enterVehicle(V);window.__chunkLoaded=(cx,cz)=>chunks.has(ckey(cx,cz));window.__ANIMALS=ANIMALS;window.__HERDS=HERDS;window.__zone=(x,z)=>zoneAt(x,z);window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   const time=now/1000;

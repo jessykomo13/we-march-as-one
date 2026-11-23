@@ -37,6 +37,7 @@ class PlayerBrain{
     if(w.shooting){w.wish.set(0,0,0);w.run=false;if(w.shooting.h){const to=new V3().subVectors(w.shooting.h.rim,w.root);w.faceYaw=Math.atan2(to.x,-to.z)/D2R;}return;}
     if(sitRequest&&MIS.canTalk&&missionTalk()){sitRequest=false;return;}
     if(sitRequest&&EV.canAccept&&acceptEvent()){sitRequest=false;return;}
+    if(sitRequest&&theftAction()){sitRequest=false;return;}
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}

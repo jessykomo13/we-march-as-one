@@ -14,14 +14,16 @@ function updateShops(dt){
   if(!shopNear){shopPrompt.style.display="none";return;}
   const O=SHOP_OFFER[shopNear.kind];
   shopPrompt.style.display=isTouch()?"none":"block";
-  shopPrompt.innerHTML=wanted.level>0?`${shopNear.name} : <i>fermé pour toi (recherché)</i>`:`E : acheter ${O.label(shopNear.name)} · <b>${O.price} €</b>${money<O.price?" <i>(pas assez)</i>":""}`;
+  shopPrompt.innerHTML=O.done&&O.done()?`${shopNear.name} : tu as tous les outils`:wanted.level>0&&shopNear.kind!=="bidouille"?`${shopNear.name} : <i>fermé pour toi (recherché)</i>`:`E : acheter ${O.label(shopNear.name)} · <b>${O.price} €</b>${money<O.price?" <i>(pas assez)</i>":""}`;
 }
 function tryBuy(){
   const s=shopNear;if(!s)return false;
-  if(wanted.level>0){hudMsg("Le vendeur refuse de te servir",2);return true;}
+  if(wanted.level>0&&s.kind!=="bidouille"){hudMsg("Le vendeur refuse de te servir",2);return true;}
   const O=SHOP_OFFER[s.kind];
   if(money<O.price){hudMsg(`Il te faut ${O.price} € — fais des missions pour Nino`,2.5);return true;}
+  if(O.done&&O.done()){hudMsg("Tu as déjà tous les outils.",2);return true;}
   money-=O.price;moneyEl.textContent=money+" €";shopStats.bought++;shopStats.spent+=O.price;
+  if(O.buy){hudMsg(O.buy(),3.5);playSound("slap",0.03);return true;}
   player.hp=Math.min(player.maxHp,player.hp+O.hp);player.stamina=Math.min(100,(player.stamina??100)+O.stam);
   if(O.endu)player.enduBoost=(player.enduBoost||0)+1;
   const div=document.createElement("div");div.className="dmg";div.textContent=O.hp>=20?`+${O.hp} PV`:"Endurance !";div.style.color="#7dffa1";document.getElementById("bubbles").appendChild(div);
