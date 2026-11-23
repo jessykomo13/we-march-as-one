@@ -51,7 +51,9 @@ function buildAnimal(kind){
     else{aBox(P,W,bodyH,L,0,legH+bodyH/2,0,c.b);if(S.fluffy)aBox(P,W*1.15,bodyH*1.15,L*1.05,0,legH+bodyH/2,0,c.b);
       if(S.spots){aBox(P,W+0.02,bodyH*0.5,L*0.3,0,legH+bodyH*0.6,-L*0.15,c.s);aBox(P,W+0.02,bodyH*0.4,L*0.2,0,legH+bodyH*0.4,L*0.25,c.s);}
       aBox(P,W*0.4,W*0.35,L*0.12,0,legH+bodyH*0.75,-L/2-L*0.05,c.tail||c.b);if(S.tailLong)aBox(P,W*0.35,W*0.35,L*0.5,0,legH+bodyH*0.6,-L/2-L*0.25,c.tail||c.b,0.5);
-      if(S.hop)aBox(P,W,bodyH*0.5,L*0.3,0,legH+bodyH*0.9,-L*0.3,c.b);}
+      if(S.hop)aBox(P,W,bodyH*0.5,L*0.3,0,legH+bodyH*0.9,-L*0.3,c.b);
+      if(S.spots){aBox(P,W*0.45,bodyH*0.25,L*0.22,0,legH-bodyH*0.05,-L*0.12,"#f0a8a8");}
+      if(S.neck||S.spots)aBox(P,0.06,H*0.35,0.06,0,legH+bodyH*0.3,-L/2-0.04,c.m||c.b,0.25);}
     const body=aMesh(P);root.add(body);
     // tête (pivot au cou)
     const head=new THREE.Group();head.position.set(0,S.shell||S.crab?H*0.4:legH+bodyH*(S.neck?1.1:0.85),L/2*(S.crab?0.6:0.95));root.add(head);const HP=[],hs=Math.max(0.12,W*0.55);

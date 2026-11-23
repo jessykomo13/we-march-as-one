@@ -6590,7 +6590,9 @@ function buildAnimal(kind){
     else{aBox(P,W,bodyH,L,0,legH+bodyH/2,0,c.b);if(S.fluffy)aBox(P,W*1.15,bodyH*1.15,L*1.05,0,legH+bodyH/2,0,c.b);
       if(S.spots){aBox(P,W+0.02,bodyH*0.5,L*0.3,0,legH+bodyH*0.6,-L*0.15,c.s);aBox(P,W+0.02,bodyH*0.4,L*0.2,0,legH+bodyH*0.4,L*0.25,c.s);}
       aBox(P,W*0.4,W*0.35,L*0.12,0,legH+bodyH*0.75,-L/2-L*0.05,c.tail||c.b);if(S.tailLong)aBox(P,W*0.35,W*0.35,L*0.5,0,legH+bodyH*0.6,-L/2-L*0.25,c.tail||c.b,0.5);
-      if(S.hop)aBox(P,W,bodyH*0.5,L*0.3,0,legH+bodyH*0.9,-L*0.3,c.b);}
+      if(S.hop)aBox(P,W,bodyH*0.5,L*0.3,0,legH+bodyH*0.9,-L*0.3,c.b);
+      if(S.spots){aBox(P,W*0.45,bodyH*0.25,L*0.22,0,legH-bodyH*0.05,-L*0.12,"#f0a8a8");}
+      if(S.neck||S.spots)aBox(P,0.06,H*0.35,0.06,0,legH+bodyH*0.3,-L/2-0.04,c.m||c.b,0.25);}
     const body=aMesh(P);root.add(body);
     // tête (pivot au cou)
     const head=new THREE.Group();head.position.set(0,S.shell||S.crab?H*0.4:legH+bodyH*(S.neck?1.1:0.85),L/2*(S.crab?0.6:0.95));root.add(head);const HP=[],hs=Math.max(0.12,W*0.55);
@@ -6800,6 +6802,32 @@ const clockEl=document.createElement("div");clockEl.id="clock";document.body.app
 .touch #clock{bottom:auto;top:92px;left:12px;font-size:11px;padding:2px 6px}body.mapOn #clock{display:none}`;document.head.appendChild(st);}
 let clockLast="";
 function updateClock(){const h=Math.floor(DAY.t),m=Math.floor((DAY.t-h)*60/5)*5,ic=DAY.weather==="pluie"?"🌧":DAY.weather==="nuageux"?"☁":DAY.night>0.6?"🌙":"☀",t=`${ic} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;if(t!==clockLast){clockLast=t;clockEl.textContent=t;}}
+// ---------------------------------------------------------------- ambiance : vols d'oiseaux, lucioles, orages
+// vols d'oiseaux en V qui traversent le ciel de la campagne
+const FLOCKS=[];
+{const gm=new THREE.BufferGeometry();const v=[];for(const s of [-1,1])v.push(0,0,0, s*0.6,0.05,-0.25, s*0.25,0,-0.1);gm.setAttribute("position",new THREE.Float32BufferAttribute(v,3));
+ const mt=new THREE.MeshBasicMaterial({color:0x2a2a30,side:THREE.DoubleSide,fog:true});
+ for(let f=0;f<3;f++){const g=new THREE.Group();const birds=[];for(let i=0;i<9;i++){const m=new THREE.Mesh(gm,mt);const row=Math.ceil(i/2),side=i%2?1:-1;m.position.set(side*row*1.6,0,-row*1.4);m.scale.setScalar(1.6);g.add(m);birds.push(m);}g.visible=false;scene.add(g);FLOCKS.push({g,birds,t:rand(0,40),dir:rand(0,6.28)});}}
+// lucioles (points qui clignotent) la nuit en forêt, bayou, jungle, prairie
+const fireflies=(()=>{const n=120,p=new Float32Array(n*3);for(let i=0;i<n;i++){p[i*3]=rand(-25,25);p[i*3+1]=rand(0.4,3);p[i*3+2]=rand(-25,25);}const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(p,3));
+  const m=new THREE.PointsMaterial({color:0xd8ff80,size:3,sizeAttenuation:false,transparent:true,opacity:0,depthWrite:false});const o=new THREE.Points(g,m);o.frustumCulled=false;scene.add(o);return o;})();
+const FF_BIO=new Set(["foret","bayou","jungle","prairie","fleurs","pinede","mangrove","riviere","lac","bambou"]);
+let ffCk=0,ffOn=0,thunderT=rand(8,20),flashT=0;
+function thunder(vol){const c=actx;if(!c||c.state!=="running")return;try{const t=c.currentTime,n=c.createBufferSource(),b=c.createBuffer(1,c.sampleRate*3,c.sampleRate),a=b.getChannelData(0);let v=0;for(let i=0;i<a.length;i++){v=v*0.97+(Math.random()*2-1)*0.03;a[i]=v*Math.pow(1-i/a.length,1.5)*(1+Math.sin(i/9000)*0.6);}
+  n.buffer=b;const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=260;const g=c.createGain();g.gain.value=vol*6;n.connect(f).connect(g).connect(sfxOut());n.start(t+0.3+Math.random()*1.2);}catch(e){}}
+function updateAmbience(dt){
+  const px=player.root.x,pz=player.root.z,country=!inGridArea(px,pz);
+  // oiseaux : le jour, à la campagne
+  for(const F of FLOCKS){F.t-=dt;if(F.t<=0){F.t=rand(25,60);F.dir=rand(0,6.28);const a=F.dir+Math.PI;F.g.position.set(px+Math.cos(a)*260,groundAt(px,pz)+rand(35,70),pz+Math.sin(a)*260);F.g.rotation.y=-F.dir+Math.PI/2;F.on=country&&DAY.night<0.5&&DAY.rainK<0.5;}
+    F.g.visible=!!F.on;if(!F.on)continue;F.g.position.x+=Math.cos(F.dir)*11*dt;F.g.position.z+=Math.sin(F.dir)*11*dt;F.birds.forEach((b,i)=>{b.scale.y=1.6*(0.4+Math.abs(Math.sin(clockT*6+i)));});}
+  // lucioles
+  ffCk-=dt;if(ffCk<=0){ffCk=1;ffOn=country&&FF_BIO.has(biomeAt(px,pz))?clamp01((DAY.night-0.55)*3)*(1-DAY.rainK):0;}
+  fireflies.material.opacity=lerp(fireflies.material.opacity,ffOn*(0.6+0.4*Math.sin(clockT*3)),dt*2);fireflies.visible=fireflies.material.opacity>0.02;
+  if(fireflies.visible){fireflies.position.set(px,groundAt(px,pz),pz);const P=fireflies.geometry.attributes.position;for(let i=0;i<P.count;i++){P.setY(i,P.getY(i)+Math.sin(clockT*1.3+i)*0.004);P.setX(i,P.getX(i)+Math.cos(clockT*0.7+i*1.7)*0.006);}P.needsUpdate=true;}
+  // orage : pendant les fortes pluies, éclairs (le ciel s'illumine) puis tonnerre
+  if(DAY.rainK>0.7){thunderT-=dt;if(thunderT<=0){thunderT=rand(9,26);flashT=0.35;thunder(0.6+Math.random()*0.4);}}
+  if(flashT>0){flashT-=dt;const k=flashT>0.25||(flashT>0.08&&flashT<0.14)?1:0;scene.background.lerp(new THREE.Color(0xe8eeff),k*0.8);if(hemi)hemi.intensity+=k*1.6;}
+}
 // ================================================================ MODULE 26 : conduite
 // E (ou le bouton « Conduire ») près d'une voiture garée : on la vole et on la conduit. Conduite arcade :
 // accélération, freinage, marche arrière, frein à main (dérapages), suspension qui suit le relief, sauts,
@@ -8607,7 +8635,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAmbience(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
