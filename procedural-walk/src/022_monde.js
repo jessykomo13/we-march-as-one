@@ -12,7 +12,7 @@ const worldStats={built:0,unloaded:0,lastMs:0,maxMs:0,queue:0};
 // ---------- relief (module 10) : trottoirs surélevés, terrasses, escaliers, rampes
 const SIDEWALK=0.12,STEP_UP=0.4,FALL_DROP=0.45;
 function blockOf(x,z){
-  if(Math.abs(x)>WORLD||z>WORLD||z<-WORLD_N)return null;
+  if(x<W_MIN||x>W_MAX||z<W_MIN||z>W_MAX)return null;
   const i=Math.floor((x+12)/CHUNK),j=Math.floor((z+12)/CHUNK),lx=x+12-i*CHUNK,lz=z+12-j*CHUNK;
   return (lx<=32||(i===14&&lx<=40))&&lz<=32&&(inCity(i,j)||inTown(i,j))?{i,j,lx,lz}:null;
 }
@@ -42,8 +42,9 @@ function featureH(f,x,z){
 const reliefAt=(x,z)=>reliefOf(Math.round((x-4)/CHUNK),Math.round((z-4)/CHUNK));
 // hauteur du sol à un endroit : 0 sur la route, 12 cm sur les trottoirs, plus sur les terrasses et escaliers
 function groundAt(x,z){
-  if(x>SEA_X)return Math.max(seaFloor(x,z),seaFeatureH(x,z));
-  const b=blockOf(x,z);if(!b){if(x>578&&x<=588&&z>-WORLD&&z<WORLD){const f=seaFeatureH(x,z);if(f>0)return f;}return 0;}
+  if(x>SEA_X&&inOldSea(x,z))return Math.max(seaFloor(x,z),seaFeatureH(x,z));
+  const b=blockOf(x,z);
+  if(!b){if(!inGridArea(x,z))return countryGround(x,z);if(x>578&&x<=588&&z>-WORLD&&z<WORLD){const f=seaFeatureH(x,z);if(f>0)return f;}return 0;}
   let h=SIDEWALK;if(x>578){const f=seaFeatureH(x,z);if(f>h)h=f;}
   for(const f of reliefAt(x,z)){const v=featureH(f,x,z);if(v>h)h=v;}
   return h;
@@ -116,7 +117,7 @@ function bake(group,cast=true){
   const walk=(o,fn)=>{if(o.userData.keep)return;fn(o);for(const c of o.children)walk(c,fn);};
   walk(group,o=>{if(!o.isMesh)return;old.push(o);
     let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();
-    for(const k of Object.keys(g.attributes))if(k!=="position"&&k!=="normal"&&k!=="uv")g.deleteAttribute(k);
+    for(const k of Object.keys(g.attributes))if(k!=="position"&&k!=="normal"&&k!=="uv"&&!(k==="color"&&o.material.vertexColors))g.deleteAttribute(k);
     if(!g.attributes.uv)g.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
     g.applyMatrix4(o.matrixWorld);
     const L=byMat.get(o.material)||[];L.push(g);byMat.set(o.material,L);
@@ -193,11 +194,6 @@ function buildChunk(cx,cz){
   const camAt=(x,z,yaw)=>{const c=makeCam(x,z,yaw,detail);c.g.userData.keep=true;ch.cams.push(c);};
   ch.hoops=[];ch.courts=[];ch.balls=[];ch.hoopers=[];hoopSink=ch.hoops;courtSink=ch.courts;ch.shops=[];shopSink=ch.shops;
   buildBlock(ch,{type,cx,cz,X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,base,mid,detail,prop,camAt,onSand});
-  // bord du monde : une forêt de pins ferme la ville
-  if(Math.abs(cx)===14&&cx<0||Math.abs(cz)===14){
-    const edgeX=cx===-14?[X-22,X-38]:null,edgeZ=cz===-14?[Z-22,Z-38]:cz===14?[Z+30,Z+38]:null;
-    for(let k=0;k<10;k++){if(edgeX)treeAt(edgeX[0]-r()*16,Z-20+k*4+r()*2,"conifer",1+r()*0.6,base,0);const tx=X-20+k*4+r()*2;if(edgeZ&&cx<14&&Math.abs(tx-HWY_X)>14)treeAt(tx,edgeZ[0]+(cz>0?r()*8:-r()*16),"conifer",1+r()*0.6,base,0);}
-  }
   obsSink=null;spotSink=null;hoopSink=null;courtSink=null;shopSink=null;ambSink=null;
   bake(base);bake(mid);bake(detail);
   scene.add(base,mid,detail);
@@ -227,6 +223,6 @@ function streamWorld(sync){
 }
 // sol : asphalte partout (les rues), et une bordure de terrain au-delà de la ville
 {
-  const a=new THREE.Mesh(scaledUV(new THREE.PlaneGeometry(WORLD*2,WORLD*2).rotateX(-Math.PI/2),WORLD/2,WORLD/2),WM.asphalt);a.receiveShadow=true;scene.add(a);
-  const out=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0x6f7a62,roughness:1}));out.position.y=-0.6;scene.add(out);
+  const a=new THREE.Mesh(scaledUV(new THREE.PlaneGeometry(1168,1168).rotateX(-Math.PI/2),292,292),WM.asphalt);a.position.set(4,0,4);a.receiveShadow=true;scene.add(a);
+  const out=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0x6f7a62,roughness:1}));out.position.y=-4.5;scene.add(out);window.__outPlane=out;
 }

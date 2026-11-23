@@ -3,10 +3,10 @@
 // Entre les deux : champs, fermes, forêts, éoliennes, une aire de repos et un relais routier.
 const CZ_MIN=-34,WORLD_N=1480,HWY_X=184,HWY_Z0=-578,HWY_Z1=-1068;
 const TOWN={i0:1,i1:8,j0:-33,j1:-27,name:"Port-Soleil"};
-function inTown(i,j){return i>=TOWN.i0&&i<=TOWN.i1&&j>=TOWN.j0&&j<=TOWN.j1;}
-function inCity(i,j){return Math.abs(i)<=14&&Math.abs(j)<=14;}
-function chunkExists(cx,cz){return Math.abs(cx)<=14&&cz>=CZ_MIN&&cz<=14;}
-function isCountry(cx,cz){return cz<-14&&!inTown(cx,cz);}
+function inTown(i,j){return !!townAt(i,j);}
+function inCity(i,j){return cityAt(i,j);}
+function chunkExists(cx,cz){return cx>=C_MIN&&cx<=C_MAX&&cz>=C_MIN&&cz<=C_MAX&&!oldSeaChunk(cx,cz);}
+function isCountry(cx,cz){return !gridAt(cx,cz)&&!oldSeaChunk(cx,cz);}
 // ---------------------------------------------------------------- matériaux de campagne
 const CMP={
   field:["#8f9a3e","#b7a64a","#6f8a3a","#a5803c"].map((c,i)=>mat({roughness:1,map:cTex("field"+i,64,64,(g,w,h)=>{g.fillStyle=c;g.fillRect(0,0,w,h);for(let x=0;x<w;x+=8){g.fillStyle="rgba(0,0,0,.18)";g.fillRect(x,0,3,h);}for(let i2=0;i2<300;i2++){g.fillStyle=`rgba(255,255,255,${Math.random()*0.08})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}})})),
@@ -17,10 +17,9 @@ const CMP={
   hay:mat({color:0xd8b860,roughness:1}),blade:mat({color:0xf2f2f2,roughness:0.5})
 };
 const HWY_LINE=mat({roughness:0.8,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,map:cTex("hwyDash",16,64,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle="#efece3";g.fillRect(0,0,w,40);},false)});
-// sols : herbe au nord, asphalte sous Port-Soleil
-{
-  const gr=new THREE.Mesh(scaledUV(new THREE.PlaneGeometry(1200,880).rotateX(-Math.PI/2),300,220),CMP.meadow);gr.position.set(0,-0.012,-1040);gr.receiveShadow=true;scene.add(gr);
-  const ax0=TOWN.i0*CHUNK-20,ax1=TOWN.i1*CHUNK+28,az0=TOWN.j0*CHUNK-20,az1=TOWN.j1*CHUNK+28;
+// sols : asphalte sous chaque bourg (ses rues) ; la campagne a son propre sol en relief (023j)
+for(const T of TOWNS){
+  const ax0=T.i0*CHUNK-20,ax1=T.i1*CHUNK+28,az0=T.j0*CHUNK-20,az1=T.j1*CHUNK+28;
   const a=new THREE.Mesh(scaledUV(new THREE.PlaneGeometry(ax1-ax0,az1-az0).rotateX(-Math.PI/2),(ax1-ax0)/4,(az1-az0)/4),WM.asphalt);
   a.position.set((ax0+ax1)/2,0.001,(az0+az1)/2);a.receiveShadow=true;scene.add(a);
 }
@@ -43,7 +42,7 @@ function countryType(cx,cz){
   if(Math.abs(cx-5)===1)return r<0.6?"prairie":"champ";
   if(r<0.42)return "champ";if(r<0.62)return "foret";if(r<0.72)return "ferme";if(r<0.8)return "eolien";if(r<0.86)return "etang";return "prairie";
 }
-function buildCountry(ch,X,Z,r,base,mid,detail){
+function buildCountryLegacy(ch,X,Z,r,base,mid,detail){
   const t=ch.type,cz=ch.cz,cx=ch.cx,x0=X-20,z0=Z-20,x1=X+20,z1=Z+20;
   if(t==="autoroute"){
     // 2 × 2 voies, terre-plein central, glissières, lampadaires, panneaux

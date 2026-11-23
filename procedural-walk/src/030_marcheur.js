@@ -184,7 +184,7 @@ class Walker{
     if(dl<=maxD)this.vel.copy(desired);else this.vel.addScaledVector(diff,maxD/dl);
     const ox=this.root.x,oz=this.root.z;
     this.root.x+=this.vel.x*dt;this.root.z+=this.vel.z*dt;
-    if(!this.noClamp){const lim=WORLD-0.6;this.root.x=clamp(this.root.x,-lim,WORLD_E);this.root.z=clamp(this.root.z,-WORLD_N,lim);}
+    if(!this.noClamp){this.root.x=clamp(this.root.x,W_MIN+30,W_MAX-30);this.root.z=clamp(this.root.z,W_MIN+30,W_MAX-30);}
     if(this.fly)this.flyStep(dt);else this.groundStep(ox,oz,dt);
     const old=this.yaw;
     const dy=deltaAngle(this.yaw,this.targetYaw)*(1-Math.exp(-P.turnSharpness*dt));
@@ -465,7 +465,7 @@ class Walker{
   // ---------------------------------------------------------- pas
   // ---------------------------------------------------------- sol, rebords, chutes (module 10)
   groundStep(ox,oz,dt){
-    if(this.noClamp&&Math.abs(this.root.z)>WORLD+50){this.gy=0;this.root.y=0;this.air=null;return;}
+    if(this.noClamp&&Math.abs(this.root.z)>W_MAX+50){this.gy=0;this.root.y=0;this.air=null;return;}
     let g=groundAt(this.root.x,this.root.z);
     const deep=waterDepth(this.root.x,this.root.z);
     if(this.air){
@@ -504,7 +504,7 @@ class Walker{
   flyStep(dt){
     const up=(keys.has("Space")?1:0)-(keys.has("ControlLeft")||keys.has("ControlRight")?1:0)+(typeof flyTouch!=="undefined"?flyTouch:0)+(pad.on?(pad.flyV||0):0);
     const vt=clamp(up,-1,1)*(this.run?16:7);this.flyVy=lerp(this.flyVy||0,vt,1-Math.exp(-5*dt));
-    let floor=groundAt(this.root.x,this.root.z);if(this.root.x>SEA_X)floor=Math.max(floor,WATER_Y+0.15);
+    let floor=groundAt(this.root.x,this.root.z);if(waterDepth(this.root.x,this.root.z)>0)floor=Math.max(floor,WATER_Y+0.15);
     this.root.y=clamp(this.root.y+this.flyVy*dt,floor,420);if(this.root.y<=floor&&this.flyVy<0)this.flyVy=0;
     this.gy=this.root.y;this.lastOk.copy(this.root);this.air=null;this.swim=null;
   }

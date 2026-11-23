@@ -11,7 +11,7 @@ function district(cx,cz){
   return "residentiel";
 }
 function chunkType(cx,cz){
-  if(cz<-14)return inTown(cx,cz)?townType(cx,cz):countryType(cx,cz);
+  if(!cityAt(cx,cz)){const T=townAt(cx,cz);return T?townTypeFor(T,cx,cz):countryTypeAt(cx,cz);}
   if(cx===0&&cz===0)return "place";
   if(inPort(cx,cz))return portType(cx,cz);
   const sp=SPECIALS[cx+","+cz];if(sp)return sp;

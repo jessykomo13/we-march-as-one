@@ -101,7 +101,7 @@ function onNpcDown(w){
   later(rand(1.5,3.5),()=>{if(walkers.includes(w)&&w.ko)callAmbulance(w);});
 }
 function clearPath(p,d,len,margin){
-  for(let s=0;s<len;s+=0.8){const q=p.clone().addScaledVector(d,s);if(Math.abs(q.x)>WORLD||Math.abs(q.z)>WORLD)return false;for(const o of obsAt(q))if(obstacleClosest(o,q).d<margin)return false;}
+  for(let s=0;s<len;s+=0.8){const q=p.clone().addScaledVector(d,s);if(Math.abs(q.x)>W_MAX||Math.abs(q.z)>W_MAX)return false;for(const o of obsAt(q))if(obstacleClosest(o,q).d<margin)return false;}
   return true;
 }
 function callAmbulance(w){

@@ -31,7 +31,7 @@ function seaFeatureH(x,z){let h=-99;for(const f of SEA_FEATURES){if(x<f.x0||x>f.
 function onIsland(x,z){return ISLANDS.find(I=>Math.hypot(x-I.x,z-I.z)<I.r*0.9);}
 // --- fond marin + îles : une grande grille colorée selon la hauteur
 {
-  const W=WORLD_E-560,D=1400,sx=Math.round(W/4),sz=Math.round(D/4);
+  const W=1988-560,D=2600,sx=Math.round(W/8),sz=Math.round(D/8);
   const gm=new THREE.PlaneGeometry(W,D,sx,sz).rotateX(-Math.PI/2);gm.translate(560+W/2,0,0);
   const pos=gm.attributes.position,col=new Float32Array(pos.count*3),c=new THREE.Color();
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);let h=x<SEA_X?SIDEWALK-0.02:seaFloor(x,z);if(x<SEA_X)h=-0.4;pos.setY(i,h);
@@ -89,7 +89,7 @@ function boatAt(x,z,yaw,g){const b=new THREE.Group();b.position.set(x,WATER_Y,z)
   addObstacle({type:"circle",x,z,r:2.2});return b;}
 const seaMovers=[];seaGroup.traverse(o=>{if(o.userData.boat!==undefined||o.userData.bob!==undefined||o.userData.phare){seaMovers.push(o);o.userData.keep=true;}});
 bake(seaGroup);
-function waterDepth(x,z){return x>SEA_X&&!inPortDeck(x,z)?WATER_Y-seaFloor(x,z):0;}
+function waterDepth(x,z){if(inPortDeck(x,z))return 0;if(x>SEA_X&&inOldSea(x,z))return WATER_Y-seaFloor(x,z);if(inGridArea(x,z))return 0;return waterAtCountry(x,z);}
 function updateSeaLife(dt){
   const t=clockT;
   for(const o of seaMovers){if(o.userData.boat!==undefined){o.position.y=WATER_Y+Math.sin(t*1.1+o.userData.boat)*0.08;o.rotation.z=Math.sin(t*0.9+o.userData.boat)*0.04;o.rotation.x=Math.sin(t*0.7+o.userData.boat*2)*0.03;}

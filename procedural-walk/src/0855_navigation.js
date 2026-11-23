@@ -5,7 +5,7 @@ function navBlocked(x,z,rad){
   const p={x,z};for(const o of obsAt(p)){if(obstacleClosest(o,p).d<rad)return true;}
   // les obstacles débordent parfois sur la cellule voisine de la grille
   for(const [dx,dz] of [[rad+0.5,0],[-rad-0.5,0],[0,rad+0.5],[0,-rad-0.5]]){const q={x:x+dx,z:z+dz};for(const o of obsAt(q))if(obstacleClosest(o,p).d<rad)return true;}
-  if(x>SEA_X&&waterDepth(x,z)>1.1)return true;
+  if(waterDepth(x,z)>1.1)return true;
   return false;
 }
 function localPath(from,to,opt={}){

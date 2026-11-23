@@ -92,7 +92,7 @@ function pushOutOfObstacles(p,r){
   for(const o of obsAt(p)){const c=obstacleClosest(o,p);if(c.d<r){p.x+=c.nx*(r-c.d);p.z+=c.nz*(r-c.d);hit=true;}}
   return hit;
 }
-function freeSpot(p,margin){return Math.abs(p.x)<WORLD-1&&Math.abs(p.z)<WORLD-1&&obsAt(p).every(o=>obstacleClosest(o,p).d>margin);}
+function freeSpot(p,margin){return p.x>W_MIN+40&&p.x<W_MAX-40&&p.z>W_MIN+40&&p.z<W_MAX-40&&obsAt(p).every(o=>obstacleClosest(o,p).d>margin);}
 const printMat=new THREE.MeshStandardMaterial({color:0x3a3836,roughness:1,transparent:true,opacity:0.4,depthWrite:false});
 const printGeo=new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
 const dbgMat=new THREE.MeshBasicMaterial({color:0xff2633});

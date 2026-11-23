@@ -21,7 +21,7 @@ function saveGame(force){
 function applySave(d){
   const P=d.player||{};
   if(P.look)try{setPlayerLook(P.look);}catch(e){}
-  const x=clamp(+P.x||0,-WORLD+1,WORLD_E-1),z=clamp(+P.z||0,-WORLD_N+1,WORLD-1);
+  const x=clamp(+P.x||0,W_MIN+40,W_MAX-40),z=clamp(+P.z||0,W_MIN+40,W_MAX-40);
   missionLoad(d.missions);player.enduBoost=clamp(+P.endu||0,0,4);
   player.root.set(x,0,z);pushOutOfObstacles(player.root,0.3);
   player.yaw=player.targetYaw=+P.yaw||0;player.vel.set(0,0,0);player.setRig(player.rig,true);
