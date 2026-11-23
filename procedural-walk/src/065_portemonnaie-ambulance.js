@@ -105,6 +105,7 @@ function clearPath(p,d,len,margin){
   return true;
 }
 function callAmbulance(w){
+  if(w.resident||(typeof INT!=="undefined"&&INT.list.some(I=>inRoom(I,w.root,0.5))))return; // pas d'ambulance dans une maison
   const body=w.pelvisPos.clone();body.y=0;
   // on cherche une direction dégagée pour reculer jusqu'au corps
   let bestD=null,bestScore=-1;

@@ -42,6 +42,8 @@ addEventListener("keydown",e=>{if(e.code==="KeyR"&&!galleryOn){cam.mode=(cam.mod
 function shoulderOn(){return !galleryOn&&(cam.mode>0||pad.aim||touchAim);}
 function cameraBlocked(p){
   if(p.y<groundAt(p.x,p.z)+0.12)return true;
+  {const I=INT.cur;if(I&&inRoom(I,p,0.3)&&(p.y>I.ceil-0.25||p.y<I.fy+0.15))return true;
+   if(I&&inRoom(I,player.root)&&!inRoom(I,p,-0.25))return true;}
   if(p.y<WATER_Y+0.25&&waterDepth(p.x,p.z)>0)return true;
   for(const o of obsAt(p))if(o.tall&&(o.bld||(o.top!==undefined&&p.y<o.top+0.2))&&obstacleClosest(o,p).d<0.25)return true;
   return false;

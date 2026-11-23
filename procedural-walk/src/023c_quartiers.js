@@ -146,7 +146,7 @@ const BUILDERS={
       plane(x1-x0,z1-z0,WM.grass,(x0+x1)/2,SIDEWALK+0.006,(z0+z1)/2,base,(x1-x0)/4,(z1-z0)/4);
       const front=ns==="n"?z0:z1,fdir=ns==="n"?-1:1,cxl=(x0+x1)/2;
       // maison
-      const hw=4.4+r()*1.2,hd=3.6+r()*0.8,hx=cxl+(ew==="w"?-0.8:0.8),hz=(z0+z1)/2+fdir*-0.6,storeys=r()<0.35?2:1,H=storeys*2.9;
+      const hw=4.4+r()*1.2,hd=3.0+r()*0.5,hx=cxl+(ew==="w"?-0.8:0.8),hz=(z0+z1)/2+fdir*-0.6,storeys=r()<0.35?2:1,H=storeys*2.9;
       const wallM=KM.houseWall[Math.floor(r()*KM.houseWall.length)];
       walls(hx-hw,hz-hd,hx+hw,hz+hd,0,H+SIDEWALK,wallM,base,3,2.9);gableRoof(hx-hw,hz-hd,hx+hw,hz+hd,H+SIDEWALK,1.6+r()*0.8,r()<0.6?KM.roofTile:KM.roofSlate,base);
       put(BX(0.5,1.4,0.5),KM.stone,hx+hw*0.5,H+SIDEWALK+1.2,hz,base);
@@ -169,8 +169,8 @@ const BUILDERS={
       if(ew==="w")fenceRun(x1,z0,x1,z1,"hedge",mid,[]);
       if(ns==="n")fenceRun(x0,z1,x1,z1,"wood",mid,[]);
       // piscine, arbres, mobilier de jardin
-      const bz=ns==="n"?z1-3.2:z0+3.2;
-      if(r()<0.3){plane(4,2.4,KM.pool,cxl,SIDEWALK+0.03,bz,detail);box(cxl-2.2,bz-1.4,cxl+2.2,bz+1.4,SIDEWALK,SIDEWALK+0.02,KM.white,detail);addObstacle({type:"box",x:cxl,z:bz,hx:2.1,hz:1.3});}
+      const bz=ns==="n"?z1-1.35:z0+1.35;
+      if(r()<0.3){plane(4,1.7,KM.pool,cxl,SIDEWALK+0.03,bz,detail);box(cxl-2.2,bz-1.05,cxl+2.2,bz+1.05,SIDEWALK,SIDEWALK+0.02,KM.white,detail);addObstacle({type:"box",x:cxl,z:bz,hx:2.1,hz:0.95});}
       else terraceSet(cxl+(r()-0.5)*3,bz,detail,STRIPES[md(i,STRIPES.length)]);
       treeAt(ew==="w"?x0+1.6:x1-1.6,bz,r()<0.4?"light":r()<0.6?"conifer":"round",0.75+r()*0.3,mid);
     });
