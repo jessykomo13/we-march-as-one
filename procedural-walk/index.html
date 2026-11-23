@@ -5498,6 +5498,7 @@ class PlayerBrain{
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
     if(sitRequest&&trySecret()){sitRequest=false;return;}
+    if(sitRequest&&tryCarjack()){sitRequest=false;return;}
     if(sitRequest&&tryEnterVehicle()){sitRequest=false;return;}
     if(sitRequest){sitRequest=false;const sp=nearestFreeSpot(w,3);if(sp&&w.goSit(sp))return;}
     let x=0,y=0;
@@ -6415,6 +6416,7 @@ function stepVehicle(V,dt,inp){
   // autres véhicules (garés libres, circulation)
   for(const W of VEH){if(W===V)continue;const dx=V.x-W.x,dz=V.z-W.z,d=Math.hypot(dx,dz);if(d<2.6&&d>1e-3){const nx=dx/d,nz=dz/d,push=(2.6-d)/2;V.x+=nx*push;V.z+=nz*push;W.x-=nx*push;W.z-=nz*push;if(W.o){W.o.x=W.x;W.o.z=W.z;}const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp*0.8;V.vel.z+=nz*imp*0.8;hit=Math.max(hit,imp*0.6);}W.y=groundAt(W.x,W.z);placeVehicle(W);}}
   for(const c of cars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.4&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.4-d);V.z+=nz*(3.4-d);const imp=-(V.vel.x*nx+V.vel.z*nz)+c.v*0.3;if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.3;}}
+  for(const c of ccars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.2&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.2-d);V.z+=nz*(3.2-d);const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.2;}}
   if(hit>4){V.hp=Math.max(0,V.hp-hit*1.2);cam.shake=Math.min(1,cam.shake+hit*0.04);playSound("thud",Math.min(1,hit/12));rumble(200,Math.min(1,hit/15));if(hit>9&&player.hp>5){player.hp=Math.max(5,player.hp-Math.round(hit*0.4));floatText(player,"Choc !","#ffb07a");}}
   // piétons
   for(const w of walkers){if(w===player||w.ko)continue;const dx=w.root.x-V.x,dz=w.root.z-V.z,a=dx*f2.x+dz*f2.z,b=dx*r2.x+dz*r2.z;
@@ -6439,7 +6441,7 @@ function stepVehicle(V,dt,inp){
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
   updateBoatSpots(dt);
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");const t2=t||(!drive&&secretNear()?"E : fouiller":"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");const t2=t||(!drive&&secretNear()?"E : fouiller":"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
@@ -6463,6 +6465,7 @@ function updateVehicles(dt){
 function driveCtx(sit){
   if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
   document.getElementById("punchBtn").textContent="Poing";document.getElementById("guardBtn").textContent="Garde";
+  if(player.sit.state==="none"&&!player.ko&&!player.swim&&nearStoppedCar()){sit.style.display="block";sit.textContent="Braquer";return true;}
   if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":"Conduire";return true;}}
   return false;
 }
@@ -6535,6 +6538,103 @@ function updateBoatSpots(dt){
       if(waterDepth(x,z)<need){let ok=false;for(let d=6;d<60&&!ok;d+=6)for(let a=0;a<8&&!ok;a++){const qx=S.x+Math.cos(a/8*6.28)*d,qz=S.z+Math.sin(a/8*6.28)*d;if(waterDepth(qx,qz)>need){x=qx;z=qz;ok=true;}}if(!ok){S.used=true;continue;}}
       S.V=makeBoat(x,z,S.yaw,S.kind==="airboat"?"airboat":"vedette",BOAT_SPOTS.indexOf(S));}}
 }
+// ================================================================ MODULE 27 : circulation en ville
+// Des voitures roulent dans les rues d'Azuria et de toutes les villes : voie de droite, feux respectés, virages aux
+// carrefours, distance de sécurité, arrêt pour les piétons (et coup de klaxon), on peut les braquer quand elles sont
+// arrêtées (E). Chaque voiture est un seul maillage (couleurs par sommet) : un seul appel de rendu.
+const ccars=[];
+const CC_COLS=["#c9ccd1","#1d1f24","#f2f2f0","#8a1f1f","#1f3e7a","#5a6a74","#c48a2a","#2d5e45","#a8b0b8","#6a2a4f","#e8d24a","#d86a2a"];
+const CC_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.45,metalness:0.35});
+const _cc=new THREE.Color();
+function fastCar(col,kind){
+  const parts=[],add=(w,h,d,x,y,z,c)=>{const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();g.translate(x,y,z);const n=g.attributes.position.count,a=new Float32Array(n*3);_cc.set(c);_cc.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_cc.r;a[i*3+1]=_cc.g;a[i*3+2]=_cc.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);};
+  const van=kind==="van",taxi=kind==="taxi",bus=kind==="bus",L=bus?10:4.3,H=bus?2.6:van?1.0:0.55;
+  if(bus){add(2.5,2.4,L,0,1.6,0,col);add(2.52,0.9,L-1,0,2.1,0,"#22303c");add(2.4,0.2,L,0,2.85,0,"#e8e8e4");}
+  else{add(1.78,0.62,L,0,0.58,0,col);add(1.6,H,van?3.2:2.2,0,van?1.38:1.15,van?-0.3:-0.15,van?col:"#1d2a36");if(!van)add(1.62,0.06,2.0,0,1.44,-0.15,col);}
+  for(const [sx,sz] of bus?[[-1.2,3.6],[1.2,3.6],[-1.2,-3.6],[1.2,-3.6]]:[[-0.82,1.35],[0.82,1.35],[-0.82,-1.35],[0.82,-1.35]])add(0.24,0.66,0.66,sx,0.33,sz,"#151515");
+  for(const sx of [-0.6,0.6]){add(0.3,0.14,0.05,sx,0.75,L/2+0.01,"#fff6d0");add(0.3,0.12,0.05,sx,0.75,-L/2-0.01,"#c81e1e");}
+  if(taxi){add(0.7,0.25,0.4,0,1.6,-0.15,"#f2d03a");}
+  const gm=mergeGeometries(parts);parts.forEach(p=>p.dispose());const m=new THREE.Mesh(gm,CC_MAT);m.castShadow=true;return m;
+}
+// grilles de rues (ville + bourgs) : nœud (i,j) = carrefour (i*40-16, j*40-16)
+function ccGrid(i,j){for(const G of GRIDS)if(i>=G.i0&&i<=G.i1&&j>=G.j0&&j<=G.j1)return G;return null;}
+function ccRight(ax,dir){return ax==="z"?[-dir,0]:[0,dir];}   // à droite du sens de marche (x est, z sud)
+const LANE_O=1.15;
+function ccPos(c){const [rx,rz]=ccRight(c.ax,c.dir);const L=c.L*40-16;return c.ax==="z"?[L+rx*LANE_O,c.s]:[c.s,L+rz*LANE_O];}
+function spawnCityCar(){
+  // un point de rue à 60-110 m du joueur, dans une ville
+  for(let k=0;k<12;k++){const a=Math.random()*6.28,r=rand(55,110),x=player.root.x+Math.cos(a)*r,z=player.root.z+Math.sin(a)*r;
+    const ax=Math.random()<0.5?"z":"x",L=Math.round(((ax==="z"?x:z)+16)/40),s=ax==="z"?z:x,n0=Math.floor((s+16)/40);
+    const G=ccGrid(ax==="z"?L:n0,ax==="z"?n0:L);if(!G||!ccGrid(ax==="z"?L:n0+1,ax==="z"?n0+1:L))continue;
+    const dir=Math.random()<0.5?1:-1,c={ax,L,dir,s,v:rand(6,10),v0:rand(10.5,14),yaw:0,honkT:0,hitT:0,stopT:0};
+    const [px,pz]=ccPos(c);if(ccars.some(o=>Math.hypot(o.m.position.x-px,o.m.position.z-pz)<12))continue;
+    if(drive&&Math.hypot(drive.x-px,drive.z-pz)<12)continue;
+    const r2=Math.random(),kind=r2<0.08?"van":r2<0.16?"taxi":r2<0.2&&G.i1-G.i0>12?"bus":null;
+    c.kind=kind;c.m=fastCar(kind==="taxi"?"#f2c43a":kind==="bus"?"#2a7ab8":CC_COLS[Math.floor(Math.random()*CC_COLS.length)],kind);if(kind==="bus")c.v0=9;
+    scene.add(c.m);ccars.push(c);return c;}
+  return null;
+}
+function removeCityCar(c){scene.remove(c.m);c.m.geometry.dispose();const i=ccars.indexOf(c);if(i>=0)ccars.splice(i,1);}
+let ccCk=0;
+function updateCityTraffic(dt){
+  const px=player.root.x,pz=player.root.z,inside=inGridArea(px,pz)||gridDist(px,pz)<60;
+  const want=inside?Math.round((isTouch()?6:10)*(1-0.35*clamp01((DAY.night-0.5)/0.4))):0;
+  ccCk-=dt;if(ccCk<=0){ccCk=0.6;if(ccars.length<want)spawnCityCar();}
+  for(const c of ccars.slice()){
+    const [x0,z0]=ccPos(c);if(Math.hypot(x0-px,z0-pz)>150||!inside&&Math.hypot(x0-px,z0-pz)>60){removeCityCar(c);continue;}
+    // prochain carrefour dans le sens de marche
+    const nodeS=(Math.floor((c.s+16)/40)+(c.dir>0?1:0))*40-16,toNode=(nodeS-c.s)*c.dir;
+    const ni=c.ax==="z"?c.L:Math.round((nodeS+16)/40),nj=c.ax==="z"?Math.round((nodeS+16)/40):c.L;
+    let gap=999;
+    // feu rouge : on s'arrête à la ligne (7 m avant le centre du carrefour)
+    const sig=signal(ni,nj),st=c.ax==="z"?sig.ns:sig.ew;
+    if((st==="r"||(st==="a"&&toNode>12))&&toNode>5.5)gap=Math.min(gap,toNode-7);
+    // voiture devant (même voie)
+    for(const o of ccars){if(o===c||o.ax!==c.ax||o.L!==c.L||o.dir!==c.dir)continue;const d=(o.s-c.s)*c.dir;if(d>0&&d<gap+6)gap=Math.min(gap,d-5.2-(o.kind==="bus"?3:0));}
+    // voiture du joueur
+    if(drive){const V=drive,[rx,rz]=ccRight(c.ax,c.dir),lane=c.L*40-16+(c.ax==="z"?rx:rz)*LANE_O,o=c.ax==="z"?V.x:V.z,s=c.ax==="z"?V.z:V.x;if(Math.abs(o-lane)<2.2){const d=(s-c.s)*c.dir;if(d>0)gap=Math.min(gap,d-5);}}
+    // piétons devant
+    let ped=null;for(const w of walkers){if(w.ko&&!w.ko.getUp)continue;const dx=w.root.x-x0,dz=w.root.z-z0,a=c.ax==="z"?dz*c.dir:dx*c.dir,b=c.ax==="z"?dx:dz;if(a>0&&a<14&&Math.abs(b)<1.6){gap=Math.min(gap,a-3.2);ped=w;}}
+    const sStar=3+c.v*1.0+c.v*c.v/(2*Math.sqrt(1.4*5));let acc=1.4*(1-Math.pow(c.v/c.v0,4)-Math.pow(sStar/Math.max(0.3,gap),2));acc=Math.max(acc,-8);
+    c.v=Math.max(0,c.v+acc*dt);
+    if(ped&&c.v<1&&ped===player){c.honkT-=dt;if(c.honkT<=0){c.honkT=rand(2,4);hornSound(clamp01(1-Math.hypot(x0-px,z0-pz)/50));}}
+    if(c.v<0.3)c.stopT+=dt;else c.stopT=0;
+    const ds=c.v*c.dir*dt,ns=c.s+ds;
+    // passage du carrefour : on choisit tout droit, à gauche ou à droite selon les rues qui existent
+    if((nodeS-c.s)*c.dir>0&&(nodeS-ns)*c.dir<=0){
+      const opts=[];const ahead=c.ax==="z"?[ni,nj+c.dir]:[ni+c.dir,nj];if(ccGrid(...ahead))opts.push(["straight"],["straight"]);
+      for(const td of [-1,1]){const t2=c.ax==="z"?[ni+td,nj]:[ni,nj+td];if(ccGrid(...t2))opts.push(["turn",td]);}
+      const ch=opts.length?pick(opts):["uturn"];
+      if(ch[0]==="turn"){const td=ch[1],nax=c.ax==="z"?"x":"z";c.ax=nax;c.L=nax==="x"?nj:ni;c.dir=td;c.s=(nax==="x"?ni:nj)*40-16+td*0.01;continue;}
+      if(ch[0]==="uturn"){c.dir*=-1;c.s=nodeS;continue;}
+    }
+    c.s=ns;
+    const [x,z]=ccPos(c),y=groundAt(x,z);c.m.position.set(x,Math.max(0,y>0.3?y:0),z);
+    const yawT=c.ax==="z"?(c.dir>0?0:Math.PI):(c.dir>0?Math.PI/2:-Math.PI/2);c.yaw=c.yaw+((((yawT-c.yaw)%(2*Math.PI))+3*Math.PI)%(2*Math.PI)-Math.PI)*(1-Math.exp(-8*dt));c.m.rotation.set(-acc*0.004,c.yaw,0,"YXZ");
+    // choc avec un piéton qui n'a pas bougé
+    if(c.v>3&&c.hitT<=0)for(const w of walkers){if(w.ko)continue;const dx=w.root.x-x,dz=w.root.z-z,a=c.ax==="z"?dz*c.dir:dx*c.dir,b=c.ax==="z"?dx:dz;
+      if(a>-2.2&&a<2.4&&Math.abs(b)<1.1){c.hitT=1.5;const dir=new V3(Math.sign(b||1)*0.5*(c.ax==="z"?1:0)+(c.ax==="x"?c.dir:0),0,(c.ax==="z"?c.dir:0)+Math.sign(b||1)*0.5*(c.ax==="x"?1:0)).normalize();const dmg=Math.round(c.v*2.2);
+        w.hp=Math.max(0,w.hp-dmg);w.lastHurt=clockT;w.startKO(dir,w,{getUp:w.hp>0?2.6:undefined,fast:true});playSound("thud",1);if(w===player){floatText(w,"Renversé ! -"+dmg,"#ff8a6b");rumble(300,1);}c.v*=0.3;break;}}
+    c.hitT=Math.max(0,c.hitT-dt);
+  }
+}
+// braquage : E près d'une voiture arrêtée
+function tryCarjack(){
+  if(drive||player.ko||player.swim)return false;
+  let best=null,bd=3.4;for(const c of ccars){if(c.v>2.5||c.kind==="bus")continue;const d=hdist(c.m.position,player.root);if(d<bd){bd=d;best=c;}}
+  if(!best)return false;
+  const c=best,p=c.m.position,yawDeg=180-c.yaw/D2R;
+  const V=makeVehicle(p.x,p.z,yawDeg,mat({color:0x8a1f1f,roughness:0.35,metalness:0.55}),c.kind==="van"?"van":null);
+  // on reprend la couleur réelle de la voiture braquée
+  {const a=c.m.geometry.attributes.color.array;V.m.children[0].material=V.m.children[0].material.clone();V.m.children[0].material.color.setRGB(a[0],a[1],a[2]);}
+  removeCityCar(c);V.stolen=true;enterVehicle(V);
+  // le conducteur sort en criant
+  const f=rightOf(yawDeg),pos=new V3(p.x-f.x*2.2,0,p.z-f.z*2.2);pushOutOfObstacles(pos,0.5);
+  const look=randomPerson(rng);const w=spawnSpecial(look,new NpcBrain(),pos,yawDeg);w.isMission=false;say(w,pick(["Ma voiture !!","Au voleur !","Hé ! Rends-moi ça !"]));
+  try{w.brain.react=makeReaction("gesture",w,player,w.brain.hand);}catch(e){}
+  hudMsg("Braquage de voiture !");return true;
+}
+function nearStoppedCar(){for(const c of ccars)if(c.v<2.5&&c.kind!=="bus"&&hdist(c.m.position,player.root)<3.4)return true;return false;}
 // ================================================================ module 13 : noms de rues, GPS, grande carte
 // --- noms de rues (inventés) : avenues nord-sud, rues est-ouest
 const AVENUES=[],RUES=[];for(let i=-NCH;i<=NCH;i++){AVENUES.push("Avenue "+AV_N[(i+14)%AV_N.length]);RUES.push("Rue "+RU_N[(i+14)%RU_N.length]);}
@@ -7925,7 +8025,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
@@ -7962,7 +8062,7 @@ function tick(dt,time){
     const L=player.L,R=player.R;
     window.__air=(window.__air||0)+((player.L.stepping&&player.R.stepping)?1:0);window.__maxH=Math.max(window.__maxH||0,player.height/(player.LEG*player.P.standRatio+player.P.ankleHeight));window.__dbg={fd:hdist(L.footPos,R.footPos),L:hdist(L.footPos,player.pelvisPos),R:hdist(R.footPos,player.pelvisPos),h:player.height,hMax:player.LEG*player.P.standRatio+player.P.ankleHeight,steps:player.stepCount,cross:new V3().subVectors(R.footPos,L.footPos).dot(rightOf(player.yaw)),spd:player.speed,n:walkers.length};
   }
-window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
+window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   const time=now/1000;

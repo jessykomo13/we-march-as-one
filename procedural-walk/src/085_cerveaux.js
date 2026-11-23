@@ -41,6 +41,7 @@ class PlayerBrain{
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
     if(sitRequest&&trySecret()){sitRequest=false;return;}
+    if(sitRequest&&tryCarjack()){sitRequest=false;return;}
     if(sitRequest&&tryEnterVehicle()){sitRequest=false;return;}
     if(sitRequest){sitRequest=false;const sp=nearestFreeSpot(w,3);if(sp&&w.goSit(sp))return;}
     let x=0,y=0;
