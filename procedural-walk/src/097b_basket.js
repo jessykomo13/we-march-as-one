@@ -27,7 +27,7 @@ function basketHud(){
   const show=player.ball||clockT-bstats.lastT<12;
   basketEl.style.display=show?"block":"none";
   if(show)basketEl.innerHTML=`🏀 <b>${bstats.pts} pts</b> · ${bstats.made}/${bstats.shots} paniers${bstats.streak>1?` · série ${bstats.streak}`:""}<br><span>${isTouch()?"Tirer : bouton rouge · lâcher : S'asseoir":"F / clic : tirer · E : lâcher le ballon"}</span>`;
-  const pb=document.getElementById("punchBtn");if(pb)pb.textContent=player.ball?"Tirer":"Poing";
+  const pb=document.getElementById("punchBtn");if(pb)pb.textContent=drive?"Klaxon":player.ball?"Tirer":"Poing";
 }
 function swishSound(made){const c=actx;if(!c)return;try{const d=0.25,buf=c.createBuffer(1,c.sampleRate*d,c.sampleRate),a=buf.getChannelData(0);for(let i=0;i<a.length;i++){const t=i/a.length;a[i]=(Math.random()*2-1)*Math.sin(t*Math.PI)*(made?0.5:0.25);}
   const s=c.createBufferSource(),f=c.createBiquadFilter();f.type="highpass";f.frequency.value=made?2500:900;s.buffer=buf;s.connect(f).connect(sfxOut());s.start();}catch(e){}}

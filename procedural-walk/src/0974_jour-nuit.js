@@ -77,6 +77,6 @@ function updateDay(dt){
 }
 const clockEl=document.createElement("div");clockEl.id="clock";document.body.appendChild(clockEl);
 {const st=document.createElement("style");st.textContent=`#clock{position:fixed;left:22px;bottom:196px;color:#fff;font:700 13px system-ui;text-shadow:0 1px 3px #000;pointer-events:none;background:rgba(16,18,24,.55);padding:3px 8px;border-radius:9px}
-.touch #clock{bottom:auto;top:206px;left:14px;font-size:12px}body.mapOn #clock{display:none}`;document.head.appendChild(st);}
+.touch #clock{bottom:auto;top:92px;left:12px;font-size:11px;padding:2px 6px}body.mapOn #clock{display:none}`;document.head.appendChild(st);}
 let clockLast="";
 function updateClock(){const h=Math.floor(DAY.t),m=Math.floor((DAY.t-h)*60/5)*5,ic=DAY.weather==="pluie"?"🌧":DAY.weather==="nuageux"?"☁":DAY.night>0.6?"🌙":"☀",t=`${ic} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;if(t!==clockLast){clockLast=t;clockEl.textContent=t;}}

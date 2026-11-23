@@ -15,7 +15,7 @@ const speedoEl=document.createElement("div");speedoEl.id="speedo";document.body.
 #ctxHint{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;pointer-events:none;color:#fff;font:600 14px system-ui;background:rgba(16,18,24,.7);padding:6px 12px;border-radius:10px}
 .touch #ctxHint{display:none!important}
 #speedo small{display:block;font:600 11px system-ui;opacity:.8;letter-spacing:.08em}
-.touch #speedo{bottom:auto;top:8px;font-size:22px}
+.touch #speedo{bottom:auto;top:84px;left:auto;right:16px;transform:none;font-size:22px;text-align:right}
 body.driving.touch #kickBtn,body.driving.touch #crouchBtn,body.driving.touch #aimBtn,body.driving.touch #lootBtn{display:none!important}
 body.driving.touch #runBtn{display:none!important}`;document.head.appendChild(st);}
 function makeVehicle(x,z,yawDeg,paint,kind){

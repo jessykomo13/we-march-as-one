@@ -6296,7 +6296,7 @@ function updateDay(dt){
 }
 const clockEl=document.createElement("div");clockEl.id="clock";document.body.appendChild(clockEl);
 {const st=document.createElement("style");st.textContent=`#clock{position:fixed;left:22px;bottom:196px;color:#fff;font:700 13px system-ui;text-shadow:0 1px 3px #000;pointer-events:none;background:rgba(16,18,24,.55);padding:3px 8px;border-radius:9px}
-.touch #clock{bottom:auto;top:206px;left:14px;font-size:12px}body.mapOn #clock{display:none}`;document.head.appendChild(st);}
+.touch #clock{bottom:auto;top:92px;left:12px;font-size:11px;padding:2px 6px}body.mapOn #clock{display:none}`;document.head.appendChild(st);}
 let clockLast="";
 function updateClock(){const h=Math.floor(DAY.t),m=Math.floor((DAY.t-h)*60/5)*5,ic=DAY.weather==="pluie"?"🌧":DAY.weather==="nuageux"?"☁":DAY.night>0.6?"🌙":"☀",t=`${ic} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;if(t!==clockLast){clockLast=t;clockEl.textContent=t;}}
 // ================================================================ MODULE 26 : conduite
@@ -6316,7 +6316,7 @@ const speedoEl=document.createElement("div");speedoEl.id="speedo";document.body.
 #ctxHint{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);display:none;pointer-events:none;color:#fff;font:600 14px system-ui;background:rgba(16,18,24,.7);padding:6px 12px;border-radius:10px}
 .touch #ctxHint{display:none!important}
 #speedo small{display:block;font:600 11px system-ui;opacity:.8;letter-spacing:.08em}
-.touch #speedo{bottom:auto;top:8px;font-size:22px}
+.touch #speedo{bottom:auto;top:84px;left:auto;right:16px;transform:none;font-size:22px;text-align:right}
 body.driving.touch #kickBtn,body.driving.touch #crouchBtn,body.driving.touch #aimBtn,body.driving.touch #lootBtn{display:none!important}
 body.driving.touch #runBtn{display:none!important}`;document.head.appendChild(st);}
 function makeVehicle(x,z,yawDeg,paint,kind){
@@ -7515,7 +7515,7 @@ function basketHud(){
   const show=player.ball||clockT-bstats.lastT<12;
   basketEl.style.display=show?"block":"none";
   if(show)basketEl.innerHTML=`🏀 <b>${bstats.pts} pts</b> · ${bstats.made}/${bstats.shots} paniers${bstats.streak>1?` · série ${bstats.streak}`:""}<br><span>${isTouch()?"Tirer : bouton rouge · lâcher : S'asseoir":"F / clic : tirer · E : lâcher le ballon"}</span>`;
-  const pb=document.getElementById("punchBtn");if(pb)pb.textContent=player.ball?"Tirer":"Poing";
+  const pb=document.getElementById("punchBtn");if(pb)pb.textContent=drive?"Klaxon":player.ball?"Tirer":"Poing";
 }
 function swishSound(made){const c=actx;if(!c)return;try{const d=0.25,buf=c.createBuffer(1,c.sampleRate*d,c.sampleRate),a=buf.getChannelData(0);for(let i=0;i<a.length;i++){const t=i/a.length;a[i]=(Math.random()*2-1)*Math.sin(t*Math.PI)*(made?0.5:0.25);}
   const s=c.createBufferSource(),f=c.createBiquadFilter();f.type="highpass";f.frequency.value=made?2500:900;s.buffer=buf;s.connect(f).connect(sfxOut());s.start();}catch(e){}}
