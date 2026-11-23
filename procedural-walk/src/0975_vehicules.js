@@ -34,7 +34,7 @@ function dressDriver(g){const L=playerLook||{},P=g.userData.parts;P.torso.materi
 // voiture garée la plus proche (cuite dans le décor) ou véhicule libre
 function nearestCar(p,R=3.4){
   let best=null,bd=R;
-  for(const V of VEH){if(V===drive)continue;const d=Math.hypot(V.x-p.x,V.z-p.z);if(d<bd){bd=d;best={V};}}
+  for(const V of VEH){if(V===drive||V.dead)continue;const d=Math.hypot(V.x-p.x,V.z-p.z);if(d<bd){bd=d;best={V};}}
   for(const o of obsAt(p)){if(!o.pcar)continue;const d=Math.max(0,obstacleClosest(o,p).d);if(d<bd-1.2){bd=d+1.2;best={pc:o.pcar,o};}}
   return best;
 }
@@ -116,7 +116,7 @@ function stepVehicle(V,dt,inp){
   for(const W of VEH){if(W===V)continue;const dx=V.x-W.x,dz=V.z-W.z,d=Math.hypot(dx,dz);if(d<2.6&&d>1e-3){const nx=dx/d,nz=dz/d,push=(2.6-d)/2;V.x+=nx*push;V.z+=nz*push;W.x-=nx*push;W.z-=nz*push;if(W.o){W.o.x=W.x;W.o.z=W.z;}const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp*0.8;V.vel.z+=nz*imp*0.8;hit=Math.max(hit,imp*0.6);}W.y=groundAt(W.x,W.z);placeVehicle(W);}}
   for(const c of cars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.4&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.4-d);V.z+=nz*(3.4-d);const imp=-(V.vel.x*nx+V.vel.z*nz)+c.v*0.3;if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.3;}}
   for(const c of ccars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.2&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.2-d);V.z+=nz*(3.2-d);const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.2;}}
-  if(hit>4){V.hp=Math.max(0,V.hp-hit*1.2);cam.shake=Math.min(1,cam.shake+hit*0.04);playSound("thud",Math.min(1,hit/12));rumble(200,Math.min(1,hit/15));if(hit>9&&player.hp>5){player.hp=Math.max(5,player.hp-Math.round(hit*0.4));floatText(player,"Choc !","#ffb07a");}}
+  if(hit>4){V.hp=Math.max(0,V.hp-hit*(hit>14?2.2:1.2));cam.shake=Math.min(1,cam.shake+hit*0.04);playSound("thud",Math.min(1,hit/12));rumble(200,Math.min(1,hit/15));if(hit>9&&player.hp>5){player.hp=Math.max(5,player.hp-Math.round(hit*0.4));floatText(player,"Choc !","#ffb07a");}}
   // piétons
   for(const w of walkers){if(w===player||w.ko)continue;const dx=w.root.x-V.x,dz=w.root.z-V.z,a=dx*f2.x+dz*f2.z,b=dx*r2.x+dz*r2.z;
     if(Math.abs(a)<2.5&&Math.abs(b)<1.25){const s=Math.abs(V.v);
@@ -139,7 +139,7 @@ function stepVehicle(V,dt,inp){
 // la circulation voit la voiture du joueur (elle freine derrière)
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
-  updateBoatSpots(dt);
+  updateBoatSpots(dt);updateDamage(dt);
   hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");const t2=t||(!drive&&secretNear()?"E : fouiller":"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
@@ -167,4 +167,33 @@ function driveCtx(sit){
   if(player.sit.state==="none"&&!player.ko&&!player.swim&&nearStoppedCar()){sit.style.display="block";sit.textContent="Braquer";return true;}
   if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":"Conduire";return true;}}
   return false;
+}
+// ================================================================ MODULE 28 : dégâts des véhicules
+// Moteur abîmé : fumée grise, puis noire et des flammes ; à 0 le véhicule explose (on est éjecté), il reste une carcasse.
+const SMOKE=[],SMOKE_GEO=new THREE.SphereGeometry(0.35,8,6);
+const smokeMats=[0x9a9a9a,0x2a2a2a,0xff7a1a].map(c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.5,depthWrite:false}));
+function puff(x,y,z,kind,size=1){if(SMOKE.length>90)return;const m=new THREE.Mesh(SMOKE_GEO,smokeMats[kind].clone());m.position.set(x,y,z);m.scale.setScalar(size);scene.add(m);SMOKE.push({m,t:0,life:kind===2?0.5:rand(1.4,2.2),vy:kind===2?2.5:rand(1,1.8),kind,s0:size});}
+function updateSmoke(dt){for(let i=SMOKE.length-1;i>=0;i--){const S=SMOKE[i];S.t+=dt;S.m.position.y+=S.vy*dt;S.m.position.x+=dt*0.3;const k=S.t/S.life;S.m.scale.setScalar(S.s0*(1+k*(S.kind===2?0.3:2.5)));S.m.material.opacity=(S.kind===2?0.9:0.5)*(1-k);if(k>=1){scene.remove(S.m);S.m.material.dispose();SMOKE.splice(i,1);}}}
+function boom(V){
+  V.dead=true;const p=new V3(V.x,V.y+0.8,V.z);
+  const fb=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:0xffa030,transparent:true,opacity:0.9}));fb.position.copy(p);scene.add(fb);
+  let t=0;const grow=()=>{t+=0.05;fb.scale.setScalar(1+t*9);fb.material.opacity=0.9*(1-t);if(t<1)setTimeout(grow,30);else{scene.remove(fb);fb.geometry.dispose();}};grow();
+  for(let i=0;i<14;i++)puff(V.x+rand(-1.5,1.5),V.y+rand(0.5,2),V.z+rand(-1.5,1.5),i%3?1:2,rand(1,2));
+  cam.shake=1;rumble(600,1);
+  try{const c=actx;const t0=c.currentTime,n=c.createBufferSource(),b=c.createBuffer(1,c.sampleRate*1.5,c.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/a.length,2.2);n.buffer=b;const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=700;const g=c.createGain();g.gain.value=0.9;n.connect(f).connect(g).connect(sfxOut());n.start(t0);}catch(e){}
+  if(drive===V){exitVehicle(true);player.hp=Math.max(1,player.hp-35);const d=new V3(player.root.x-V.x,0,player.root.z-V.z).normalize();player.startKO(d,player,{getUp:2.6,fast:true});floatText(player,"BOUM ! -35","#ff6a3a");}
+  for(const w of walkers){if(w===player||w.ko)continue;const d=hdist(w.root,p);if(d<7){const dir=new V3(w.root.x-V.x,0,w.root.z-V.z).normalize();w.hp=Math.max(0,w.hp-Math.round(40*(1-d/7)));w.startKO(dir,player,{getUp:w.hp>0?3:undefined,fast:true});}}
+  // carcasse brûlée
+  const burnt=mat({color:0x1e1c1a,roughness:1});V.m.traverse(o=>{if(o.isMesh&&o!==V.head)o.material=burnt;});V.head.visible=false;V.fireT=12;
+  if(wanted&&!(CREA.on&&CREA.noCops)){const victim={isCop:false,_crime:null,brain:{},root:p};registerCrime(victim,true);}
+}
+function updateDamage(dt){
+  updateSmoke(dt);
+  for(const V of VEH){if(V.boat)continue;
+    if(!V.dead&&V.hp<=0){boom(V);continue;}
+    V.smT=(V.smT||0)-dt;const f=fwdOf(V.yaw),hx=V.x+f.x*1.7,hz=V.z+f.z*1.7;
+    if(V.dead){if(V.fireT>0){V.fireT-=dt;if(V.smT<=0){V.smT=0.12;puff(V.x+rand(-0.6,0.6),V.y+1,V.z+rand(-0.6,0.6),Math.random()<0.4?2:1,1.2);}}continue;}
+    if(V.hp<45&&V.smT<=0&&hdist(V.m.position,player.root)<80){V.smT=V.hp<20?0.08:0.25;puff(hx,V.y+1.1,hz,V.hp<20?1:0,0.7);if(V.hp<15)puff(hx,V.y+1.0,hz,2,0.6);}
+    if(V.hp<15&&V===drive){V.burnT=(V.burnT||0)+dt;if(V.burnT>6)V.hp=0;}
+  }
 }
