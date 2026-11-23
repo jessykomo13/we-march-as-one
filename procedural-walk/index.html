@@ -3152,6 +3152,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       if(r()<0.35&&!G.water)P(2+Math.floor(r()*3),(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i);});
       break;
     case "foret":
+      if(r()<0.06){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:X+r()*30-15,z:Z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
       P(24,(x,z,i)=>{if(ok(x,z,0.8))treeAt(x,z,r()<0.6?"conifer":r()<0.5?"round":"light",0.9+r()*0.9,i<14?base:mid,0.35);});
       P(3,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.25,0.3,4,7),WM.trunk,x,y+0.25,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
       break;
@@ -3160,6 +3161,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       P(14,(x,z)=>{if(ok(x,z))put(geo("bush",()=>new THREE.IcosahedronGeometry(0.7,1)),KMP_BUSH,x,groundAt(x,z)+0.25,z,detail,0,0.8+r(),0.5,0.8+r());});
       break;
     case "montagne":
+      if(r()<0.12){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:x+r()*30-15,z:z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
       P(10,(x,z)=>{if(ok(x,z))rockAt(x,z,0.8+r()*2.4,base);});P(4,(x,z)=>{if(ok(x,z)&&groundAt(x,z)<40)treeAt(x,z,"conifer",0.8+r()*0.5,mid);});
       if(r()<0.06){const x=X,z=Z;if(ok(x,z)){const y=groundAt(x,z);for(let k=0;k<4;k++)put(geo("rock",()=>new THREE.DodecahedronGeometry(1,0)),WM2.rock,x,y+0.3+k*0.45,z,mid,k,0.5-k*0.08,0.3,0.5-k*0.08);addObstacle({type:"circle",x,z,r:0.6});}}
       break;
@@ -3175,13 +3177,14 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
         P(10,(x,z)=>{if(ok(x,z,0.5,true)&&waterDepth(x,z)<0.7)grassTuft(x,z,detail,KMP_BUSH);});
         if(r()<0.45){const x=X+r()*30-15,z=Z+r()*30-15;if(ok(x,z,2,true))gatorAt(x,z,detail,r);}
         if(r()<0.1){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,3,true)&&waterDepth(x,z)>0.4)addBoatSpot(x,z,r()*360,"airboat");}}
-      if(r()<0.07){const x=X+r()*16-8,z=Z+r()*16-8;if(!onAnyRoad(x,z,6)&&!inGridArea(x,z))stiltShack(x,z,mid,r,cell);}
+      if(r()<0.07){const x=X+r()*16-8,z=Z+r()*16-8;if(!onAnyRoad(x,z,6)&&!inGridArea(x,z)){stiltShack(x,z,mid,r,cell);if(waterDepth(x,z+5)<0.3)addAmb("bayou",x,z+5.5,180);}}
       break;
     case "plage": case "cayo":
       P(6,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.8+r()*0.5,mid);});
       P(3,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.15,0.2,3,6),WM2.dead,x,y+0.15,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
       P(8,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail,WM2.straw);});
       if(r()<0.25){const x=X+r()*24-12,z=Z+r()*24-12;if(ok(x,z))beachUmbrella(x,z,detail,cell);}
+      if(r()<0.12){const x=X+r()*24-12,z=Z+r()*24-12;if(ok(x,z))addAmb("surfeur",x,z,90);}
       break;
     case "mer":
       if(r()<0.025){const x=X+r()*30-15,z=Z+r()*30-15;if(waterDepth(x,z)>1.5&&!onAnyRoad(x,z,8))boatSmall(x,z,r()*6,mid,[KM.white,KM.blue,KM.red][cell%3]);}
@@ -3189,10 +3192,11 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
     case "lac":
       if(r()<0.05){const x=X+r()*30-15,z=Z+r()*30-15;if(waterDepth(x,z)>1.2)boatSmall(x,z,r()*6,mid,OM.wood);}
       P(6,(x,z)=>{if(waterDepth(x,z)>0.05&&waterDepth(x,z)<0.6)grassTuft(x,z,detail,KMP_BUSH);});
+      if(r()<0.3){for(let k=0;k<12;k++){const x=X+r()*36-18,z=Z+r()*36-18;if(ok(x,z,1)){let best=null;for(let a=0;a<8;a++){const qx=x+Math.cos(a*0.785)*3,qz=z+Math.sin(a*0.785)*3;if(waterDepth(qx,qz)>0.3){best=Math.atan2(qx-x,-(qz-z))/D2R;break;}}if(best!==null){addAmb("pecheur",x,z,best);break;}}}}
       P(3,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.5?"light":"round",0.9+r()*0.4,mid);});
       break;
     case "ferme":{
-      if(flat&&!onAnyRoad(X,Z,26)){const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
+      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9,mid);});break;}
     case "eolien":
       if(!onAnyRoad(X,Z,24)&&!G.water){const o=lifted(base,X,Z);windTurbine(X+r()*10-5,Z+r()*10-5,o);}
@@ -5957,6 +5961,7 @@ function spawnOne(atEdge,asFollower){
   }
   if(!pos.ok&&!asFollower)return null;   // aucun trottoir libre (campagne, mer) : personne n'apparaît au milieu de nulle part
   const look=randomPerson(rng);
+  {const TW=townAt(Math.floor((pos.x+12)/CHUNK),Math.floor((pos.z+12)/CHUNK));if(TW)townStyleLook(look,TW.style);if(DAY.rainK>0.5&&Math.random()<0.6){look.jacket=pick(["#2b3a55","#3a3a3a","#7a2a2a","#2d5e45","#c9a227"]);look.top="long";}}
   // centre d'affaires : beaucoup d'employés de bureau en costume / tailleur
   if(inCBD(chunkOf(pos.x),chunkOf(pos.z))&&look.age!=="senior"&&Math.random()<0.5){look.top="long";look.topColor=pick(["#f2f2ef","#dfe8f2","#e9e4da","#cfdcea"]);look.jacket=pick(["#1d1d1f","#30343f","#3a5372","#55595f"]);
     if(look.bottom!=="skirt"||Math.random()<0.5){look.bottom="pants";}look.bottomColor=look.jacket;look.shoes=["#1a1a1a","#0e0e0e"];look.boots=false;}
@@ -5997,6 +6002,17 @@ function removeNpcs(n){
 }
 
 
+
+// tenues selon la ville : plage, montagne, bayou, port de pêche…
+function townStyleLook(L,style){
+  const P=pick;
+  if(style==="balneaire"||style==="resort"||style==="marina"){L.jacket=Math.random()<0.15?P(["#f2f2ef","#cfe8f2"]):null;L.top=P(["tee","tee","tee","long"]);L.topColor=P(["#ff7a59","#ffd166","#06d6a0","#4cc9f0","#ffffff","#f72585","#90be6d"]);
+    if(L.bottom!=="skirt"||Math.random()<0.5){L.bottom="shorts";L.bottomColor=P(["#e8dcc4","#3a5a80","#f4f1ea","#2a9d8f","#e76f51"]);}if(Math.random()<0.5)L.glasses="sun";L.boots=false;}
+  else if(style==="montagne"){L.top="long";L.jacket=P(["#7a2a2a","#2d5e45","#3a3f55","#5a4632","#2b3a55"]);L.bottom="pants";L.bottomColor=P(["#3a3a3a","#4a4636","#2b3a55"]);L.boots=true;}
+  else if(style==="bayou"){L.top=P(["tee","long"]);L.topColor=P(["#6b5a3a","#5a6b3a","#8a2a1a","#e8e2d0","#3a4a5a"]);L.jacket=Math.random()<0.4?P(["#5a4632","#4a5a3a","#2b3a55"]):null;L.bottom="pants";L.bottomColor=P(["#3a5a80","#4a4636","#2a2a2a"]);L.boots=true;if(L.sex==="m"&&Math.random()<0.5)L.beard="full";}
+  else if(style==="pecheurs"){if(Math.random()<0.5){L.jacket=P(["#f2c43a","#e0782b","#1f3a5a"]);L.top="long";}L.bottom="pants";L.bottomColor=P(["#1f3a5a","#2a2a2a","#4a4636"]);L.boots=Math.random()<0.6;}
+  else if(style==="banlieue"){if(Math.random()<0.3){L.top="tee";L.topColor=P(["#f2f2ef","#9ec5f0","#f7c59f","#a8d88a"]);L.jacket=null;}}
+}
 // ================================================================ entrées / caméra
 const stepEl=document.getElementById("step"),speedEl=document.getElementById("speed"),crowdEl=document.getElementById("crowd");
 addEventListener("keydown",e=>{
@@ -7179,6 +7195,10 @@ const AMB_LINES={
   domino:{near:["¡Dominó! J'ai gagné !","Assieds-toi, on joue la prochaine.","Mon cousin triche, je te jure."],idle:["¡Ay, no!","Pose ta pièce, allez.","Ha ! Double six !"]},
   marchand:{near:["Mangues, ananas, goyaves ! Trois pour cinq euros !","Goûte, c'est sucré comme le miel.","Les meilleurs fruits du barrio !"],idle:["Mangues ! Ananas !","Fruits frais, fruits frais !"]},
   radio:{near:[],idle:[]},
+  fermier:{near:["Belle journée pour les orangers, hein ?","Attention aux vaches, elles sont curieuses.","La ville ? Trop de bruit pour moi.","Si tu vois un renard, dis-le-moi !"],idle:["Allez, au travail…","Il va pleuvoir, je le sens."]},
+  randonneur:{near:["La vue d'en haut est incroyable !","Il paraît qu'il y a une étoile dorée au sommet…","Tu as de l'eau ? J'ai tout bu.","Les Monts Bleus, c'est encore loin ?"],idle:["Encore un effort…","Quelle vue !"]},
+  bayou:{near:["Fais gaffe aux alligators, mon gars.","Ici on pêche l'écrevisse depuis cinq générations.","Prends un hydroglisseur, c'est le seul moyen de traverser.","On raconte qu'un avion s'est écrasé dans le marais…"],idle:["Hmm hmm…","Ça mord pas ce soir."]},
+  surfeur:{near:["La houle est parfaite aujourd'hui !","Tu surfes ? Non ? Dommage.","Les Cayos, c'est le paradis, frère."],idle:["Yeah !","Quelle vague…"]},
   docker:{near:["Hé ! Casque obligatoire sur les quais !","Fais gaffe, le portique bouge.","Le Marevia Star a encore six heures de retard…","Tu cherches du boulot ? Va voir la capitainerie.","Zone réservée au personnel, mon gars.","Perds-toi pas dans les conteneurs, on t'y retrouvera jamais."],idle:["Recule ! Recule ! … Stop !","Encore un conteneur et je fais ma pause.","Qui a laissé cette palette ici ?","Allez, on charge !"]},
   barman:{near:["Qu'est-ce que je te sers ?","Une boisson fraîche ? C'est la meilleure de l'île.","Il fait soif, hein ?"],idle:[]}};
 const rodGeo=new THREE.CylinderGeometry(0.012,0.02,2.6,5).translate(0,1.3,0),rodMat=new THREE.MeshStandardMaterial({color:0x2a2a2a,roughness:0.5});
@@ -7207,6 +7227,10 @@ function updateAmbient(dt){
     if(a.w&&!walkers.includes(a.w)){if(a.w.brain.rod)scene.remove(a.w.brain.rod);a.w=null;a.cool=clockT+60;}
     if(a.role==="radio")continue;
     if(!a.w&&d<55&&d>8&&!(a.cool>clockT)){const look=randomPerson(rng);if(a.role==="pecheur"){look.top="tee";look.jacket="#3a5a3a";}
+      if(a.role==="fermier"){look.jacket=pick(["#2b4a8a","#3a5a80"]);look.top="long";look.topColor=pick(["#c94a3a","#e8e2d0"]);look.bottom="pants";look.bottomColor="#3a5a80";look.boots=true;}
+      if(a.role==="randonneur"){look.jacket=pick(["#e0782b","#2d6b3f","#c8102e","#1f4fa0"]);look.top="long";look.bottom=pick(["pants","shorts"]);look.bottomColor=pick(["#4a4636","#3a3a3a"]);look.boots=true;}
+      if(a.role==="bayou"){look.top="long";look.topColor=pick(["#6b5a3a","#5a6b3a","#8a2a1a"]);look.jacket=null;look.bottom="pants";look.bottomColor="#3a5a80";look.boots=true;if(look.sex==="m")look.beard="full";}
+      if(a.role==="surfeur"){look.top="tee";look.topColor=pick(["#4cc9f0","#ffd166","#f72585"]);look.jacket=null;look.bottom="shorts";look.bottomColor=pick(["#2a9d8f","#e76f51","#3a5a80"]);look.glasses="sun";}
       if(a.role==="docker"){look.jacket=pick(["#f2a516","#d9ef2a","#f26b1d"]);look.top=pick(["tee","long"]);look.topColor=pick(["#2b2b2b","#3a4a5a","#5a4a3a","#e8e4da"]);look.bottom="pants";look.bottomColor=pick(["#2b3a55","#3a3a3a","#4a4636"]);look.boots=true;look.glasses="none";look.hat="hard";look.hatTint=Math.floor(Math.random()*3);if(look.hair&&look.hair!=="buzz"&&look.hair!=="bald")look.hair=look.sex==="f"?"ponytail":"buzz";}
       a.w=spawnSpecial(look,new AmbientBrain(a),new V3(a.x,0,a.z),a.yaw);}
     else if(a.w&&d>85&&!a.w.ko){if(a.w.brain.rod)scene.remove(a.w.brain.rod);removeWalker(a.w,true);a.w=null;}
@@ -7946,7 +7970,7 @@ function loop(now){
   const civ=walkers.reduce((a,w)=>a+(w!==player&&!w.isCop&&!w.isSpar&&!w.isMedic?1:0),0);
   pollPadMenu();pollPadMap(dt);
   if(menuOpen||mapOpen){if(mapOpen)drawBigMap();else renderer.render(scene,camera);perfFrame(dt);requestAnimationFrame(loop);return;}
-  const cbdK=inCBD(chunkOf(player.root.x),chunkOf(player.root.z))?1.35:1;
+  const cbdK=(inCBD(chunkOf(player.root.x),chunkOf(player.root.z))?1.35:1)*(1-0.45*clamp01((DAY.night-0.4)/0.5))*(1-0.4*DAY.rainK);
   if(civ<npcTarget*cbdK&&(!galleryOn)&&(!tick.spawnCd||clockT>tick.spawnCd)){tick.spawnCd=clockT+(tick.init?(civ<npcTarget*0.5?rand(0.3,0.8):rand(1.5,4)):0);spawnMaybeGroup(!!tick.init,Math.round(npcTarget*cbdK)-civ);if(civ+1>=npcTarget)tick.init=true;}
   let sdt=dt;if(hitStop>0){hitStop-=dt;sdt=dt*0.15;}
   if(sdt>0&&!window.__pause)tick(sdt,time);

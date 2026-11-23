@@ -52,7 +52,7 @@ function loop(now){
   const civ=walkers.reduce((a,w)=>a+(w!==player&&!w.isCop&&!w.isSpar&&!w.isMedic?1:0),0);
   pollPadMenu();pollPadMap(dt);
   if(menuOpen||mapOpen){if(mapOpen)drawBigMap();else renderer.render(scene,camera);perfFrame(dt);requestAnimationFrame(loop);return;}
-  const cbdK=inCBD(chunkOf(player.root.x),chunkOf(player.root.z))?1.35:1;
+  const cbdK=(inCBD(chunkOf(player.root.x),chunkOf(player.root.z))?1.35:1)*(1-0.45*clamp01((DAY.night-0.4)/0.5))*(1-0.4*DAY.rainK);
   if(civ<npcTarget*cbdK&&(!galleryOn)&&(!tick.spawnCd||clockT>tick.spawnCd)){tick.spawnCd=clockT+(tick.init?(civ<npcTarget*0.5?rand(0.3,0.8):rand(1.5,4)):0);spawnMaybeGroup(!!tick.init,Math.round(npcTarget*cbdK)-civ);if(civ+1>=npcTarget)tick.init=true;}
   let sdt=dt;if(hitStop>0){hitStop-=dt;sdt=dt*0.15;}
   if(sdt>0&&!window.__pause)tick(sdt,time);

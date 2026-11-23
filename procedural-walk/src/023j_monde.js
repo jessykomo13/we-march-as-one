@@ -295,6 +295,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       if(r()<0.35&&!G.water)P(2+Math.floor(r()*3),(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i);});
       break;
     case "foret":
+      if(r()<0.06){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:X+r()*30-15,z:Z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
       P(24,(x,z,i)=>{if(ok(x,z,0.8))treeAt(x,z,r()<0.6?"conifer":r()<0.5?"round":"light",0.9+r()*0.9,i<14?base:mid,0.35);});
       P(3,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.25,0.3,4,7),WM.trunk,x,y+0.25,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
       break;
@@ -303,6 +304,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       P(14,(x,z)=>{if(ok(x,z))put(geo("bush",()=>new THREE.IcosahedronGeometry(0.7,1)),KMP_BUSH,x,groundAt(x,z)+0.25,z,detail,0,0.8+r(),0.5,0.8+r());});
       break;
     case "montagne":
+      if(r()<0.12){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:x+r()*30-15,z:z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
       P(10,(x,z)=>{if(ok(x,z))rockAt(x,z,0.8+r()*2.4,base);});P(4,(x,z)=>{if(ok(x,z)&&groundAt(x,z)<40)treeAt(x,z,"conifer",0.8+r()*0.5,mid);});
       if(r()<0.06){const x=X,z=Z;if(ok(x,z)){const y=groundAt(x,z);for(let k=0;k<4;k++)put(geo("rock",()=>new THREE.DodecahedronGeometry(1,0)),WM2.rock,x,y+0.3+k*0.45,z,mid,k,0.5-k*0.08,0.3,0.5-k*0.08);addObstacle({type:"circle",x,z,r:0.6});}}
       break;
@@ -318,13 +320,14 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
         P(10,(x,z)=>{if(ok(x,z,0.5,true)&&waterDepth(x,z)<0.7)grassTuft(x,z,detail,KMP_BUSH);});
         if(r()<0.45){const x=X+r()*30-15,z=Z+r()*30-15;if(ok(x,z,2,true))gatorAt(x,z,detail,r);}
         if(r()<0.1){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,3,true)&&waterDepth(x,z)>0.4)addBoatSpot(x,z,r()*360,"airboat");}}
-      if(r()<0.07){const x=X+r()*16-8,z=Z+r()*16-8;if(!onAnyRoad(x,z,6)&&!inGridArea(x,z))stiltShack(x,z,mid,r,cell);}
+      if(r()<0.07){const x=X+r()*16-8,z=Z+r()*16-8;if(!onAnyRoad(x,z,6)&&!inGridArea(x,z)){stiltShack(x,z,mid,r,cell);if(waterDepth(x,z+5)<0.3)addAmb("bayou",x,z+5.5,180);}}
       break;
     case "plage": case "cayo":
       P(6,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.8+r()*0.5,mid);});
       P(3,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.15,0.2,3,6),WM2.dead,x,y+0.15,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
       P(8,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail,WM2.straw);});
       if(r()<0.25){const x=X+r()*24-12,z=Z+r()*24-12;if(ok(x,z))beachUmbrella(x,z,detail,cell);}
+      if(r()<0.12){const x=X+r()*24-12,z=Z+r()*24-12;if(ok(x,z))addAmb("surfeur",x,z,90);}
       break;
     case "mer":
       if(r()<0.025){const x=X+r()*30-15,z=Z+r()*30-15;if(waterDepth(x,z)>1.5&&!onAnyRoad(x,z,8))boatSmall(x,z,r()*6,mid,[KM.white,KM.blue,KM.red][cell%3]);}
@@ -332,10 +335,11 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
     case "lac":
       if(r()<0.05){const x=X+r()*30-15,z=Z+r()*30-15;if(waterDepth(x,z)>1.2)boatSmall(x,z,r()*6,mid,OM.wood);}
       P(6,(x,z)=>{if(waterDepth(x,z)>0.05&&waterDepth(x,z)<0.6)grassTuft(x,z,detail,KMP_BUSH);});
+      if(r()<0.3){for(let k=0;k<12;k++){const x=X+r()*36-18,z=Z+r()*36-18;if(ok(x,z,1)){let best=null;for(let a=0;a<8;a++){const qx=x+Math.cos(a*0.785)*3,qz=z+Math.sin(a*0.785)*3;if(waterDepth(qx,qz)>0.3){best=Math.atan2(qx-x,-(qz-z))/D2R;break;}}if(best!==null){addAmb("pecheur",x,z,best);break;}}}}
       P(3,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.5?"light":"round",0.9+r()*0.4,mid);});
       break;
     case "ferme":{
-      if(flat&&!onAnyRoad(X,Z,26)){const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
+      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9,mid);});break;}
     case "eolien":
       if(!onAnyRoad(X,Z,24)&&!G.water){const o=lifted(base,X,Z);windTurbine(X+r()*10-5,Z+r()*10-5,o);}

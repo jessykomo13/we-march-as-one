@@ -51,6 +51,7 @@ function spawnOne(atEdge,asFollower){
   }
   if(!pos.ok&&!asFollower)return null;   // aucun trottoir libre (campagne, mer) : personne n'apparaît au milieu de nulle part
   const look=randomPerson(rng);
+  {const TW=townAt(Math.floor((pos.x+12)/CHUNK),Math.floor((pos.z+12)/CHUNK));if(TW)townStyleLook(look,TW.style);if(DAY.rainK>0.5&&Math.random()<0.6){look.jacket=pick(["#2b3a55","#3a3a3a","#7a2a2a","#2d5e45","#c9a227"]);look.top="long";}}
   // centre d'affaires : beaucoup d'employés de bureau en costume / tailleur
   if(inCBD(chunkOf(pos.x),chunkOf(pos.z))&&look.age!=="senior"&&Math.random()<0.5){look.top="long";look.topColor=pick(["#f2f2ef","#dfe8f2","#e9e4da","#cfdcea"]);look.jacket=pick(["#1d1d1f","#30343f","#3a5372","#55595f"]);
     if(look.bottom!=="skirt"||Math.random()<0.5){look.bottom="pants";}look.bottomColor=look.jacket;look.shoes=["#1a1a1a","#0e0e0e"];look.boots=false;}
@@ -91,3 +92,14 @@ function removeNpcs(n){
 }
 
 
+
+// tenues selon la ville : plage, montagne, bayou, port de pêche…
+function townStyleLook(L,style){
+  const P=pick;
+  if(style==="balneaire"||style==="resort"||style==="marina"){L.jacket=Math.random()<0.15?P(["#f2f2ef","#cfe8f2"]):null;L.top=P(["tee","tee","tee","long"]);L.topColor=P(["#ff7a59","#ffd166","#06d6a0","#4cc9f0","#ffffff","#f72585","#90be6d"]);
+    if(L.bottom!=="skirt"||Math.random()<0.5){L.bottom="shorts";L.bottomColor=P(["#e8dcc4","#3a5a80","#f4f1ea","#2a9d8f","#e76f51"]);}if(Math.random()<0.5)L.glasses="sun";L.boots=false;}
+  else if(style==="montagne"){L.top="long";L.jacket=P(["#7a2a2a","#2d5e45","#3a3f55","#5a4632","#2b3a55"]);L.bottom="pants";L.bottomColor=P(["#3a3a3a","#4a4636","#2b3a55"]);L.boots=true;}
+  else if(style==="bayou"){L.top=P(["tee","long"]);L.topColor=P(["#6b5a3a","#5a6b3a","#8a2a1a","#e8e2d0","#3a4a5a"]);L.jacket=Math.random()<0.4?P(["#5a4632","#4a5a3a","#2b3a55"]):null;L.bottom="pants";L.bottomColor=P(["#3a5a80","#4a4636","#2a2a2a"]);L.boots=true;if(L.sex==="m"&&Math.random()<0.5)L.beard="full";}
+  else if(style==="pecheurs"){if(Math.random()<0.5){L.jacket=P(["#f2c43a","#e0782b","#1f3a5a"]);L.top="long";}L.bottom="pants";L.bottomColor=P(["#1f3a5a","#2a2a2a","#4a4636"]);L.boots=Math.random()<0.6;}
+  else if(style==="banlieue"){if(Math.random()<0.3){L.top="tee";L.topColor=P(["#f2f2ef","#9ec5f0","#f7c59f","#a8d88a"]);L.jacket=null;}}
+}
