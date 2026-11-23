@@ -93,6 +93,6 @@ function secretNear(){for(const L of LANDMARKS){const C=L.chest;if(C&&!SECRET.lo
 function addSecretPOI(L){if(!POIS.some(P=>P.name===L.name))POIS.push({type:"secret",x:L.x,z:L.z,name:L.name});}
 // la récompense finale : la Comète dorée (voiture)
 const GOLD_PAINT=mat({color:0xffc83a,metalness:0.95,roughness:0.18});
-function spawnGoldCar(){const f=fwdOf(player.yaw),x=player.root.x+f.x*5,z=player.root.z+f.z*5;const V=makeVehicle(x,z,player.yaw,GOLD_PAINT,null);V.owned=true;V.gold=true;hudMsg("La Comète dorée est à toi !");}
+function spawnGoldCar(){const f=fwdOf(player.yaw),x=player.root.x+f.x*5,z=player.root.z+f.z*5;const V=makeVehicle(x,z,player.yaw,GOLD_PAINT,"hyper");V.owned=true;V.gold=true;hudMsg("La Comète dorée est à toi !");}
 function secretSave(){return {s:[...SECRET.stars],f:[...SECRET.found],l:[...SECRET.looted],g:SECRET.gold};}
 function secretLoad(d){if(!d)return;(d.s||[]).forEach(i=>{if(i>=0&&i<STARS.length)SECRET.stars.add(i|0);});(d.f||[]).forEach(i=>{const L=LANDMARKS.find(L=>L.id===i);if(L){SECRET.found.add(i);addSecretPOI(L);}});(d.l||[]).forEach(i=>SECRET.looted.add(String(i)));SECRET.gold=!!d.g;}

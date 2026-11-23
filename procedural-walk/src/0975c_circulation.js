@@ -7,13 +7,11 @@ const CC_COLS=["#c9ccd1","#1d1f24","#f2f2f0","#8a1f1f","#1f3e7a","#5a6a74","#c48
 const CC_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.45,metalness:0.35});
 const _cc=new THREE.Color();
 function fastCar(col,kind){
-  const parts=[],add=(w,h,d,x,y,z,c)=>{const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();g.translate(x,y,z);const n=g.attributes.position.count,a=new Float32Array(n*3);_cc.set(c);_cc.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_cc.r;a[i*3+1]=_cc.g;a[i*3+2]=_cc.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);};
-  const van=kind==="van",taxi=kind==="taxi",bus=kind==="bus",L=bus?10:4.3,H=bus?2.6:van?1.0:0.55;
-  if(bus){add(2.5,2.4,L,0,1.6,0,col);add(2.52,0.9,L-1,0,2.1,0,"#22303c");add(2.4,0.2,L,0,2.85,0,"#e8e8e4");}
-  else{add(1.78,0.62,L,0,0.58,0,col);add(1.6,H,van?3.2:2.2,0,van?1.38:1.15,van?-0.3:-0.15,van?col:"#1d2a36");if(!van)add(1.62,0.06,2.0,0,1.44,-0.15,col);}
-  for(const [sx,sz] of bus?[[-1.2,3.6],[1.2,3.6],[-1.2,-3.6],[1.2,-3.6]]:[[-0.82,1.35],[0.82,1.35],[-0.82,-1.35],[0.82,-1.35]])add(0.24,0.66,0.66,sx,0.33,sz,"#151515");
-  for(const sx of [-0.6,0.6]){add(0.3,0.14,0.05,sx,0.75,L/2+0.01,"#fff6d0");add(0.3,0.12,0.05,sx,0.75,-L/2-0.01,"#c81e1e");}
-  if(taxi){add(0.7,0.25,0.4,0,1.6,-0.15,"#f2d03a");}
+  if(kind!=="bus")return fastModelCar(kind==="taxi"?"berline":carModelOf(kind),col,kind==="taxi");
+  const parts=[],add=(w,h,d,x,y,z,c)=>{const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();g.translate(x,y,z);g.deleteAttribute("uv");colorize(g,c);parts.push(g);};
+  const L=10;add(2.5,2.4,L,0,1.6,0,col);add(2.52,0.9,L-1,0,2.1,0,"#22303c");add(2.4,0.2,L,0,2.85,0,"#e8e8e4");
+  for(const [sx,sz] of [[-1.2,3.6],[1.2,3.6],[-1.2,-3.6],[1.2,-3.6]])add(0.24,0.9,0.9,sx,0.45,sz,"#151515");
+  for(const sx of [-0.8,0.8]){add(0.3,0.14,0.05,sx,0.75,L/2+0.01,"#fff6d0");add(0.3,0.12,0.05,sx,0.75,-L/2-0.01,"#c81e1e");}
   const gm=mergeGeometries(parts);parts.forEach(p=>p.dispose());const m=new THREE.Mesh(gm,CC_MAT);m.castShadow=true;return m;
 }
 // grilles de rues (ville + bourgs) : nœud (i,j) = carrefour (i*40-16, j*40-16)
@@ -29,8 +27,8 @@ function spawnCityCar(){
     const dir=Math.random()<0.5?1:-1,c={ax,L,dir,s,v:rand(6,10),v0:rand(10.5,14),yaw:0,honkT:0,hitT:0,stopT:0};
     const [px,pz]=ccPos(c);if(ccars.some(o=>Math.hypot(o.m.position.x-px,o.m.position.z-pz)<12))continue;
     if(drive&&Math.hypot(drive.x-px,drive.z-pz)<12)continue;
-    const r2=Math.random(),kind=r2<0.08?"van":r2<0.16?"taxi":r2<0.2&&G.i1-G.i0>12?"bus":null;
-    c.kind=kind;c.m=fastCar(kind==="taxi"?"#f2c43a":kind==="bus"?"#2a7ab8":CC_COLS[Math.floor(Math.random()*CC_COLS.length)],kind);if(kind==="bus")c.v0=9;
+    const r2=Math.random(),kind=r2<0.06?"van":r2<0.14?"taxi":r2<0.18&&G.i1-G.i0>12?"bus":pickCarModel(Math.random(),px,pz);
+    c.kind=kind;c.col=kind==="taxi"?"#f2c43a":kind==="bus"?"#2a7ab8":carPaintHex(carModelOf(kind),Math.random());c.m=fastCar(c.col,kind);if(kind==="bus")c.v0=9;
     scene.add(c.m);ccars.push(c);return c;}
   return null;
 }
@@ -84,9 +82,7 @@ function tryCarjack(){
   let best=null,bd=3.4;for(const c of ccars){if(c.v>2.5||c.kind==="bus")continue;const d=hdist(c.m.position,player.root);if(d<bd){bd=d;best=c;}}
   if(!best)return false;
   const c=best,p=c.m.position,yawDeg=180-c.yaw/D2R;
-  const V=makeVehicle(p.x,p.z,yawDeg,mat({color:0x8a1f1f,roughness:0.35,metalness:0.55}),c.kind==="van"?"van":null);
-  // on reprend la couleur réelle de la voiture braquée
-  {const a=c.m.geometry.attributes.color.array;V.m.children[0].material=V.m.children[0].material.clone();V.m.children[0].material.color.setRGB(a[0],a[1],a[2]);}
+  const V=makeVehicle(p.x,p.z,yawDeg,paintMat(c.col||"#8a1f1f"),c.kind==="taxi"?"taxi":c.kind);
   removeCityCar(c);V.stolen=true;enterVehicle(V);
   // le conducteur sort en criant
   const f=rightOf(yawDeg),pos=new V3(p.x-f.x*2.2,0,p.z-f.z*2.2);pushOutOfObstacles(pos,0.5);

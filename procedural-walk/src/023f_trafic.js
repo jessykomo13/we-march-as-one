@@ -8,7 +8,7 @@ const SKIN_DRV=["#e8c1a0","#c68a62","#8d5a3b","#5a3a28","#f1d2b8"];
 function lanesOf(H){return H.small?LANES2:LANES4;}
 function carXZ(c){const L=hwyLine(c.H),l=lanesOf(c.H)[c.lane];return c.H.ax==="ns"?[L+l.o,c.s]:[c.s,L+l.o];}
 function spawnCar(H,lane,s){
-  const P=CAR_PAINT[Math.floor(Math.random()*CAR_PAINT.length)],kind=Math.random()<0.12?"van":null,l=lanesOf(H)[lane];
+  const kind=Math.random()<0.1?"van":pickCarModel(Math.random(),H.ax==="ns"?hwyLine(H):s,H.ax==="ns"?s:hwyLine(H)),P=paintMat(carPaintHex(kind,Math.random())),l=lanesOf(H)[lane];
   const m=carMesh(P,kind,SKIN_DRV[Math.floor(Math.random()*SKIN_DRV.length)]);scene.add(m);
   const v0=rand(21,32)*(H.small?0.6:1)*(lane===0||lane===3?0.88:1);
   const c={m,H,lane,dir:l.dir,s,v:v0*0.9,v0,honkT:0,hitT:0,sight:Math.random()<0.22?24:70};

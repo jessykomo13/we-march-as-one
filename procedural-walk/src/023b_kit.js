@@ -94,24 +94,12 @@ function treeAt(x,z,kind,s,g,obsR=0.3){
 // --- voiture garée (alignée sur les axes) ; dir = cap en radians (0 = vers +z)
 function parkedCar(x,z,ry,g,paint,kind){
   if(TAKEN.has(carKey(x,z)))return;   // déjà volée
-  const P=paint||CAR_PAINT[Math.floor(Math.abs(Math.sin(x*12.9+z*78.2))*CAR_PAINT.length)],y=groundAt(x,z),c=carMesh(P,kind);c.position.set(x,y,z);c.rotation.y=ry;g.add(c);
-  const pc={x,z,ry,paint:P,kind,ranges:[]};c.userData.pcar=pc;
-  const al=Math.abs(Math.cos(ry))>0.5;addObstacle({type:"box",x,z,hx:al?0.95:2.2,hz:al?2.2:0.95,pcar:pc});
+  const h=Math.abs(Math.sin(x*12.9+z*78.2)*43758.5)%1;if(!kind||kind==="auto")kind=pickCarModel(h,x,z);
+  const P=paint||paintMat(carPaintHex(carModelOf(kind),(h*7.31)%1)),y=groundAt(x,z),c=carMesh(P,kind);c.position.set(x,y,z);c.rotation.y=ry;g.add(c);
+  const pc={x,z,ry,paint:P,kind,ranges:[]};c.userData.pcar=pc;const M=CAR_MODELS[carModelOf(kind)];
+  const al=Math.abs(Math.cos(ry))>0.5;addObstacle({type:"box",x,z,hx:al?M.W/2+0.03:M.L/2,hz:al?M.L/2:M.W/2+0.03,pcar:pc});
 }
 const HEADL=mat({color:0xffffff,emissive:0xfff2c0,emissiveIntensity:0.15}),TAILL=mat({color:0xb3261e,emissive:0xff2010,emissiveIntensity:0.1});
-function carMesh(P,kind,driver,lit){
-  const c=new THREE.Group();
-  const van=kind==="van",pol=kind==="police";
-  put(BX(1.78,0.62,4.3),P,0,0.58,0,c);put(BX(1.6,van?1.0:0.55,van?3.2:2.2),van?P:KM.glass,0,van?1.38:1.15,van?-0.3:-0.15,c);
-  if(!van)put(BX(1.62,0.06,2.0),P,0,1.44,-0.15,c);
-  for(const [sx,sz] of [[-0.82,1.35],[0.82,1.35],[-0.82,-1.35],[0.82,-1.35]])put(geo("wheel",()=>new THREE.CylinderGeometry(0.33,0.33,0.22,12).rotateZ(Math.PI/2)),KM.tire,sx,0.33,sz,c);
-  const on=driver||lit;put(BX(1.5,0.12,0.05),KM.chrome,0,0.62,2.16,c);put(BX(1.7,0.1,0.05),on?TAILL:KM.red,0,0.75,-2.16,c);
-  for(const sx of [-0.6,0.6])put(BX(0.3,0.12,0.04),on?HEADL:KM.white,sx,0.75,2.16,c);
-  if(pol){put(BX(1.8,0.25,1.2),KM.white,0,0.6,0.1,c);put(BX(0.9,0.12,0.28),KM.blue,0,1.5,-0.1,c);}
-  if(kind==="ambulance"){put(BX(1.82,0.2,4.32),KM.red,0,1.0,0,c);}
-  if(driver){put(geo("drvHead",()=>new THREE.SphereGeometry(0.13,10,8)),mat({color:driver}),0.38,1.25,0.15,c);put(BX(0.4,0.35,0.3),KM.dark,0.38,0.98,0.1,c);}
-  return c;
-}
 // --- clôtures, haies, portails
 function fenceRun(x0,z0,x1,z1,kind,g,gaps=[]){
   const L=Math.hypot(x1-x0,z1-z0),ax=Math.abs(x1-x0)>Math.abs(z1-z0),y=groundAt((x0+x1)/2,(z0+z1)/2);
