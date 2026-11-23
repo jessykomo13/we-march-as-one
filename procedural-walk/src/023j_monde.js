@@ -378,6 +378,8 @@ function townTypeFor(T,cx,cz){
     case "bayou":return main?pk([["commerces",0.5],["place",0.3],["foodtrucks",0.2]]):pk([["cabanes",0.55],["maisons",0.2],["jardin",0.1],["terrain_vague",0.15]]);
     case "montagne":return main?pk([["commerces",0.6],["place",0.2],["parc",0.2]]):pk([["chalets",0.6],["parc",0.25],["maisons",0.15]]);
     case "pecheurs":return main?pk([["commerces",0.6],["place",0.25],["marche",0.15]]):pk([["maisons",0.45],["entrepots",0.2],["conteneurs",0.1],["parc",0.1],["terrain_vague",0.15]]);
+    case "desert":return main?pk([["commerces",0.6],["place",0.2],["station",0.2]]):pk([["adobe",0.7],["terrain_vague",0.15],["parking",0.15]]);
+    case "tropical":return main?pk([["commerces",0.55],["place",0.25],["foodtrucks",0.2]]):pk([["paillotes",0.65],["hotels",0.15],["parc",0.2]]);
     case "resort":return main?pk([["commerces",0.6],["place",0.2],["foodtrucks",0.2]]):pk([["hotels",0.45],["villas",0.3],["parc",0.15],["terrain",0.1]]);
     default:return main?pk([["commerces",0.7],["place",0.15],["parc",0.15]]):pk([["maisons",0.5],["commerces",0.15],["parc",0.12],["place",0.08],["terrain",0.07],["parking",0.08]]);
   }
@@ -458,7 +460,7 @@ function farRebuild(){ // construit en plusieurs images (pas de saccade)
   const P=FAR.pending;if(!P)return;const N=FAR.N,pos=FAR.mesh.geometry.attributes.position,col=FAR.mesh.geometry.attributes.color,c=new THREE.Color(),half=N*FAR.S/2;
   if(!P.trees)P.trees=[];
   for(let k=0;k<6&&P.row<=N;k++,P.row++){for(let i=0;i<=N;i++){const x=P.x0+i*FAR.S,z=P.z0+P.row*FAR.S;const y=farSample(x,z,c);P.h[P.row*(N+1)+i]=y;P.c.set([c.r,c.g,c.b],(P.row*(N+1)+i)*3);
-    const bio=FAR.lastBio,dn=bio&&y>WATER_Y?FT_DENS[bio]||0:0;let n=Math.floor(dn)+(hash(x*0.13+z*0.71)<dn%1?1:0);const cap=FARTREE_N*clamp(+(SET.farView??1),0.3,1.2);while(n-->0&&P.trees.length<cap){const tx=x+(hash(x*1.7+z*0.3+n)-0.5)*FAR.S,tz=z+(hash(x*0.9+z*2.3+n)-0.5)*FAR.S;P.trees.push([tx,y,tz,(FT_KIND[bio]||2)-1,0.8+hash(tx+tz)*0.6]);}}}
+    const bio=FAR.lastBio,dn=bio&&y>WATER_Y?FT_DENS[bio]||0:0;let n=Math.floor(dn)+(hash(x*0.13+z*0.71)<dn%1?1:0);const cap=FARTREE_N*clamp(+(SET.farView??1),0.3,1.2)*(isTouch()?0.55:1);while(n-->0&&P.trees.length<cap){const tx=x+(hash(x*1.7+z*0.3+n)-0.5)*FAR.S,tz=z+(hash(x*0.9+z*2.3+n)-0.5)*FAR.S;P.trees.push([tx,y,tz,(FT_KIND[bio]||2)-1,0.8+hash(tx+tz)*0.6]);}}}
   if(P.row>N){FAR.base.set(P.h);FAR.trees=P.trees;col.array.set(P.c);col.needsUpdate=true;FAR.mesh.position.set(P.x0+half,0,P.z0+half);FAR.cx=P.cx;FAR.cz=P.cz;FAR.pending=null;FAR.pcx=1e9;farSink();FAR.mesh.visible=true;}
 }
 // sous les zones chargées, le paysage lointain s'enfonce (les vraies zones sont dessinées par-dessus)
@@ -476,7 +478,7 @@ function updateFar(dt){
   // brouillard : court en ville (beaucoup d'immeubles), long à la campagne (on voit loin)
   const inside=inGridArea(player.root.x,player.root.z)?1:0,gd=gridDist(player.root.x,player.root.z);
   const city=(LOAD_R*CHUNK+15),country=Math.max(city,(SET.farView??1)*620);const want=inside?city:lerp(city,country,sstep01((gd-20)/160));
-  WORLDV.fog=lerp(WORLDV.fog,want,1-Math.exp(-1.5*dt));scene.fog.far=WORLDV.fog;scene.fog.near=Math.min(scene.fog.far*0.35,80);camera.far=WORLDV.fog+60;camera.updateProjectionMatrix();
+  WORLDV.fog=lerp(WORLDV.fog,want,1-Math.exp(-1.5*dt));{const sf=WORLDV.fog>230;if(farTrees[0].visible!==sf)farTrees.forEach(m=>m.visible=sf);}scene.fog.far=WORLDV.fog;scene.fog.near=Math.min(scene.fog.far*0.35,80);camera.far=WORLDV.fog+60;camera.updateProjectionMatrix();
   for(const m of worldMovers.slice()){if(!m.o.parent||!m.o.parent.parent){worldMovers.splice(worldMovers.indexOf(m),1);continue;}
     if(m.kind==="bob"){m.o.position.y=WATER_Y+Math.sin(clockT*1.1+m.ph)*0.07;m.o.rotation.z=Math.sin(clockT*0.9+m.ph)*0.04;}
     else if(m.kind==="gator")updateGator(m,dt);

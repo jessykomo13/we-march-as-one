@@ -13,8 +13,9 @@ const STARS=[];
   for(const I of ISLANDS)S(I.x+I.r*0.15,I.z+I.r*0.55,I.name);
   S(590,-500,"le port");S(-1885,1066,"le bout de la piste");S(3750,2584,"le Pont des Cayos");S(-3600,1400,"le bayou");S(-4900,200,"le bayou profond");
   for(const T of TOWNS){const ci=Math.round((T.i0+T.i1)/2),cj=Math.round((T.j0+T.j1)/2);S(ci*40-16+1.5,cj*40-16+12,T.name);}
-  S(-6600,-6600,"le bout du monde (nord-ouest)");S(-6600,6600,"le bout du monde (sud-ouest)");S(-6650,-200,"la frontière ouest");S(200,-6650,"le grand nord");
-  S(8.5,17,"le belvédère de la place");S(-800,3620,"la Tête de Pierre");S(525,-5635,"l'OVNI");S(-6300,-2380,"Cendrebourg");S(-4800,1520,"l'épave");S(-5480,-1500,"le cercle de pierres");
+  S(-5900,-5900,"le pied de la Grande Barrière (nord-ouest)");S(-5900,5900,"le pied de la Grande Barrière (sud-ouest)");S(-5950,-200,"la frontière ouest");S(200,-5950,"le grand nord");
+  S(8.5,17,"le belvédère de la place");
+  for(const [x,z,h] of [[1800,-3700,"le Plateau Rouge"],[3600,-5650,"les Dunes de Sel"],[2400,4600,"la jungle"],[coastX(3200)-30,3200,"la mangrove"],[-3300,-1000,"la Vallée Mauve"],[-1000,-1200,"le ranch Los Toros"],[1800,-4650,"la pinède"],[-2000,5700,"la bambouseraie"],[-2600,-4300,"la prairie des chevaux"],[-300,2950,"le Rio Caïman"],[-1100,-2900,"la Rivière Azur"]])S(x,z,h);S(-800,3620,"la Tête de Pierre");S(525,-5635,"l'OVNI");S(-6300,-2380,"Cendrebourg");S(-4800,1520,"l'épave");S(-5480,-1500,"le cercle de pierres");
 }
 const starGeo=(()=>{const s=new THREE.Shape();for(let i=0;i<10;i++){const a=i/10*Math.PI*2-Math.PI/2,r=i%2?0.22:0.5;i?s.lineTo(Math.cos(a)*r,Math.sin(a)*r):s.moveTo(Math.cos(a)*r,Math.sin(a)*r);}const e=new THREE.ExtrudeGeometry(s,{depth:0.12,bevelEnabled:false});e.center();return e;})();
 const starMat=new THREE.MeshStandardMaterial({color:0xffd24a,emissive:0xffb400,emissiveIntensity:0.9,metalness:0.6,roughness:0.25});

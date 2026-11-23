@@ -67,3 +67,17 @@ function updateBoatSpots(dt){
       if(waterDepth(x,z)<need){let ok=false;for(let d=6;d<60&&!ok;d+=6)for(let a=0;a<8&&!ok;a++){const qx=S.x+Math.cos(a/8*6.28)*d,qz=S.z+Math.sin(a/8*6.28)*d;if(waterDepth(qx,qz)>need){x=qx;z=qz;ok=true;}}if(!ok){S.used=true;continue;}}
       S.V=makeBoat(x,z,S.yaw,S.kind==="airboat"?"airboat":"vedette",BOAT_SPOTS.indexOf(S));}}
 }
+// ---------------------------------------------------------------- voiliers et vedettes qui naviguent au large (décor vivant)
+const SAILS=[];
+{const sm=mat({color:0xf8f6ee,roughness:0.6,side:THREE.DoubleSide});
+ for(let k=0;k<6;k++){const g=new THREE.Group();const hull=BOAT_PAINT[k%BOAT_PAINT.length];
+   put(BX(2.2,0.9,7),hull,0,0.2,0,g);put(geo("ybow",()=>new THREE.ConeGeometry(1.7,3,4).rotateX(Math.PI/2).rotateY(Math.PI/4)),hull,0,0.2,4.4,g,0,0.65,0.7,0.65);
+   put(CY(0.06,0.06,9,6),KM.chrome,0,5,0.6,g);const s=new THREE.Mesh(geo("sail",()=>{const sh=new THREE.Shape([new THREE.Vector2(0,0),new THREE.Vector2(0,8),new THREE.Vector2(3.6,0)]);return new THREE.ShapeGeometry(sh);}),sm);s.position.set(0,1,0.7);s.rotation.y=-Math.PI/2;g.add(s);
+   g.visible=false;scene.add(g);SAILS.push({g,s,a:k*1.05,r:180+k*55,sp:0.012+k*0.003,cx:0,cz:0,set:false});}}
+function updateSails(dt){
+  const px=player.root.x,pz=player.root.z;const coast=px>coastX(pz)-500||inOldSea(px,pz);
+  for(const S of SAILS){if(!coast){S.g.visible=false;S.set=false;continue;}
+    if(!S.set||Math.hypot(S.cx-px,S.cz-pz)>900){let cx=px,cz=pz;for(let t=0;t<12;t++){const qx=px+(Math.random()-0.3)*700,qz=pz+(Math.random()-0.5)*700;if(waterDepth(qx,qz)>2.5){cx=qx;cz=qz;break;}}S.cx=cx;S.cz=cz;S.set=true;}
+    S.a+=S.sp*dt*(S.r>0?1:-1);const x=S.cx+Math.cos(S.a)*S.r,z=S.cz+Math.sin(S.a)*S.r;
+    if(waterDepth(x,z)<2){S.g.visible=false;continue;}S.g.visible=true;S.g.position.set(x,WATER_Y+Math.sin(clockT*1.2+S.a)*0.12,z);S.g.rotation.set(Math.sin(clockT*0.9+S.a)*0.04,-S.a,Math.sin(clockT*0.7)*0.08-0.12);}
+}

@@ -17,8 +17,8 @@ const TOWNS=[
   {id:"bellef",name:"Bellefontaine",i0:-64,i1:-53,j0:-66,j1:-55,style:"village"},
   {id:"pins",name:"Les Pins",i0:28,i1:35,j0:-123,j1:-115,style:"montagne"},
   {id:"marais",name:"Marais-Gris",i0:-131,i1:-124,j0:-5,j1:3,style:"bayou"},
-  {id:"capnord",name:"Cap-Nord",i0:92,i1:98,j0:-154,j1:-147,style:"pecheurs"},
-  {id:"sierra",name:"Sierra Roja",i0:59,i1:66,j0:-96,j1:-88,style:"desert"},
+  {id:"capnord",name:"Cap-Nord",i0:84,i1:90,j0:-154,j1:-147,style:"pecheurs"},
+  {id:"sierra",name:"Sierra Roja",i0:44,i1:51,j0:-96,j1:-88,style:"desert"},
   {id:"selva",name:"Puerto Selva",i0:37,i1:44,j0:119,j1:127,style:"tropical"},
   {id:"brisa",name:"Santa Brisa",i0:-31,i1:-21,j0:50,j1:59,style:"village"},
   {id:"punta",name:"Punta Esperanza",i0:128,i1:136,j0:61,j1:68,style:"resort"},
@@ -30,25 +30,25 @@ const HWYS=[
   {id:"A2",ax:"ew",k:0,a:-165,b:-14,name:"Autoroute A2"},
   {id:"A3",ax:"ns",k:10,a:15,b:65,name:"Autoroute A3"},
   {id:"A3C",ax:"ew",k:65,a:10,b:136,name:"Route des Cayos"},
-  {id:"A4",ax:"ew",k:-60,a:-150,b:62,name:"Autoroute A4"},
+  {id:"A4",ax:"ew",k:-60,a:-150,b:48,name:"Autoroute A4"},
   {id:"A5",ax:"ns",k:-60,a:-150,b:60,name:"Autoroute A5"},
   {id:"A6",ax:"ew",k:40,a:-60,b:10,name:"Autoroute A6"},
   {id:"A7",ax:"ns",k:-110,a:-140,b:120,name:"Autoroute A7"},
   {id:"A8",ax:"ew",k:-118,a:5,b:30,name:"Route des Pins"},
-  {id:"A9",ax:"ew",k:-150,a:5,b:98,name:"Route du Cap"},
-  {id:"A11",ax:"ns",k:62,a:-96,b:-60,name:"Route de Sierra Roja"},
+  {id:"A9",ax:"ew",k:-150,a:5,b:90,name:"Route du Cap"},
+  {id:"A11",ax:"ns",k:48,a:-96,b:-60,name:"Route de Sierra Roja"},
   {id:"A12",ax:"ns",k:40,a:65,b:127,name:"Route de la Jungle"},
   {id:"A10",ax:"ns",k:-26,a:0,b:58,name:"Autoroute A10"},
   {id:"D1",ax:"ew",k:24,a:-30,b:-26,name:"Route de l'Aéroport"},
   {id:"D2",ax:"ns",k:-8,a:-90,b:-60,name:"Route d'Ambre",small:true}
 ];
 const AIRPORT={i0:-48,i1:-30,j0:20,j1:29,name:"Aéroport International d'Azuria"};
-const LAKES=[{x:-1800,z:-3500,r:520,name:"Lac Miroir"},{x:1500,z:-5300,r:300,name:"Lac des Hérons"},{x:-4300,z:3900,r:380,name:"Lac Caïman"},{x:2600,z:-2200,r:180,name:"Étang Bleu"}];
+const LAKES=[{x:-1800,z:-3500,r:520,name:"Lac Miroir"},{x:1500,z:-5300,r:300,name:"Lac des Hérons"},{x:-4300,z:3900,r:380,name:"Lac Caïman"},{x:900,z:-2700,r:170,name:"Étang Bleu"}];
 const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1300,h:26,name:"Collines d'Ambre"},{x:-2600,z:4700,r:1200,h:16,name:"Coteaux de Santa Brisa"},{x:450,z:-5850,r:950,h:34,name:"Massif du Nord"}];
 const BAYOU={x:-4300,z:700,r:2100,name:"Bayou des Alligators"};
 const KEYS=[{x:1750,z:2560,r:150,name:"Cayo Brisa"},{x:2500,z:2620,r:190,name:"Cayo Lumière"},{x:3300,z:2540,r:130,name:"Cayo Tortuga"},{x:4200,z:2610,r:230,name:"Cayo Coral"},{x:5250,z:2580,r:440,name:"Punta Esperanza"}];
 const REGIONS=[{x:-4700,z:-4900,r:1800,name:"Monts Bleus"},{x:BAYOU.x,z:BAYOU.z,r:2000,name:BAYOU.name},{x:-1800,z:-3500,r:900,name:"Lac Miroir"},
-  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:500,z:-1700,r:500,name:"Côte Nord"},{x:2800,z:-3600,r:1300,name:"Plateau Rouge"},{x:2400,z:-5600,r:900,name:"Dunes de Sel"},{x:2400,z:4600,r:1500,name:"Jungle des Perroquets"},{x:3300,z:3200,r:900,name:"Mangrove des Hérons"},{x:-3300,z:-1000,r:900,name:"Vallée Mauve"},{x:-1000,z:-1200,r:700,name:"Ranch Los Toros"},{x:1800,z:-4600,r:800,name:"Pinède des Écureuils"},{x:-4300,z:-2700,r:800,name:"Vignoble de Floralia"},{x:-2000,z:5700,r:700,name:"Bambouseraie"},{x:-2600,z:-4300,r:700,name:"Prairie des Chevaux"},{x:-500,z:-6600,r:2500,name:"La Grande Barrière"},
+  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:500,z:-1700,r:500,name:"Côte Nord"},{x:1800,z:-3700,r:1100,name:"Plateau Rouge"},{x:3600,z:-5600,r:700,name:"Dunes de Sel"},{x:2400,z:4600,r:1500,name:"Jungle des Perroquets"},{x:1900,z:3200,r:600,name:"Mangrove des Hérons"},{x:-3300,z:-1000,r:900,name:"Vallée Mauve"},{x:-1000,z:-1200,r:700,name:"Ranch Los Toros"},{x:1800,z:-4600,r:800,name:"Pinède des Écureuils"},{x:-4300,z:-2700,r:800,name:"Vignoble de Floralia"},{x:-2000,z:5700,r:700,name:"Bambouseraie"},{x:-2600,z:-4300,r:700,name:"Prairie des Chevaux"},{x:-500,z:-6600,r:2500,name:"La Grande Barrière"},
   {x:450,z:-5850,r:1000,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
 // ---------------------------------------------------------------- petits outils (bruit 2D déterministe)
 function vnoise(x,z,s){const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
@@ -115,7 +115,7 @@ const ZONES=[
   ["mauve",-3300,-1000],["mauve",-200,-3600],["ranch",-1000,-1150],["ranch",-2600,2400],["ranch",-4300,2900],
   ["pinede",1800,-4700],["pinede",-5600,-3800],["pinede",-2800,-6000],["foret",-5600,-1500],["foret",-1000,-5300],["foret",-3900,-4400],["foret",-5900,1500],
   ["savane",-600,3700],["savane",1100,3800],["agrumes",400,2400],["agrumes",-1600,3200],["agrumes",-300,1800],["vignoble",-4300,-2700],["vignoble",700,-3300],
-  ["mesa",2700,-3300],["mesa",3300,-5100],["mesa",2000,-6000],["jungle",2300,4300],["jungle",3300,5700],["jungle",1400,5700],["jungle",2600,3300],
+  ["mesa",1700,-3400],["mesa",2600,-5100],["mesa",1900,-6100],["jungle",2300,4300],["jungle",3300,5900],["jungle",1400,5700],["jungle",1300,3500],
   ["bambous",-2000,5700],["fleurs",-2600,-4300],["fleurs",-4600,1900],["fleurs",-300,-5900]];
 function zoneAt(x,z){let best=null,bd=1e9;const wx=x+(vnoise(x/900,z/900,51)-0.5)*700,wz=z+(vnoise(x/900,z/900,53)-0.5)*700;
   for(const Z of ZONES){const d=(wx-Z[1])*(wx-Z[1])+(wz-Z[2])*(wz-Z[2]);if(d<bd){bd=d;best=Z[0];}}return best;}

@@ -78,3 +78,23 @@ function lieuBuild(ch,X,Z,r,base,mid,detail){
   if(!LIEU_SEEN.has(ch.cx+","+ch.cz)){LIEU_SEEN.add(ch.cx+","+ch.cz);if(k!=="epave"&&k!=="puits")POIS.push({type:"lieu",x:X,z:Z,name});}
 }
 const LIEU_SEEN=new Set();
+// ---------------------------------------------------------------- styles des nouvelles villes
+// Sierra Roja (désert) : maisons en adobe à toit plat, poutres qui dépassent, cactus en pot
+BUILDERS.adobe=function(ch,C){const {X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,base,mid,detail,prop}=C;
+  plane(26.8,26.8,mat({color:0xc89a6a,roughness:1}),bcx,SIDEWALK+0.006,bcz,base,6,6);
+  const AD=[0xd8a878,0xc88a5a,0xe8c8a0,0xb8704a].map(c=>mat({color:c,roughness:1}));
+  for(const [x,z] of [[bx0+9,bz0+9],[bx1-9,bz0+9],[bx0+9,bz1-9],[bx1-9,bz1-9]]){const w=4+r()*1.2,d=3.5+r(),H=r()<0.4?6:3.4,m=AD[Math.floor(r()*4)];
+    box(x-w,z-d,x+w,z+d,SIDEWALK,SIDEWALK+H,m,base);box(x-w-0.15,z-d-0.15,x+w+0.15,z+d+0.15,SIDEWALK+H,SIDEWALK+H+0.35,m,base);
+    for(let k=-w+0.8;k<w;k+=1.2)put(CY(0.09,0.09,0.9,5),OM.wood,x+k,SIDEWALK+H-0.4,z-d-0.3,base).rotation.x=Math.PI/2;
+    put(BX(1,2,0.06),KM.door,x,SIDEWALK+1,z-d-0.03,base);put(BX(0.8,0.8,0.06),KM.dark,x-w*0.55,SIDEWALK+1.6,z-d-0.03,base);addObstacle({type:"box",x,z,hx:w,hz:d,tall:true,bld:true});
+    if(r()<0.6)saguaro(x+w+1.2,z-d-1.2,0.5,mid);}
+  for(let k=0;k<3;k++)mesaRock(bx0+4+r()*24,bcz+r()*6-3,0.4+r()*0.5,detail);for(const [x,z] of [[bx0+1.1,bcz],[bx1-1.1,bcz]])prop("lamp",x,z,0);};
+// Puerto Selva (tropical) : paillotes sur pilotis, palmiers, hamacs
+BUILDERS.paillotes=function(ch,C){const {X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,base,mid,detail,prop}=C;
+  plane(26.8,26.8,WM.grass,bcx,SIDEWALK+0.006,bcz,base,6,6);const straw=mat({color:0xc8a860,roughness:1});
+  for(const [x,z] of [[bx0+9,bz0+9],[bx1-9,bz0+9],[bx0+9,bz1-9],[bx1-9,bz1-9]]){const y=SIDEWALK+0.9;for(const [dx,dz] of [[-3,-2.5],[3,-2.5],[-3,2.5],[3,2.5]])put(CY(0.12,0.12,1.2,5),OM.wood,x+dx,SIDEWALK+0.45,z+dz,base);
+    box(x-3.3,z-2.8,x+3.3,z+2.8,y-0.12,y,KM.plank,base);walls(x-2.8,z-2.3,x+2.8,z+2.3,y,2.4,[KM.houseWall[3],KM.houseWall[4],KM.houseWall[2]][Math.floor(r()*3)],base,3,2.4);
+    put(geo("paille",()=>new THREE.ConeGeometry(4.6,2.6,4)),straw,x,y+3.6,z,base,Math.PI/4,1,1,0.85);put(BX(1,1.9,0.06),KM.door,x,y+0.95,z-2.33,base);addObstacle({type:"box",x,z,hx:3.2,hz:2.7,tall:true,bld:true});
+    treeAt(x+4.5,z+3.5,"palm",0.8+r()*0.4,mid);}
+  for(let k=0;k<4;k++)treeAt(bx0+3+r()*26,bcz+r()*4-2,"palm",0.9+r()*0.4,mid);for(const [x,z] of [[bx0+1.1,bcz],[bx1-1.1,bcz]])prop("lamp",x,z,0);
+  if(r()<0.5)addAnimals("perroquet",bcx,bcz,3,10);};
