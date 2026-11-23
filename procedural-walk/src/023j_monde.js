@@ -31,8 +31,8 @@ const BIO_COL={champ:[0.56,0.61,0.30],prairie:[0.40,0.58,0.26],foret:[0.30,0.43,
 const _tc=new THREE.Color();
 function terrColor(x,z,y,bio){
   let c=BIO_COL[bio]||BIO_COL.prairie;
-  if(y<WATER_Y+0.12){ // rivage, fond de l'eau
-    const k=clamp01((WATER_Y+0.12-y)/3.5);
+  if(y<WATER_Y+0.035){ // rivage, fond de l'eau
+    const k=clamp01((WATER_Y+0.035-y)/3.5);
     if(bio==="bayou"||bio==="lac")c=[0.36-k*0.15,0.33-k*0.12,0.22-k*0.08];else c=[0.84-k*0.42,0.76-k*0.32,0.56-k*0.18];}
   else if(y>26){const k=clamp01((y-26)/16);c=[lerp(c[0],0.47,k),lerp(c[1],0.46,k),lerp(c[2],0.44,k)];if(y>52){const s=clamp01((y-52)/8);c=[lerp(c[0],0.93,s),lerp(c[1],0.95,s),lerp(c[2],0.98,s)];}}
   const n=(vnoise(x/23,z/23,2)-0.5)*0.16+(vnoise(x/7,z/7,4)-0.5)*0.06;
@@ -269,30 +269,31 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
   if(ROADSIDE.has(ch.cx+","+ch.cz)){buildRoadside(ch,X,Z,r,base,mid,detail);return;}
   const ok=(x,z,m=1.5,wet=false)=>{if(inGridArea(x,z)||onAnyRoad(x,z,m+1)||rectDist(AIR_RECT,x,z)<4)return false;const d=waterDepth(x,z);return wet?d>0.15:d<0.02;};
   const P=(n,f)=>{for(let i=0;i<n;i++){const x=X-19+r()*38,z=Z-19+r()*38;f(x,z,i);}};
-  const flat=Math.abs(nodeH(Math.round((X-20)/4),Math.round((Z-20)/4))-LAND_Y)+Math.abs(nodeH(Math.round((X+20)/4),Math.round((Z+20)/4))-LAND_Y)<0.05&&!G.water;
+  let hmin=1e9,hmax=-1e9;for(let a=-20;a<=20;a+=10)for(let b=-20;b<=20;b+=10){const h=nodeH(Math.round((X+a)/4),Math.round((Z+b)/4));hmin=Math.min(hmin,h);hmax=Math.max(hmax,h);}
+  const flat=hmax-hmin<1.6&&hmin>WATER_Y+0.05&&!G.water;
   const cell=(ch.cx*31+ch.cz*17)>>>0;
   switch(t){
     case "champ":
-      if(flat&&!onAnyRoad(X,Z,24)){const m=CMP.field[cell%CMP.field.length];plane(36,36,m,X,LAND_Y+0.02,Z,base,6,6,cell%2?0:Math.PI/2);
+      if(flat&&!onAnyRoad(X,Z,24)){const m=CMP.field[cell%CMP.field.length];fieldPlane(X,Z,m,base,cell%2);
         fenceRun(X-18,Z-18,X+18,Z-18,"wood",mid,[[16,20]]);if(r()<0.5)P(6,(x,z)=>{if(ok(x,z))hayBale2(x,z,detail,r()*3);});
         if(r()<0.15){const o=lifted(mid,X,Z);tractor(X+r()*20-10,Z+r()*20-10,r()*6,o);}
         if(r()<0.2){const x=X+r()*20-10,z=Z+r()*20-10;scarecrow(x,z,detail);}}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9+r()*0.4,mid);});
       break;
     case "orangeraie":
-      if(flat&&!onAnyRoad(X,Z,24)){plane(36,36,CMP.dirt,X,LAND_Y+0.02,Z,base,6,6);for(let a=-15;a<=15;a+=6)for(let b=-15;b<=15;b+=7.5){const x=X+a,z=Z+b;if(ok(x,z,1))orangeTree(x,z,mid);}
+      if(flat&&!onAnyRoad(X,Z,24)){fieldPlane(X,Z,CMP.dirt,base);for(let a=-15;a<=15;a+=6)for(let b=-15;b<=15;b+=7.5){const x=X+a,z=Z+b;if(ok(x,z,1))orangeTree(x,z,mid);}
         if(r()<0.3){const x=X+r()*10,z=Z-19;put(BX(2.4,1.2,1.4),OM.crate,x,LAND_Y+0.6,z,detail);addObstacle({type:"box",x,z,hx:1.2,hz:0.7});}}
       else P(6,(x,z)=>{if(ok(x,z))orangeTree(x,z,mid);});
       break;
     case "vigne":
-      if(flat&&!onAnyRoad(X,Z,24)){plane(36,36,CMP.dirt,X,LAND_Y+0.02,Z,base,6,6);for(let a=-15;a<=15;a+=3.2){put(BX(0.5,1.0,34),WM2.vine,X+a,LAND_Y+0.6,Z,mid);addObstacle({type:"box",x:X+a,z:Z,hx:0.3,hz:17});
-        for(let b=-16;b<=16;b+=4)put(BX(0.07,1.3,0.07),OM.wood,X+a,LAND_Y+0.65,Z+b,detail);}}
+      if(flat&&!onAnyRoad(X,Z,24)){fieldPlane(X,Z,CMP.dirt,base);for(let a=-15;a<=15;a+=3.2){rowAlong(X+a,Z-17,Z+17,0.5,1.0,WM2.vine,mid,true);
+        for(let b=-16;b<=16;b+=4)put(BX(0.07,1.3,0.07),OM.wood,X+a,groundAt(X+a,Z+b)+0.65,Z+b,detail);}}
       break;
     case "prairie":
       P(7,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.4?"round":r()<0.7?"light":"conifer",0.8+r()*0.6,mid);});
       P(6,(x,z)=>{if(ok(x,z))rockAt(x,z,0.4+r()*0.8,mid);});
       P(10,(x,z)=>{if(ok(x,z))put(geo("bush",()=>new THREE.IcosahedronGeometry(0.7,1)),OM.leaf,x,groundAt(x,z)+0.35,z,detail,0,1+r(),0.7+r()*0.5,1+r());});
-      if(r()<0.35&&!G.water)P(2+Math.floor(r()*3),(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i);});
+      if(r()<0.35&&!G.water)addAnimals(r()<0.6?"vache":"cheval",X,Z,2+Math.floor(r()*3),14);
       break;
     case "foret":
       if(r()<0.06){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:X+r()*30-15,z:Z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
@@ -311,7 +312,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
     case "savane":
       P(26,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail);});P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.6+r()*0.4,mid);});
       if(r()<0.3)P(5,(x,z)=>{if(ok(x,z))cypressAt(x,z,0.6+r()*0.3,mid,r);});
-      if(r()<0.2)P(3,(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i+1);});
+      if(r()<0.2)addAnimals("vache",X,Z,3,14);
       break;
     case "bayou":
       P(12,(x,z)=>{if(!inGridArea(x,z)&&!onAnyRoad(x,z,2)&&waterDepth(x,z)<0.9)cypressAt(x,z,0.8+r()*0.6,base,r);});
@@ -339,13 +340,18 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       P(3,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.5?"light":"round",0.9+r()*0.4,mid);});
       break;
     case "ferme":{
-      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
+      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);addAnimals("vache",X+12,Z-12,3,6);}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9,mid);});break;}
     case "eolien":
       if(!onAnyRoad(X,Z,24)&&!G.water){const o=lifted(base,X,Z);windTurbine(X+r()*10-5,Z+r()*10-5,o);}
       break;
   }
+  {const ctx={ch,X,Z,r,base,mid,detail,ok,P,flat,G,cell,scarecrow:(x,z)=>scarecrow(x,z,detail)};if(BIOME2[t])BIOME2[t](ctx);
+   const F=BIOME_FAUNA[t];if(F)for(const [k2,p,n] of F)if(r()<p){const x=X+r()*16-8,z=Z+r()*16-8;addAnimals(k2,x,z,Math.max(1,Math.round(n*(0.6+r()*0.8))),14);}}
 }
+function fieldPlane(X,Z,m,g,rot){const gm=new THREE.PlaneGeometry(36,36,9,9).rotateX(-Math.PI/2);if(rot)gm.rotateY(Math.PI/2);gm.translate(X,0,Z);const P=gm.attributes.position;for(let i=0;i<P.count;i++)P.setY(i,groundAt(P.getX(i),P.getZ(i))+0.025);gm.computeVertexNormals();scaledUV(gm,6,6);const me=new THREE.Mesh(gm,m);me.receiveShadow=true;g.add(me);return me;}
+// rangée (vigne, lavande, maïs) découpée en tronçons qui suivent le sol
+function rowAlong(x,z0,z1,w,h,m,g,obs,seg=6){for(let z=z0;z<z1-0.5;z+=seg){const L=Math.min(seg,z1-z),zc=z+L/2,y=groundAt(x,zc);put(BX(w,h,L),m,x,y+h/2,zc,g);if(obs)addObstacle({type:"box",x,z:zc,hx:w/2+0.05,hz:L/2});}}
 function hayBale2(x,z,g,ry){put(geo("hay",()=>new THREE.CylinderGeometry(0.75,0.75,1.2,14).rotateZ(Math.PI/2)),CMP.hay,x,groundAt(x,z)+0.75,z,g,ry);addObstacle({type:"circle",x,z,r:0.75});}
 function tractor(x,z,ry,g){const T=new THREE.Group();T.position.set(x,0,z);T.rotation.y=ry;g.add(T);put(BX(1.4,1,2.6),KM.green,0,1.1,0,T);put(BX(1.3,1.3,1.2),KM.glass,0,2.2,-0.5,T);
   for(const s of [-0.9,0.9]){const w=put(CY(0.8,0.8,0.45,12),KM.tire,s,0.8,-0.7,T);w.rotation.z=Math.PI/2;const w2=put(CY(0.45,0.45,0.35,10),KM.tire,s,0.45,1,T);w2.rotation.z=Math.PI/2;}addObstacle({type:"circle",x,z,r:1.6});}
@@ -454,7 +460,9 @@ function updateFar(dt){
   WORLDV.fog=lerp(WORLDV.fog,want,1-Math.exp(-1.5*dt));scene.fog.far=WORLDV.fog;scene.fog.near=Math.min(scene.fog.far*0.35,80);camera.far=WORLDV.fog+60;camera.updateProjectionMatrix();
   for(const m of worldMovers.slice()){if(!m.o.parent||!m.o.parent.parent){worldMovers.splice(worldMovers.indexOf(m),1);continue;}
     if(m.kind==="bob"){m.o.position.y=WATER_Y+Math.sin(clockT*1.1+m.ph)*0.07;m.o.rotation.z=Math.sin(clockT*0.9+m.ph)*0.04;}
-    else if(m.kind==="gator")updateGator(m,dt);}
+    else if(m.kind==="gator")updateGator(m,dt);
+    else if(m.kind==="pump")m.o.rotation.x=Math.sin(clockT*1.6+m.ph)*0.32;
+    else if(m.kind==="tumble"){const k=((clockT*2.2+m.ph*10)%46)-23,x=m.x0+k,z=m.z0+Math.sin(clockT*0.7+m.ph)*3;m.o.position.set(x,groundAt(x,z)+0.45+Math.abs(Math.sin(clockT*3+m.ph))*0.35,z);m.o.rotation.z-=dt*5;}}
   updateAirplanes(dt);if(!WMAP.done&&!mapOpen)worldMapStep(1.5);CH_WATER.map.offset.x=(clockT*0.03)%1;
 }
 const WORLDV={fog:135};

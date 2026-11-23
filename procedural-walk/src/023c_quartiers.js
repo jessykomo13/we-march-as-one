@@ -48,6 +48,10 @@ function buildBlock(ch,C){
   streetNameSign(bx0+1.3,bz0+0.6,true,"Rue "+RU_N[(iz+14)%RU_N.length],detail);
   if(T!=="plage")hydrant(bx0+5,bz0+0.7,detail);
   const B=BUILDERS[T]||BUILDERS.place;B(ch,C);
+  if((T==="place"||T==="pop_place"||T==="marche")&&r()<0.7)addAnimals("pigeon",bcx,bcz,5+Math.floor(r()*5),7);
+  if((T==="maisons"||T==="villas"||T==="pop_rue"||T==="cabanes")&&r()<0.3)addAnimals("chien",bcx,bz0+1.5,1,3);
+  if(T==="parc"&&r()<0.4)addAnimals(r()<0.6?"ecureuil":"pigeon",bcx,bcz,3,8);
+  if(T==="plage"&&r()<0.4)addAnimals(r()<0.6?"goeland":"pelican",bcx+8,bcz,3,9);
 }
 const BUILDERS={
   place(ch,C){const {X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,mid,detail,prop,camAt,cx,cz}=C;

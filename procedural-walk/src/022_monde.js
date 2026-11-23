@@ -170,7 +170,7 @@ function tree(x,z,s,g,palm){
 }
 function buildChunk(cx,cz){
   const t0=performance.now();
-  const X=cx*CHUNK,Z=cz*CHUNK,type=chunkType(cx,cz),r=mulberry((cx*73856093)^(cz*19349663)^0x5bd1e995);
+  const X=cx*CHUNK,Z=cz*CHUNK,type=chunkType(cx,cz),r=mulberry((cx*73856093)^(cz*19349663)^0x5bd1e995);ANI_KEY=ckey(cx,cz);
   const base=new THREE.Group(),mid=new THREE.Group(),detail=new THREE.Group();
   const bx0=X-12,bz0=Z-12,bw=type==="plage"?40:32,bx1=bx0+bw,bz1=Z+20,bcx=bx0+bw/2,bcz=Z+4;
   const ch={cx,cz,type,base,mid,detail,obs:[],spots:[],cams:[],bx0,bz0,bs:32,bw,pub:publicRects(type,bx0,bz0),hoops:[],courts:[],balls:[],hoopers:[]};
@@ -217,11 +217,14 @@ function streamWorld(sync){
   const pcx=chunkOf(player.root.x),pcz=chunkOf(player.root.z);
   for(const ch of [...chunks.values()]){const d=Math.max(Math.abs(ch.cx-pcx),Math.abs(ch.cz-pcz));if(d>UNLOAD_R)unloadChunk(ch);else{ch.detail.visible=d<=DETAIL_R;ch.mid.visible=d<=DETAIL_R+1;}}
   buildQueue.length=0;
-  for(let i=-LOAD_R;i<=LOAD_R;i++)for(let j=-LOAD_R;j<=LOAD_R;j++){
-    const cx=pcx+i,cz=pcz+j;if(!chunkExists(cx,cz)||chunks.has(ckey(cx,cz)))continue;buildQueue.push([cx,cz,Math.max(Math.abs(i),Math.abs(j))+Math.hypot(i,j)*0.01]);}
+  // quand on va vite (voiture, bateau, vol), on charge aussi une rangée de plus devant
+  const sp=Math.hypot(player.vel.x,player.vel.z),fx=sp>1?player.vel.x/sp:0,fz=sp>1?player.vel.z/sp:0,R2=sp>12?Math.min(LOAD_R+1,UNLOAD_R):LOAD_R;
+  for(let i=-R2;i<=R2;i++)for(let j=-R2;j<=R2;j++){
+    const ring=Math.max(Math.abs(i),Math.abs(j)),ahead=(i*fx+j*fz)/Math.max(1,Math.hypot(i,j));if(ring>LOAD_R&&ahead<0.55)continue;
+    const cx=pcx+i,cz=pcz+j;if(!chunkExists(cx,cz)||chunks.has(ckey(cx,cz)))continue;buildQueue.push([cx,cz,ring+Math.hypot(i,j)*0.01-(sp>6?ahead*1.2:0)]);}
   buildQueue.sort((a,b)=>a[2]-b[2]);worldStats.queue=buildQueue.length;
-  const n=sync?buildQueue.length:Math.min(1,buildQueue.length);
-  for(let k=0;k<n;k++){const [cx,cz]=buildQueue[k];const ch=buildChunk(cx,cz),dd=Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz));ch.detail.visible=dd<=DETAIL_R;ch.mid.visible=dd<=DETAIL_R+1;}
+  const t0=performance.now(),budget=sp>12?14:typeof isTouch==="function"&&isTouch()?7:9;
+  for(let k=0;k<buildQueue.length;k++){if(!sync&&k>0&&performance.now()-t0>budget)break;const [cx,cz]=buildQueue[k];const ch=buildChunk(cx,cz),dd=Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz));ch.detail.visible=dd<=DETAIL_R;ch.mid.visible=dd<=DETAIL_R+1;}
 }
 // sol : asphalte partout (les rues), et une bordure de terrain au-delà de la ville
 {

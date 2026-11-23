@@ -2,7 +2,7 @@
 // --- noms de rues (inventés) : avenues nord-sud, rues est-ouest
 const AVENUES=[],RUES=[];for(let i=-NCH;i<=NCH;i++){AVENUES.push("Avenue "+AV_N[(i+14)%AV_N.length]);RUES.push("Rue "+RU_N[(i+14)%RU_N.length]);}
 const roadIdx=v=>Math.round((v+16)/CHUNK);
-const BIO_LABEL={champ:"Champs",prairie:"Prairie",foret:"Forêt",lande:"Lande",montagne:"Montagne",savane:"Savane",orangeraie:"Orangeraie",vigne:"Vignoble",ferme:"Ferme",eolien:"Parc éolien",bayou:"Bayou",plage:"Plage sauvage",cayo:"Les Cayos",mer:"En mer",lac:"Lac",aeroport:"Aéroport"};
+const BIO_LABEL={mais:"Champ de maïs",tournesol:"Champ de tournesols",lavande:"Champs de lavande",serres:"Serres",verger:"Verger",ranch:"Ranch",pinede:"Pinède",palmeraie:"Palmeraie",mesa:"Plateau Rouge",jungle:"Jungle",bambou:"Bambouseraie",fleurs:"Prairie fleurie",dunes:"Dunes",mangrove:"Mangrove",riviere:"Rivière",ilot:"Îlot",champ:"Champs",prairie:"Prairie",foret:"Forêt",lande:"Lande",montagne:"Montagne",savane:"Savane",orangeraie:"Orangeraie",vigne:"Vignoble",ferme:"Ferme",eolien:"Parc éolien",bayou:"Bayou",plage:"Plage sauvage",cayo:"Les Cayos",mer:"En mer",lac:"Lac",aeroport:"Aéroport"};
 function streetAt(x,z){
   if(inGridArea(x,z)){const ix=roadIdx(x),iz=roadIdx(z),dx=Math.abs(x-(ix*CHUNK-16)),dz=Math.abs(z-(iz*CHUNK-16));
     const T=townAt(Math.floor((x+12)/CHUNK),Math.floor((z+12)/CHUNK)),o=T?T.i0*3+T.j0:0;

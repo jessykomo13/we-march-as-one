@@ -884,7 +884,9 @@ const TOWNS=[
   {id:"bellef",name:"Bellefontaine",i0:-64,i1:-53,j0:-66,j1:-55,style:"village"},
   {id:"pins",name:"Les Pins",i0:28,i1:35,j0:-123,j1:-115,style:"montagne"},
   {id:"marais",name:"Marais-Gris",i0:-131,i1:-124,j0:-5,j1:3,style:"bayou"},
-  {id:"capnord",name:"Cap-Nord",i0:37,i1:43,j0:-154,j1:-147,style:"pecheurs"},
+  {id:"capnord",name:"Cap-Nord",i0:92,i1:98,j0:-154,j1:-147,style:"pecheurs"},
+  {id:"sierra",name:"Sierra Roja",i0:59,i1:66,j0:-96,j1:-88,style:"desert"},
+  {id:"selva",name:"Puerto Selva",i0:37,i1:44,j0:119,j1:127,style:"tropical"},
   {id:"brisa",name:"Santa Brisa",i0:-31,i1:-21,j0:50,j1:59,style:"village"},
   {id:"punta",name:"Punta Esperanza",i0:128,i1:136,j0:61,j1:68,style:"resort"},
   {id:"ambre",name:"Ambre-sur-Colline",i0:-12,i1:-5,j0:-97,j1:-90,style:"village"}
@@ -895,12 +897,14 @@ const HWYS=[
   {id:"A2",ax:"ew",k:0,a:-165,b:-14,name:"Autoroute A2"},
   {id:"A3",ax:"ns",k:10,a:15,b:65,name:"Autoroute A3"},
   {id:"A3C",ax:"ew",k:65,a:10,b:136,name:"Route des Cayos"},
-  {id:"A4",ax:"ew",k:-60,a:-150,b:18,name:"Autoroute A4"},
+  {id:"A4",ax:"ew",k:-60,a:-150,b:62,name:"Autoroute A4"},
   {id:"A5",ax:"ns",k:-60,a:-150,b:60,name:"Autoroute A5"},
   {id:"A6",ax:"ew",k:40,a:-60,b:10,name:"Autoroute A6"},
   {id:"A7",ax:"ns",k:-110,a:-140,b:120,name:"Autoroute A7"},
   {id:"A8",ax:"ew",k:-118,a:5,b:30,name:"Route des Pins"},
-  {id:"A9",ax:"ew",k:-150,a:5,b:40,name:"Route du Cap"},
+  {id:"A9",ax:"ew",k:-150,a:5,b:98,name:"Route du Cap"},
+  {id:"A11",ax:"ns",k:62,a:-96,b:-60,name:"Route de Sierra Roja"},
+  {id:"A12",ax:"ns",k:40,a:65,b:127,name:"Route de la Jungle"},
   {id:"A10",ax:"ns",k:-26,a:0,b:58,name:"Autoroute A10"},
   {id:"D1",ax:"ew",k:24,a:-30,b:-26,name:"Route de l'Aéroport"},
   {id:"D2",ax:"ns",k:-8,a:-90,b:-60,name:"Route d'Ambre",small:true}
@@ -911,7 +915,7 @@ const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1
 const BAYOU={x:-4300,z:700,r:2100,name:"Bayou des Alligators"};
 const KEYS=[{x:1750,z:2560,r:150,name:"Cayo Brisa"},{x:2500,z:2620,r:190,name:"Cayo Lumière"},{x:3300,z:2540,r:130,name:"Cayo Tortuga"},{x:4200,z:2610,r:230,name:"Cayo Coral"},{x:5250,z:2580,r:440,name:"Punta Esperanza"}];
 const REGIONS=[{x:-4700,z:-4900,r:1800,name:"Monts Bleus"},{x:BAYOU.x,z:BAYOU.z,r:2000,name:BAYOU.name},{x:-1800,z:-3500,r:900,name:"Lac Miroir"},
-  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:900,z:-1800,r:600,name:"Côte Nord"},
+  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:500,z:-1700,r:500,name:"Côte Nord"},{x:2800,z:-3600,r:1300,name:"Plateau Rouge"},{x:2400,z:-5600,r:900,name:"Dunes de Sel"},{x:2400,z:4600,r:1500,name:"Jungle des Perroquets"},{x:3300,z:3200,r:900,name:"Mangrove des Hérons"},{x:-3300,z:-1000,r:900,name:"Vallée Mauve"},{x:-1000,z:-1200,r:700,name:"Ranch Los Toros"},{x:1800,z:-4600,r:800,name:"Pinède des Écureuils"},{x:-4300,z:-2700,r:800,name:"Vignoble de Floralia"},{x:-2000,z:5700,r:700,name:"Bambouseraie"},{x:-2600,z:-4300,r:700,name:"Prairie des Chevaux"},{x:-500,z:-6600,r:2500,name:"La Grande Barrière"},
   {x:450,z:-5850,r:1000,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
 // ---------------------------------------------------------------- petits outils (bruit 2D déterministe)
 function vnoise(x,z,s){const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
@@ -939,44 +943,80 @@ function hwyDist(x,z,H){const L=hwyLine(H),[a,b]=hwyRange(H);
 function nearestHwy(x,z){let best=null,bd=1e9;for(const H of HWYS){const d=hwyDist(x,z,H);if(d<bd){bd=d;best=H;}}return [best,bd];}
 function hwyHalf(H){return H.small?5:8.6;}
 // ---------------------------------------------------------------- mer, côte, lacs, bayou
-// la côte est : droite le long d'Azuria (x = 588), puis elle s'écarte vers l'est au nord et au sud
-function coastX(z){if(z>=-1300&&z<=1300)return 588;const t=z<0?-z-1300:z-1300,k=z<0?0.28:0.32,w=Math.min(1,t/300);return 588+t*k+w*(55*Math.sin(z/430)+28*Math.sin(z/141+1.3));}
+// la côte est : droite le long d'Azuria (x = 588), puis elle s'écarte loin vers l'est (golfes et caps)
+function coastX(z){if(z>=-1300&&z<=1300)return 588;const t=z<0?-z-1300:z-1300,k=z<0?0.75:0.7,w=Math.min(1,t/300);return 588+t*k+w*(130*Math.sin(z/620)+60*Math.sin(z/211+1.3)+25*Math.sin(z/77));}
 // l'ancienne mer (module 16) garde son fond et ses îles ; pas de zones construites dessus
 function inOldSea(x,z){return x>588&&x<1988&&z>-1300&&z<1300;}
 function oldSeaChunk(cx,cz){return cx>=15&&cx<=49&&cz>=-32&&cz<=32;}
 function keyAt(x,z){for(const K of KEYS){const d=Math.hypot(x-K.x,z-K.z);if(d<K.r*1.4)return K;}return null;}
+// îlots semés en mer (au large de la nouvelle côte)
+const ISLETS=[];{let s=91;const R=()=>{s=(s*16807)%2147483647;return s/2147483647;};for(let k=0;k<34;k++){const z=k<17?-1500-R()*5200:1500+R()*5200,x=coastX(z)+250+R()*1900;if(x<W_MAX-150&&!KEYS.some(K=>Math.hypot(x-K.x,z-K.z)<K.r+250))ISLETS.push({x,z,r:30+R()*70});}}
 // fond de l'eau (ou null si terre ferme) — sans les ponts
 function newSeaFloor(x,z){const c=coastX(z);if(x<=c)return null;const d=x-c;let h=LAND_Y-Math.min(3.8,d*0.16+Math.max(0,d-8)*0.05);
   for(const K of KEYS){const e=Math.hypot(x-K.x,z-K.z);if(e<K.r*1.35){const t=1-e/(K.r*1.35);h=Math.max(h,-3.8+(0.75+3.8)*sstep01(t*1.7));}}
+  for(const I of ISLETS){const e=Math.hypot(x-I.x,z-I.z);if(e<I.r*1.4){const t=1-e/(I.r*1.4);h=Math.max(h,-3.8+(1.2+3.8)*sstep01(t*1.6));}}
   return h;}
 function lakeFloor(x,z){for(const L of LAKES){const dx=x-L.x,dz=z-L.z,d=Math.hypot(dx,dz);if(d>L.r*1.3)continue;const a=Math.atan2(dz,dx),R=L.r*(1+0.13*Math.sin(3*a+L.x*0.001)+0.08*Math.sin(5*a+1+L.z*0.001));
   if(d<R)return LAND_Y-Math.min(3.2,(R-d)*0.05);}return null;}
-function bayouK(x,z){const d=Math.hypot(x-BAYOU.x,z-BAYOU.z)*(0.8+vnoise(x/900,z/900,13)*0.4);if(d>BAYOU.r*1.25)return 0;return sstep01((1-d/BAYOU.r)*2.2+(vnoise(x/600,z/600,9)-0.5)*1.2);}
+const BAYOU2={x:-5200,z:5300,r:1300};
+function bayouK(x,z){let k=0;for(const B of [BAYOU,BAYOU2]){const d=Math.hypot(x-B.x,z-B.z)*(0.8+vnoise(x/900,z/900,13)*0.4);if(d>B.r*1.25)continue;k=Math.max(k,sstep01((1-d/B.r)*2.2+(vnoise(x/600,z/600,9)-0.5)*1.2));}return k;}
 function bayouFloor(x,z){const k=bayouK(x,z);if(k<=0.05)return null;const n=fbm(x/95,z/95,21);
   // chenaux plus profonds (on y nage), mares peu profondes (on y patauge), îlots de terre
   const ch=Math.abs(vnoise(x/420,z/420,33)-0.5);if(ch<0.025*k)return LAND_Y-1.6;
   if(n>0.62-0.22*k)return LAND_Y-0.5-(n-0.5)*0.6;return null;}
-// ---------------------------------------------------------------- relief (collines, montagnes)
+// ---------------------------------------------------------------- rivières (des montagnes jusqu'à la mer ; ponts automatiques)
+const RIVERS=[
+  {name:"Rivière Azur",w:13,d:2.4,pts:[[-4700,-4700],[-3700,-4050],[-2300,-3700],[-1800,-3500],[-1100,-2900],[-300,-2350],[300,-1900],[700,-1500],[1100,-1380]]},
+  {name:"Rio Caïman",w:12,d:2.2,pts:[[-4300,3900],[-3300,3450],[-2300,3650],[-1300,3250],[-300,2950],[700,3050],[1600,2900],[2100,2850]]},
+  {name:"Rivière des Pins",w:10,d:2,pts:[[450,-5800],[1000,-5450],[1500,-5300],[2200,-4800],[2900,-4300],[3500,-3900],[4300,-3650]]}];
+for(const R of RIVERS){R.box=[1e9,1e9,-1e9,-1e9];for(const [x,z] of R.pts){R.box[0]=Math.min(R.box[0],x);R.box[1]=Math.min(R.box[1],z);R.box[2]=Math.max(R.box[2],x);R.box[3]=Math.max(R.box[3],z);}}
+// distance à la rivière la plus proche (méandres : on tord le point avec du bruit)
+function riverDist(x,z){let best=1e9,R0=null;const wx=x+(vnoise(x/260,z/260,41)-0.5)*90,wz=z+(vnoise(x/260,z/260,43)-0.5)*90;
+  for(const R of RIVERS){if(wx<R.box[0]-120||wx>R.box[2]+120||wz<R.box[1]-120||wz>R.box[3]+120)continue;
+    for(let i=1;i<R.pts.length;i++){const [ax,az]=R.pts[i-1],[bx,bz]=R.pts[i],dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz,t=Math.max(0,Math.min(1,((wx-ax)*dx+(wz-az)*dz)/L2)),d=Math.hypot(wx-ax-dx*t,wz-az-dz*t);if(d<best){best=d;R0=R;}}}
+  return [best,R0];}
+function riverFloor(x,z){const [d,R]=riverDist(x,z);if(!R||d>R.w)return null;if(gridDist(x,z)<20)return null;const k=d/R.w;return LAND_Y-0.2-R.d*(1-k*k);}
+// ---------------------------------------------------------------- grandes régions de biomes (points d'ancrage, frontières bruitées)
+const ZONES=[
+  ["agricole",-1500,-1500],["agricole",300,-2400],["agricole",1500,-2300],["agricole",-3000,-3000],["agricole",-800,-4700],["agricole",-1700,700],
+  ["mauve",-3300,-1000],["mauve",-200,-3600],["ranch",-1000,-1150],["ranch",-2600,2400],["ranch",-4300,2900],
+  ["pinede",1800,-4700],["pinede",-5600,-3800],["pinede",-2800,-6000],["foret",-5600,-1500],["foret",-1000,-5300],["foret",-3900,-4400],["foret",-5900,1500],
+  ["savane",-600,3700],["savane",1100,3800],["agrumes",400,2400],["agrumes",-1600,3200],["agrumes",-300,1800],["vignoble",-4300,-2700],["vignoble",700,-3300],
+  ["mesa",2700,-3300],["mesa",3300,-5100],["mesa",2000,-6000],["jungle",2300,4300],["jungle",3300,5700],["jungle",1400,5700],["jungle",2600,3300],
+  ["bambous",-2000,5700],["fleurs",-2600,-4300],["fleurs",-4600,1900],["fleurs",-300,-5900]];
+function zoneAt(x,z){let best=null,bd=1e9;const wx=x+(vnoise(x/900,z/900,51)-0.5)*700,wz=z+(vnoise(x/900,z/900,53)-0.5)*700;
+  for(const Z of ZONES){const d=(wx-Z[1])*(wx-Z[1])+(wz-Z[2])*(wz-Z[2]);if(d<bd){bd=d;best=Z[0];}}return best;}
+// ---------------------------------------------------------------- relief (collines, montagnes, plateau rouge, dunes, Grande Barrière)
+function edgeRidge(x,z){const cd=coastX(z)-x;let e=Math.min(x-W_MIN,z-W_MIN,W_MAX-z);if(cd>400)e=Math.min(e,W_MAX-x);if(e>800)return 0;const k=1-e/800;return k*k*(110+45*vnoise(x/300,z/300,61))*(0.75+0.25*vnoise(x/90,z/90,62));}
 function hillRaw(x,z){let h=0;for(const H of HILLS){const d=Math.hypot(x-H.x,z-H.z)*(0.75+vnoise(x/700,z/700,H.h+1)*0.5);if(d>H.r)continue;const m=sstep01((1-d/H.r)*1.6);
-  const n=fbm(x/340,z/340,H.h)*0.75+(1-Math.abs(vnoise(x/180,z/180,H.r)*2-1))*0.25;h+=H.h*m*Math.max(0,n-0.22)*1.4;}return h;}
-// le relief s'aplatit près des routes, des villes, de l'aéroport, des lacs et de la mer
+  const n=fbm(x/340,z/340,H.h)*0.75+(1-Math.abs(vnoise(x/180,z/180,H.r)*2-1))*0.25;h+=H.h*m*Math.max(0,n-0.22)*1.4;}
+  h+=edgeRidge(x,z);
+  const zn=zoneAt(x,z);
+  if(zn==="mesa"){const v=fbm(x/300,z/300,71)*5.2-1.4;if(v>0){const f=v-Math.floor(v);h+=7*(Math.floor(v)+sstep01((f-0.82)/0.18));}}   // plateaux en escaliers, falaises
+  else if(zn==="pinede"||zn==="foret")h+=Math.max(0,fbm(x/220,z/220,81)-0.45)*14;
+  // dunes près de la côte nord-est
+  if(z<-1300){const cd=coastX(z)-x;if(cd>0&&cd<420)h+=(Math.sin(x/19+vnoise(x/80,z/80,91)*5)*0.5+0.5)*3.2*sstep01(cd/80)*sstep01((420-cd)/120);}
+  return h;}
+// le relief s'aplatit près des routes, des villes, de l'aéroport, des lacs, des rivières et de la mer
 const HCACHE=new Map();
 function hillAt(x,z){
   let h=hillRaw(x,z);if(h<=0.01)return 0;
   const [,dh]=nearestHwy(x,z);h*=sstep01((dh-12)/45);if(h<=0.01)return 0;
   h*=sstep01((gridDist(x,z)-20)/90);h*=sstep01((rectDist(AIR_RECT,x,z)-20)/90);if(h<=0.01)return 0;
   for(const L of LAKES){const d=Math.hypot(x-L.x,z-L.z)-L.r*1.25;if(d<150)h*=sstep01(d/150);}
-  const cd=coastX(z)-x;if(cd<200)h*=sstep01(cd/200);
+  const [rd,RV]=riverDist(x,z);if(RV&&rd<RV.w+90)h*=sstep01((rd-RV.w)/90);
+  const cd=coastX(z)-x;if(cd<200&&z>=-1300)h*=sstep01(cd/200);else if(cd<60)h*=sstep01(cd/60);
   return Math.max(0,h);
 }
 // hauteur aux nœuds d'une grille de 4 m (le maillage du sol utilise exactement les mêmes points)
 const TGRID=4;
-function nodeH(gi,gj){const k=gi*100003+gj;let h=HCACHE.get(k);if(h!==undefined)return h;if(HCACHE.size>120000)HCACHE.clear();h=rawLand(gi*TGRID,gj*TGRID);HCACHE.set(k,h);return h;}
+function nodeH(gi,gj){const k=gi*100003+gj;let h=HCACHE.get(k);if(h!==undefined)return h;if(HCACHE.size>160000)HCACHE.clear();h=rawLand(gi*TGRID,gj*TGRID);HCACHE.set(k,h);return h;}
 // hauteur « brute » d'un point de campagne : eau (fond), terre (base + relief)
 function rawLand(x,z){
   if(x>=AIR_RECT.x0-6&&x<=AIR_RECT.x1+6&&z>=AIR_RECT.z0-6&&z<=AIR_RECT.z1+6)return LAND_Y;
   const s=newSeaFloor(x,z);if(s!==null)return s;
   const l=lakeFloor(x,z);if(l!==null)return l;
+  const rv=riverFloor(x,z);if(rv!==null)return rv;
   const b=bayouFloor(x,z);if(b!==null)return b;
   const g=gridDist(x,z);const base=g<10?LAND_Y*sstep01(g/10):LAND_Y;
   return base+hillAt(x,z);
@@ -989,7 +1029,7 @@ function countryFloor(x,z){const fx=x/TGRID,fz=z/TGRID,i=Math.floor(fx),j=Math.f
 const BRIDGES=new Map();   // id d'autoroute -> profil (pas de 4 m) de la hauteur du tablier
 function bridgeProfile(H){let P=BRIDGES.get(H.id);if(P)return P;
   const [a,b]=hwyRange(H),L=hwyLine(H),n=Math.ceil((b-a)/4)+1,wet=new Uint8Array(n),dist=new Float32Array(n);
-  for(let k=0;k<n;k++){const s=a+k*4,x=H.ax==="ns"?L:s,z=H.ax==="ns"?s:L;let f=null;if(!inGridArea(x,z)){f=newSeaFloor(x,z);if(f===null)f=lakeFloor(x,z);if(f===null&&bayouFloor(x,z)!==null)f=0;}wet[k]=f!==null&&f<LAND_Y+0.02?1:0;}
+  for(let k=0;k<n;k++){const s=a+k*4,x=H.ax==="ns"?L:s,z=H.ax==="ns"?s:L;let f=null;if(!inGridArea(x,z)){f=newSeaFloor(x,z);if(f===null)f=lakeFloor(x,z);if(f===null)f=riverFloor(x,z);if(f===null&&bayouFloor(x,z)!==null)f=0;}wet[k]=f!==null&&f<LAND_Y+0.02?1:0;}
   let d=1e9;for(let k=0;k<n;k++){d=wet[k]?d+4:0;dist[k]=d;}d=1e9;for(let k=n-1;k>=0;k--){d=wet[k]?d+4:0;dist[k]=Math.min(dist[k],d);}
   const deck=new Float32Array(n);for(let k=0;k<n;k++)deck[k]=wet[k]?Math.min(2.2,LAND_Y+dist[k]*0.09):0;
   P={a,n,deck,wet};BRIDGES.set(H.id,P);return P;}
@@ -1001,20 +1041,27 @@ function countryGround(x,z){const B=bridgeAt(x,z);if(B)return B.h;return country
 function waterAtCountry(x,z){const f=countryFloor(x,z);return f<WATER_Y_C?WATER_Y_C-f:0;}
 const WATER_Y_C=0.07;
 // ---------------------------------------------------------------- biomes (pour le décor)
+const SUB={agricole:[["champ",0.24],["mais",0.2],["tournesol",0.14],["ferme",0.1],["serres",0.05],["eolien",0.05],["prairie",0.12],["verger",0.1]],
+  mauve:[["lavande",0.5],["tournesol",0.22],["champ",0.13],["ferme",0.08],["prairie",0.07]],ranch:[["ranch",0.72],["prairie",0.18],["ferme",0.1]],
+  pinede:[["pinede",0.9],["prairie",0.1]],foret:[["foret",0.85],["prairie",0.15]],savane:[["savane",0.72],["palmeraie",0.28]],agrumes:[["orangeraie",0.6],["verger",0.25],["prairie",0.15]],
+  vignoble:[["vigne",0.78],["ferme",0.08],["prairie",0.14]],mesa:[["mesa",1]],jungle:[["jungle",0.84],["bambou",0.16]],bambous:[["bambou",0.8],["jungle",0.2]],fleurs:[["fleurs",0.8],["prairie",0.2]]};
 function biomeAt(x,z){
-  if(x>coastX(z)-2&&newSeaFloor(x,z)!==null){const K=keyAt(x,z);if(K&&newSeaFloor(x,z)>WATER_Y_C)return "cayo";return "mer";}
+  if(x>coastX(z)-2&&newSeaFloor(x,z)!==null){const K=keyAt(x,z),f=newSeaFloor(x,z);if(f>WATER_Y_C)return K?"cayo":"ilot";return "mer";}
   if(lakeFloor(x,z)!==null)return "lac";
+  if(riverFloor(x,z)!==null)return "riviere";
   const bk=bayouK(x,z);if(bk>0.35)return "bayou";
-  const cd=coastX(z)-x;if(cd<70&&Math.abs(z)>1300)return "plage";
-  const h=hillAt(x,z);if(h>22)return "montagne";
-  const n=fbm(x/700,z/700,5),m=vnoise(x/260,z/260,11);
-  if(h>6)return n>0.45?"foret":"lande";
-  if(z>1600&&x<1200&&x>-3600)return n<0.42?"savane":m<0.5?"orangeraie":"prairie";      // le sud : savane et orangeraies
-  if(x<-4800)return n>0.4?"foret":"prairie";                                            // l'extrême ouest : forêt de Gaïa
-  if(n<0.34)return "foret";if(n<0.44)return "prairie";if(m<0.18)return "ferme";if(m>0.86)return "eolien";if(m<0.3&&z<0)return "vigne";
-  return z<0&&m<0.55?"champ":m<0.5?"orangeraie":"champ";
+  const zn=zoneAt(x,z);
+  const cd=coastX(z)-x;if(cd<70&&Math.abs(z)>1300)return z<0?(cd<200?"dunes":"plage"):zn==="jungle"||zn==="savane"?"mangrove":"plage";
+  if(z<-1300&&cd<420&&cd>0)return "dunes";
+  const h=hillAt(x,z);
+  if(zn==="mesa")return "mesa";
+  if(h>26)return "montagne";
+  if(h>6)return zn==="pinede"?"pinede":vnoise(x/500,z/500,5)>0.45?"foret":"lande";
+  const L=SUB[zn]||SUB.agricole,ci=Math.floor(x/170),cj=Math.floor(z/170),r=hash(ci*7.31+cj*13.7+0.5);
+  let a=0;for(const [t,p] of L){a+=p;if(r<a)return t;}return L[L.length-1][0];
 }
-function regionName(x,z){let best=null,bd=1e9;for(const R of REGIONS){const d=Math.hypot(x-R.x,z-R.z)/R.r;if(d<1&&d<bd){bd=d;best=R;}}return best?best.name:null;}
+function regionName(x,z){let best=null,bd=1e9;for(const R of REGIONS){const d=Math.hypot(x-R.x,z-R.z)/R.r;if(d<1&&d<bd){bd=d;best=R;}}
+  const [rd,RV]=riverDist(x,z);if(RV&&rd<RV.w+25)return RV.name;return best?best.name:null;}
 // ================================================================ obstacles
 const obstacles=[],benchSpots=[];
 // grille spatiale : chaque obstacle est rangé dans les cases de 8 m qu'il touche (marge 2,5 m)
@@ -1300,7 +1347,7 @@ function tree(x,z,s,g,palm){
 }
 function buildChunk(cx,cz){
   const t0=performance.now();
-  const X=cx*CHUNK,Z=cz*CHUNK,type=chunkType(cx,cz),r=mulberry((cx*73856093)^(cz*19349663)^0x5bd1e995);
+  const X=cx*CHUNK,Z=cz*CHUNK,type=chunkType(cx,cz),r=mulberry((cx*73856093)^(cz*19349663)^0x5bd1e995);ANI_KEY=ckey(cx,cz);
   const base=new THREE.Group(),mid=new THREE.Group(),detail=new THREE.Group();
   const bx0=X-12,bz0=Z-12,bw=type==="plage"?40:32,bx1=bx0+bw,bz1=Z+20,bcx=bx0+bw/2,bcz=Z+4;
   const ch={cx,cz,type,base,mid,detail,obs:[],spots:[],cams:[],bx0,bz0,bs:32,bw,pub:publicRects(type,bx0,bz0),hoops:[],courts:[],balls:[],hoopers:[]};
@@ -1347,11 +1394,14 @@ function streamWorld(sync){
   const pcx=chunkOf(player.root.x),pcz=chunkOf(player.root.z);
   for(const ch of [...chunks.values()]){const d=Math.max(Math.abs(ch.cx-pcx),Math.abs(ch.cz-pcz));if(d>UNLOAD_R)unloadChunk(ch);else{ch.detail.visible=d<=DETAIL_R;ch.mid.visible=d<=DETAIL_R+1;}}
   buildQueue.length=0;
-  for(let i=-LOAD_R;i<=LOAD_R;i++)for(let j=-LOAD_R;j<=LOAD_R;j++){
-    const cx=pcx+i,cz=pcz+j;if(!chunkExists(cx,cz)||chunks.has(ckey(cx,cz)))continue;buildQueue.push([cx,cz,Math.max(Math.abs(i),Math.abs(j))+Math.hypot(i,j)*0.01]);}
+  // quand on va vite (voiture, bateau, vol), on charge aussi une rangée de plus devant
+  const sp=Math.hypot(player.vel.x,player.vel.z),fx=sp>1?player.vel.x/sp:0,fz=sp>1?player.vel.z/sp:0,R2=sp>12?Math.min(LOAD_R+1,UNLOAD_R):LOAD_R;
+  for(let i=-R2;i<=R2;i++)for(let j=-R2;j<=R2;j++){
+    const ring=Math.max(Math.abs(i),Math.abs(j)),ahead=(i*fx+j*fz)/Math.max(1,Math.hypot(i,j));if(ring>LOAD_R&&ahead<0.55)continue;
+    const cx=pcx+i,cz=pcz+j;if(!chunkExists(cx,cz)||chunks.has(ckey(cx,cz)))continue;buildQueue.push([cx,cz,ring+Math.hypot(i,j)*0.01-(sp>6?ahead*1.2:0)]);}
   buildQueue.sort((a,b)=>a[2]-b[2]);worldStats.queue=buildQueue.length;
-  const n=sync?buildQueue.length:Math.min(1,buildQueue.length);
-  for(let k=0;k<n;k++){const [cx,cz]=buildQueue[k];const ch=buildChunk(cx,cz),dd=Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz));ch.detail.visible=dd<=DETAIL_R;ch.mid.visible=dd<=DETAIL_R+1;}
+  const t0=performance.now(),budget=sp>12?14:typeof isTouch==="function"&&isTouch()?7:9;
+  for(let k=0;k<buildQueue.length;k++){if(!sync&&k>0&&performance.now()-t0>budget)break;const [cx,cz]=buildQueue[k];const ch=buildChunk(cx,cz),dd=Math.max(Math.abs(cx-pcx),Math.abs(cz-pcz));ch.detail.visible=dd<=DETAIL_R;ch.mid.visible=dd<=DETAIL_R+1;}
 }
 // sol : asphalte partout (les rues), et une bordure de terrain au-delà de la ville
 {
@@ -1681,6 +1731,10 @@ function buildBlock(ch,C){
   streetNameSign(bx0+1.3,bz0+0.6,true,"Rue "+RU_N[(iz+14)%RU_N.length],detail);
   if(T!=="plage")hydrant(bx0+5,bz0+0.7,detail);
   const B=BUILDERS[T]||BUILDERS.place;B(ch,C);
+  if((T==="place"||T==="pop_place"||T==="marche")&&r()<0.7)addAnimals("pigeon",bcx,bcz,5+Math.floor(r()*5),7);
+  if((T==="maisons"||T==="villas"||T==="pop_rue"||T==="cabanes")&&r()<0.3)addAnimals("chien",bcx,bz0+1.5,1,3);
+  if(T==="parc"&&r()<0.4)addAnimals(r()<0.6?"ecureuil":"pigeon",bcx,bcz,3,8);
+  if(T==="plage"&&r()<0.4)addAnimals(r()<0.6?"goeland":"pelican",bcx+8,bcz,3,9);
 }
 const BUILDERS={
   place(ch,C){const {X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,mid,detail,prop,camAt,cx,cz}=C;
@@ -2888,8 +2942,8 @@ const BIO_COL={champ:[0.56,0.61,0.30],prairie:[0.40,0.58,0.26],foret:[0.30,0.43,
 const _tc=new THREE.Color();
 function terrColor(x,z,y,bio){
   let c=BIO_COL[bio]||BIO_COL.prairie;
-  if(y<WATER_Y+0.12){ // rivage, fond de l'eau
-    const k=clamp01((WATER_Y+0.12-y)/3.5);
+  if(y<WATER_Y+0.035){ // rivage, fond de l'eau
+    const k=clamp01((WATER_Y+0.035-y)/3.5);
     if(bio==="bayou"||bio==="lac")c=[0.36-k*0.15,0.33-k*0.12,0.22-k*0.08];else c=[0.84-k*0.42,0.76-k*0.32,0.56-k*0.18];}
   else if(y>26){const k=clamp01((y-26)/16);c=[lerp(c[0],0.47,k),lerp(c[1],0.46,k),lerp(c[2],0.44,k)];if(y>52){const s=clamp01((y-52)/8);c=[lerp(c[0],0.93,s),lerp(c[1],0.95,s),lerp(c[2],0.98,s)];}}
   const n=(vnoise(x/23,z/23,2)-0.5)*0.16+(vnoise(x/7,z/7,4)-0.5)*0.06;
@@ -3126,30 +3180,31 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
   if(ROADSIDE.has(ch.cx+","+ch.cz)){buildRoadside(ch,X,Z,r,base,mid,detail);return;}
   const ok=(x,z,m=1.5,wet=false)=>{if(inGridArea(x,z)||onAnyRoad(x,z,m+1)||rectDist(AIR_RECT,x,z)<4)return false;const d=waterDepth(x,z);return wet?d>0.15:d<0.02;};
   const P=(n,f)=>{for(let i=0;i<n;i++){const x=X-19+r()*38,z=Z-19+r()*38;f(x,z,i);}};
-  const flat=Math.abs(nodeH(Math.round((X-20)/4),Math.round((Z-20)/4))-LAND_Y)+Math.abs(nodeH(Math.round((X+20)/4),Math.round((Z+20)/4))-LAND_Y)<0.05&&!G.water;
+  let hmin=1e9,hmax=-1e9;for(let a=-20;a<=20;a+=10)for(let b=-20;b<=20;b+=10){const h=nodeH(Math.round((X+a)/4),Math.round((Z+b)/4));hmin=Math.min(hmin,h);hmax=Math.max(hmax,h);}
+  const flat=hmax-hmin<1.6&&hmin>WATER_Y+0.05&&!G.water;
   const cell=(ch.cx*31+ch.cz*17)>>>0;
   switch(t){
     case "champ":
-      if(flat&&!onAnyRoad(X,Z,24)){const m=CMP.field[cell%CMP.field.length];plane(36,36,m,X,LAND_Y+0.02,Z,base,6,6,cell%2?0:Math.PI/2);
+      if(flat&&!onAnyRoad(X,Z,24)){const m=CMP.field[cell%CMP.field.length];fieldPlane(X,Z,m,base,cell%2);
         fenceRun(X-18,Z-18,X+18,Z-18,"wood",mid,[[16,20]]);if(r()<0.5)P(6,(x,z)=>{if(ok(x,z))hayBale2(x,z,detail,r()*3);});
         if(r()<0.15){const o=lifted(mid,X,Z);tractor(X+r()*20-10,Z+r()*20-10,r()*6,o);}
         if(r()<0.2){const x=X+r()*20-10,z=Z+r()*20-10;scarecrow(x,z,detail);}}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9+r()*0.4,mid);});
       break;
     case "orangeraie":
-      if(flat&&!onAnyRoad(X,Z,24)){plane(36,36,CMP.dirt,X,LAND_Y+0.02,Z,base,6,6);for(let a=-15;a<=15;a+=6)for(let b=-15;b<=15;b+=7.5){const x=X+a,z=Z+b;if(ok(x,z,1))orangeTree(x,z,mid);}
+      if(flat&&!onAnyRoad(X,Z,24)){fieldPlane(X,Z,CMP.dirt,base);for(let a=-15;a<=15;a+=6)for(let b=-15;b<=15;b+=7.5){const x=X+a,z=Z+b;if(ok(x,z,1))orangeTree(x,z,mid);}
         if(r()<0.3){const x=X+r()*10,z=Z-19;put(BX(2.4,1.2,1.4),OM.crate,x,LAND_Y+0.6,z,detail);addObstacle({type:"box",x,z,hx:1.2,hz:0.7});}}
       else P(6,(x,z)=>{if(ok(x,z))orangeTree(x,z,mid);});
       break;
     case "vigne":
-      if(flat&&!onAnyRoad(X,Z,24)){plane(36,36,CMP.dirt,X,LAND_Y+0.02,Z,base,6,6);for(let a=-15;a<=15;a+=3.2){put(BX(0.5,1.0,34),WM2.vine,X+a,LAND_Y+0.6,Z,mid);addObstacle({type:"box",x:X+a,z:Z,hx:0.3,hz:17});
-        for(let b=-16;b<=16;b+=4)put(BX(0.07,1.3,0.07),OM.wood,X+a,LAND_Y+0.65,Z+b,detail);}}
+      if(flat&&!onAnyRoad(X,Z,24)){fieldPlane(X,Z,CMP.dirt,base);for(let a=-15;a<=15;a+=3.2){rowAlong(X+a,Z-17,Z+17,0.5,1.0,WM2.vine,mid,true);
+        for(let b=-16;b<=16;b+=4)put(BX(0.07,1.3,0.07),OM.wood,X+a,groundAt(X+a,Z+b)+0.65,Z+b,detail);}}
       break;
     case "prairie":
       P(7,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.4?"round":r()<0.7?"light":"conifer",0.8+r()*0.6,mid);});
       P(6,(x,z)=>{if(ok(x,z))rockAt(x,z,0.4+r()*0.8,mid);});
       P(10,(x,z)=>{if(ok(x,z))put(geo("bush",()=>new THREE.IcosahedronGeometry(0.7,1)),OM.leaf,x,groundAt(x,z)+0.35,z,detail,0,1+r(),0.7+r()*0.5,1+r());});
-      if(r()<0.35&&!G.water)P(2+Math.floor(r()*3),(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i);});
+      if(r()<0.35&&!G.water)addAnimals(r()<0.6?"vache":"cheval",X,Z,2+Math.floor(r()*3),14);
       break;
     case "foret":
       if(r()<0.06){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,2)){const a=addAmb("randonneur",x,z,r()*360);a.b={x:X+r()*30-15,z:Z+r()*30-15};if(!ok(a.b.x,a.b.z,2))a.b=null;}}
@@ -3168,7 +3223,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
     case "savane":
       P(26,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail);});P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.6+r()*0.4,mid);});
       if(r()<0.3)P(5,(x,z)=>{if(ok(x,z))cypressAt(x,z,0.6+r()*0.3,mid,r);});
-      if(r()<0.2)P(3,(x,z,i)=>{if(ok(x,z,2))cowAt(x,z,r()*6.28,mid,i+1);});
+      if(r()<0.2)addAnimals("vache",X,Z,3,14);
       break;
     case "bayou":
       P(12,(x,z)=>{if(!inGridArea(x,z)&&!onAnyRoad(x,z,2)&&waterDepth(x,z)<0.9)cypressAt(x,z,0.8+r()*0.6,base,r);});
@@ -3196,13 +3251,18 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       P(3,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.5?"light":"round",0.9+r()*0.4,mid);});
       break;
     case "ferme":{
-      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);for(let i=0;i<3;i++){const x=X+8+r()*8,z=Z-14+r()*6;if(ok(x,z,2))cowAt(x,z,r()*6,mid,i);}}
+      if(flat&&!onAnyRoad(X,Z,26)){addAmb("fermier",X-2,Z+6,r()*360);const o=lifted(base,X,Z),o2=lifted(mid,X,Z),o3=lifted(detail,X,Z);buildCountryLegacy({type:"ferme",cx:ch.cx,cz:ch.cz},X,Z,r,o,o2,o3);addAnimals("vache",X+12,Z-12,3,6);}
       else P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9,mid);});break;}
     case "eolien":
       if(!onAnyRoad(X,Z,24)&&!G.water){const o=lifted(base,X,Z);windTurbine(X+r()*10-5,Z+r()*10-5,o);}
       break;
   }
+  {const ctx={ch,X,Z,r,base,mid,detail,ok,P,flat,G,cell,scarecrow:(x,z)=>scarecrow(x,z,detail)};if(BIOME2[t])BIOME2[t](ctx);
+   const F=BIOME_FAUNA[t];if(F)for(const [k2,p,n] of F)if(r()<p){const x=X+r()*16-8,z=Z+r()*16-8;addAnimals(k2,x,z,Math.max(1,Math.round(n*(0.6+r()*0.8))),14);}}
 }
+function fieldPlane(X,Z,m,g,rot){const gm=new THREE.PlaneGeometry(36,36,9,9).rotateX(-Math.PI/2);if(rot)gm.rotateY(Math.PI/2);gm.translate(X,0,Z);const P=gm.attributes.position;for(let i=0;i<P.count;i++)P.setY(i,groundAt(P.getX(i),P.getZ(i))+0.025);gm.computeVertexNormals();scaledUV(gm,6,6);const me=new THREE.Mesh(gm,m);me.receiveShadow=true;g.add(me);return me;}
+// rangée (vigne, lavande, maïs) découpée en tronçons qui suivent le sol
+function rowAlong(x,z0,z1,w,h,m,g,obs,seg=6){for(let z=z0;z<z1-0.5;z+=seg){const L=Math.min(seg,z1-z),zc=z+L/2,y=groundAt(x,zc);put(BX(w,h,L),m,x,y+h/2,zc,g);if(obs)addObstacle({type:"box",x,z:zc,hx:w/2+0.05,hz:L/2});}}
 function hayBale2(x,z,g,ry){put(geo("hay",()=>new THREE.CylinderGeometry(0.75,0.75,1.2,14).rotateZ(Math.PI/2)),CMP.hay,x,groundAt(x,z)+0.75,z,g,ry);addObstacle({type:"circle",x,z,r:0.75});}
 function tractor(x,z,ry,g){const T=new THREE.Group();T.position.set(x,0,z);T.rotation.y=ry;g.add(T);put(BX(1.4,1,2.6),KM.green,0,1.1,0,T);put(BX(1.3,1.3,1.2),KM.glass,0,2.2,-0.5,T);
   for(const s of [-0.9,0.9]){const w=put(CY(0.8,0.8,0.45,12),KM.tire,s,0.8,-0.7,T);w.rotation.z=Math.PI/2;const w2=put(CY(0.45,0.45,0.35,10),KM.tire,s,0.45,1,T);w2.rotation.z=Math.PI/2;}addObstacle({type:"circle",x,z,r:1.6});}
@@ -3311,7 +3371,9 @@ function updateFar(dt){
   WORLDV.fog=lerp(WORLDV.fog,want,1-Math.exp(-1.5*dt));scene.fog.far=WORLDV.fog;scene.fog.near=Math.min(scene.fog.far*0.35,80);camera.far=WORLDV.fog+60;camera.updateProjectionMatrix();
   for(const m of worldMovers.slice()){if(!m.o.parent||!m.o.parent.parent){worldMovers.splice(worldMovers.indexOf(m),1);continue;}
     if(m.kind==="bob"){m.o.position.y=WATER_Y+Math.sin(clockT*1.1+m.ph)*0.07;m.o.rotation.z=Math.sin(clockT*0.9+m.ph)*0.04;}
-    else if(m.kind==="gator")updateGator(m,dt);}
+    else if(m.kind==="gator")updateGator(m,dt);
+    else if(m.kind==="pump")m.o.rotation.x=Math.sin(clockT*1.6+m.ph)*0.32;
+    else if(m.kind==="tumble"){const k=((clockT*2.2+m.ph*10)%46)-23,x=m.x0+k,z=m.z0+Math.sin(clockT*0.7+m.ph)*3;m.o.position.set(x,groundAt(x,z)+0.45+Math.abs(Math.sin(clockT*3+m.ph))*0.35,z);m.o.rotation.z-=dt*5;}}
   updateAirplanes(dt);if(!WMAP.done&&!mapOpen)worldMapStep(1.5);CH_WATER.map.offset.x=(clockT*0.03)%1;
 }
 const WORLDV={fog:135};
@@ -3324,6 +3386,109 @@ function updateGator(m,dt){
   }else{m.ph+=dt*0.12;const tx=m.home.x+Math.cos(m.ph)*m.rad,tz=m.home.z+Math.sin(m.ph)*m.rad;if(waterDepth(tx,tz)>0.15){const dx=tx-G.position.x,dz=tz-G.position.z;G.position.x+=dx*dt*0.5;G.position.z+=dz*dt*0.5;if(Math.abs(dx)+Math.abs(dz)>0.01)G.rotation.y=Math.atan2(dx,dz);}}
   m.tail.rotation.y=Math.sin(clockT*3+m.ph)*0.35;
 }
+// ================================================================ BIOMES (suite) : décor des régions variées
+// Chaque biome a son sol (couleur), sa végétation, ses objets, parfois des choses qui bougent, et des animaux
+// (via addAnimals, voir 0973_animaux). Tout est posé avec groundAt (relief) et évite routes / eau / villes.
+Object.assign(BIO_COL,{mais:[0.52,0.6,0.26],tournesol:[0.56,0.6,0.24],lavande:[0.5,0.5,0.36],serres:[0.46,0.56,0.3],verger:[0.4,0.56,0.27],ranch:[0.62,0.58,0.36],
+  pinede:[0.4,0.44,0.26],palmeraie:[0.6,0.6,0.38],mesa:[0.72,0.42,0.27],jungle:[0.2,0.4,0.15],bambou:[0.42,0.58,0.24],fleurs:[0.44,0.62,0.3],dunes:[0.88,0.8,0.6],
+  mangrove:[0.32,0.36,0.22],riviere:[0.42,0.5,0.3],ilot:[0.85,0.78,0.58]});
+const BM={
+  corn:new THREE.MeshStandardMaterial({roughness:0.95,alphaTest:0.5,side:THREE.DoubleSide,map:cTex("cornT",128,64,(g,w,h)=>{g.clearRect(0,0,w,h);for(let i=0;i<16;i++){const x=i*8+3;g.fillStyle=i%2?"#6f8f32":"#7f9a3a";g.fillRect(x,8,3,h);g.fillStyle="#88a845";g.beginPath();g.moveTo(x,30);g.lineTo(x-7,22+(i%3)*4);g.lineTo(x+1,28);g.fill();g.beginPath();g.moveTo(x+2,20);g.lineTo(x+9,13+(i%2)*5);g.lineTo(x+2,24);g.fill();g.fillStyle="#d8c060";g.fillRect(x-1,2,5,8);}},false)}),cornTop:mat({color:0xd8c060,roughness:1}),stem:mat({color:0x4f7a2a,roughness:0.95}),sun:mat({color:0xf2c21a,roughness:0.8}),sunC:mat({color:0x4a2e14,roughness:1}),
+  lav:mat({color:0x7a5aa8,roughness:1,map:cTex("lavT",32,32,(g,w,h)=>{g.fillStyle="#9a86c0";g.fillRect(0,0,w,h);for(let i=0;i<160;i++){g.fillStyle=Math.random()<0.7?"#6a4a9a":"#5a7a4a";g.fillRect(Math.random()*w,Math.random()*h,2,2);}})}),lavG:mat({color:0x6a7a5a,roughness:1}),glassG:new THREE.MeshStandardMaterial({color:0xcfe8e0,roughness:0.1,metalness:0.1,transparent:true,opacity:0.45,depthWrite:false}),
+  frame:mat({color:0xf2f2ee,roughness:0.6}),apple:mat({color:0xc8281e,roughness:0.6}),pine:mat({color:0x2f4a2a,roughness:0.95}),pineT:mat({color:0x6b4a33,roughness:0.95}),
+  cactus:mat({color:0x4f7a3a,roughness:0.9}),redRock:mat({color:0xa85a3a,roughness:1}),redRock2:mat({color:0xc8794a,roughness:1}),bone:mat({color:0xe8e2d0,roughness:0.9}),
+  jungle:mat({color:0x2a5a22,roughness:0.9}),jungle2:mat({color:0x3d7a2a,roughness:0.9,side:THREE.DoubleSide}),bamboo:mat({color:0x8ab84a,roughness:0.7}),bambooL:mat({color:0x6aa03a,roughness:0.9,side:THREE.DoubleSide}),
+  flower:["#e8405a","#f2d23a","#ffffff","#a84ae0","#f28a2a","#4a8ae8"].map(c=>mat({color:c,roughness:0.8})),reed:mat({color:0x8a9a4a,roughness:1}),mang:mat({color:0x5a4a32,roughness:1}),
+  pump:mat({color:0x2a2a2e,roughness:0.6,metalness:0.4}),pumpH:mat({color:0xc8a020,roughness:0.6}),trough:mat({color:0x8a8f94,metalness:0.5,roughness:0.5}),hive:mat({color:0xf2d070,roughness:0.9}),
+  salt:mat({color:0xf2f2ee,roughness:0.5}),tumble:mat({color:0x9a7a4a,roughness:1})};
+function stalk(x,z,h,m,g,r=0.04){put(CY(r,r*1.3,h,5),m,x,groundAt(x,z)+h/2,z,g);}
+function saguaro(x,z,s,g){const y=groundAt(x,z);put(CY(0.32*s,0.38*s,5*s,8),BM.cactus,x,y+2.5*s,z,g);put(geo("sgTop",()=>new THREE.SphereGeometry(0.32,8,6)),BM.cactus,x,y+5*s,z,g,0,s,s,s);
+  for(const sd of [-1,1])if(Math.abs(x*7+z*3+sd)%3<2){put(BX(1*s,0.45*s,0.45*s),BM.cactus,x+sd*0.6*s,y+2.4*s,z,g);put(CY(0.22*s,0.22*s,1.8*s,8),BM.cactus,x+sd*1.05*s,y+3.2*s,z,g);}
+  addObstacle({type:"circle",x,z,r:0.4*s,tall:true});}
+function mesaRock(x,z,s,g){const y=groundAt(x,z);put(geo("rock",()=>new THREE.DodecahedronGeometry(1,0)),s>2?BM.redRock:BM.redRock2,x,y+s*0.45,z,g,(x+z)%6,s*1.2,s*(0.8+((x*3)%1)*0.8),s);if(s>0.7)addObstacle({type:"circle",x,z,r:s*0.95,tall:s>1.4});}
+function pine(x,z,s,g){const y=groundAt(x,z);put(CY(0.14*s,0.22*s,5*s,7),BM.pineT,x,y+2.5*s,z,g);for(let k=0;k<3;k++)put(geo("pineC"+k,()=>new THREE.ConeGeometry(1.5-k*0.4,2.4,8)),BM.pine,x,y+(4.2+k*1.5)*s,z,g,0,s,s,s);addObstacle({type:"circle",x,z,r:0.3*s,tall:true});}
+function jungleTree(x,z,s,g,r){const y=groundAt(x,z);put(CY(0.25*s,0.45*s,9*s,8),WM.trunk,x,y+4.5*s,z,g);
+  put(geo("jTop",()=>new THREE.SphereGeometry(3,10,6).scale(1,0.45,1)),BM.jungle,x,y+9.2*s,z,g,0,s,s,s);put(geo("jTop2",()=>new THREE.SphereGeometry(2.2,10,6).scale(1,0.5,1)),BM.jungle,x+1.4*s,y+8*s,z-1*s,g,0,s,s,s);
+  for(let k=0;k<3;k++){const a=r()*6.28,v=put(CY(0.03,0.03,5*s,4),BM.stem,x+Math.cos(a)*2*s,y+6.5*s,z+Math.sin(a)*2*s,g);}addObstacle({type:"circle",x,z,r:0.45*s,tall:true});}
+function bigLeaf(x,z,g,r){const y=groundAt(x,z);for(let k=0;k<4;k++){const l=put(geo("bleaf2",()=>{const s=new THREE.Shape();s.moveTo(0,0);s.quadraticCurveTo(0.6,0.7,0,1.9);s.quadraticCurveTo(-0.6,0.7,0,0);return new THREE.ShapeGeometry(s,6);}),BM.jungle2,x,y,z,g,k*1.57+r());l.rotation.x=-0.75;}}
+function bambooClump(x,z,g,r){const y=groundAt(x,z);for(let k=0;k<7;k++){const dx=(r()-0.5)*1.6,dz=(r()-0.5)*1.6,h=6+r()*4;put(CY(0.07,0.08,h,6),BM.bamboo,x+dx,y+h/2,z+dz,g);const l=put(geo("bmbL",()=>new THREE.PlaneGeometry(1.4,0.5)),BM.bambooL,x+dx,y+h-0.6,z+dz,g,r()*3);l.rotation.z=0.4;}addObstacle({type:"circle",x,z,r:1,tall:true});}
+function mangroveTree(x,z,g,r){const y=Math.max(groundAt(x,z),WATER_Y-0.6);for(let k=0;k<6;k++){const a=k/6*6.28,rt=put(CY(0.05,0.07,1.8,4),BM.mang,x+Math.cos(a)*0.7,y+0.7,z+Math.sin(a)*0.7,g);rt.rotation.set(Math.sin(a)*0.5,0,-Math.cos(a)*0.5);}
+  put(CY(0.15,0.2,2.4,6),BM.mang,x,y+2.4,z,g);put(geo("mgTop",()=>new THREE.SphereGeometry(2,8,6).scale(1,0.55,1)),BM.jungle,x,y+4,z,g);addObstacle({type:"circle",x,z,r:0.7,tall:true});}
+function sunflowerRow(x0,z,len,g){for(let x=x0;x<x0+len;x+=2.2){const y=groundAt(x,z),h=1.6+((x*13)%1)*0.5;put(CY(0.03,0.04,h,4),BM.stem,x,y+h/2,z,g);const f=put(geo("sunH",()=>new THREE.CylinderGeometry(0.28,0.28,0.08,10).rotateX(Math.PI/2)),BM.sun,x,y+h,z+0.05,g);put(geo("sunC",()=>new THREE.CylinderGeometry(0.13,0.13,0.1,8).rotateX(Math.PI/2)),BM.sunC,x,y+h,z+0.09,g);}}
+function beehive(x,z,g){const y=groundAt(x,z);put(BX(0.6,0.15,0.6),OM.wood,x,y+0.4,z,g);put(BX(0.55,0.55,0.55),BM.hive,x,y+0.75,z,g);put(BX(0.65,0.08,0.65),KM.white,x,y+1.07,z,g);addObstacle({type:"box",x,z,hx:0.32,hz:0.32});}
+function greenhouse(x,z,w,d,g){const y=groundAt(x,z);box(x-w/2,z-d/2,x+w/2,z+d/2,y,y+2.6,BM.glassG,g);put(geo("ghRoof",()=>new THREE.CylinderGeometry(1,1,1,10,1,false,0,Math.PI).rotateZ(Math.PI/2)),BM.glassG,x,y+2.6,z,g,0,w/2,1.2,d);
+  for(let k=-d/2;k<=d/2;k+=3)put(BX(w,0.08,0.08),BM.frame,x,y+2.6,z+k,g);for(let k=-d/2+1.5;k<d/2;k+=2)put(BX(w*0.7,0.5,0.6),BM.lavG,x,y+0.25,z+k,g);addObstacle({type:"box",x,z,hx:w/2,hz:d/2,tall:true,bld:true});}
+// éolienne de pompage du ranch (la roue tourne)
+function ranchWindmill(x,z,g){const y=groundAt(x,z);for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){const l=put(CY(0.06,0.06,9,4),OM.metal,x+dx*0.6,y+4.5,z+dz*0.6,g);l.rotation.set(dz*-0.06,0,dx*0.06);}
+  const w=new THREE.Group();w.position.set(x,y+9.2,z+0.4);w.userData.keep=true;w.userData.ax="z";w.userData.spd=1.8;g.add(w);for(let k=0;k<12;k++){const b=put(BX(0.25,1.4,0.04),KM.white,0,0.8,0,w);b.position.set(Math.cos(k/12*6.28)*0.8,Math.sin(k/12*6.28)*0.8,0);b.rotation.z=k/12*6.28-Math.PI/2;}turbines.push(w);
+  put(BX(0.2,0.8,1.6),KM.red,x,y+9.2,z-0.8,g);addObstacle({type:"circle",x,z,r:0.9,tall:true});
+  put(BX(3,0.6,1),BM.trough,x+3,y+0.3,z,g);addObstacle({type:"box",x:x+3,z,hx:1.5,hz:0.5});}
+// puits de pétrole (la tête monte et descend)
+function pumpjack(x,z,g){const y=groundAt(x,z);put(BX(1.2,0.4,4.6),BM.pump,x,y+0.2,z,g);put(BX(0.3,3,0.3),BM.pump,x,y+1.7,z,g);
+  const arm=new THREE.Group();arm.position.set(x,y+3.2,z);arm.userData.keep=true;arm.userData.pump=true;g.add(arm);put(BX(0.35,0.35,4.4),BM.pumpH,0,0,0,arm);put(BX(0.4,1.2,0.6),BM.pumpH,0,-0.4,2.3,arm);put(BX(0.8,0.8,0.8),BM.pump,0,-0.5,-1.9,arm);
+  worldMovers.push({o:arm,kind:"pump",ph:x*0.1});addObstacle({type:"box",x,z,hx:0.7,hz:2.4,tall:true});}
+// virevoltant (boule d'herbes sèches qui roule avec le vent)
+function tumbleweed(x,z,g){const t=new THREE.Mesh(geo("tumble",()=>new THREE.IcosahedronGeometry(0.45,0)),BM.tumble);t.position.set(x,groundAt(x,z)+0.45,z);t.userData.keep=true;g.add(t);worldMovers.push({o:t,kind:"tumble",x0:x,z0:z,ph:x*0.07});}
+// petit pont de bois au-dessus d'une rivière, roseaux
+function reedClump(x,z,g){const y=groundAt(x,z);for(let k=0;k<5;k++)put(CY(0.02,0.03,1.6,3),BM.reed,x+(k%3-1)*0.25,Math.max(y,WATER_Y-0.3)+0.7,z+((k*7)%3-1)*0.25,g);}
+// ---------------------------------------------------------------- un constructeur par biome
+const BIOME2={
+  mais(c){const {X,Z,r,mid,detail,ok,flat,G}=c;if(!flat||onAnyRoad(X,Z,24)){c.P(6,(x,z)=>{if(ok(x,z))treeAt(x,z,"round",0.9,mid);});return;}
+    fieldPlane(X,Z,CMP.dirt,c.base);
+    // un labyrinthe de maïs : des rangs avec des trouées
+    for(let a=-16;a<=16;a+=2.6){const gap=r()*30-15;for(const [z0,z1] of [[-17,gap-1.5],[gap+1.5,17]]){if(z1-z0<1)continue;rowAlong(X+a,Z+z0,Z+z1,0.55,2.4,BM.corn,mid,true);}}
+    if(r()<0.25)c.scarecrow(X+r()*10-5,Z+r()*10-5);},
+  tournesol(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24)){c.P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"light",0.9,mid);});return;}
+    fieldPlane(X,Z,CMP.field[1],c.base);for(let z=-15;z<=15;z+=3.4)sunflowerRow(X-16,Z+z,32,mid);if(r()<0.5)addAnimals("abeilles",X,Z,1,6);},
+  lavande(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24)){c.P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"light",0.8,mid);});return;}
+    for(let a=-16;a<=16;a+=2.2)for(let z=Z-17;z<Z+17;z+=6){const zc=z+3,y=groundAt(X+a,zc);put(geo("lavRow",()=>{const L=[];for(let k=0;k<6;k++){const s=new THREE.IcosahedronGeometry(0.55,0);s.scale(1,0.7,1.2);s.translate(0,0.3,-2.5+k);L.push(s.toNonIndexed());}const m=mergeGeometries(L);L.forEach(q=>q.dispose());return m;}),BM.lav,X+a,y,zc,mid);}
+    if(r()<0.4)for(let k=0;k<4;k++)beehive(X+18.5,Z-12+k*2,detail);if(r()<0.25){const o=lifted(c.base,X,Z);walls(X+8,Z-17.5,X+16,Z-11,0,3,KM.stone,o,3,3);gableRoof(X+7.6,Z-17.9,X+16.4,Z-10.6,3,1.8,KM.roofTile,o);addObstacle({type:"box",x:X+12,z:Z-14.2,hx:4,hz:3.3,tall:true,bld:true});}},
+  serres(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24))return;fieldPlane(X,Z,CMP.dirt,c.base);
+    for(let k=0;k<3;k++)greenhouse(X-12+k*12,Z,8,26,mid);addAmb("fermier",X+r()*4,Z+15,0);},
+  verger(c){const {X,Z,r,mid,detail,ok}=c;for(let a=-15;a<=15;a+=6)for(let b=-15;b<=15;b+=6){const x=X+a,z=Z+b;if(!ok(x,z,1))continue;const y=groundAt(x,z);put(CY(0.12,0.16,1.4,6),WM.trunk,x,y+0.7,z,mid);put(geo("vTop",()=>new THREE.IcosahedronGeometry(1.6,1)),OM.leaf,x,y+2.3,z,mid,0,1,0.85,1);
+      for(const [dx,dy,dz] of [[0.9,2.4,0.7],[-0.8,2,-0.8],[0.3,2.9,-0.9]])put(geo("apl",()=>new THREE.SphereGeometry(0.12,6,4)),BM.apple,x+dx,y+dy,z+dz,detail);addObstacle({type:"circle",x,z,r:0.35,tall:true});}
+    if(r()<0.3)for(let k=0;k<3;k++){const x=X-18+k*1.6,z=Z+18;put(BX(1.2,0.7,0.9),OM.crate,x,groundAt(x,z)+0.35,z,detail);}},
+  ranch(c){const {X,Z,r,mid,detail,ok,G}=c;
+    if(!onAnyRoad(X,Z,22)&&!G.water){fenceRun(X-17,Z-17,X+17,Z-17,"wood",mid,[[15,19]]);fenceRun(X-17,Z+17,X+17,Z+17,"wood",mid,[]);fenceRun(X-17,Z-17,X-17,Z+17,"wood",mid,[]);fenceRun(X+17,Z-17,X+17,Z+17,"wood",mid,[[15,19]]);
+      if(r()<0.45)ranchWindmill(X+r()*10-5,Z+r()*10-5,mid);addAnimals(r()<0.6?"vache":"cheval",X,Z,2+Math.floor(r()*4),13);if(r()<0.3)addAnimals("cheval",X,Z,2,12);
+      if(r()<0.2){const o=lifted(c.base,X,Z);barnAt(X-8,Z+8,o);}if(r()<0.15)addAmb("fermier",X+6,Z-15,0);}
+    c.P(10,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail,WM2.straw);});},
+  pinede(c){const {X,Z,r,base,mid,detail,ok}=c;c.P(22,(x,z,i)=>{if(ok(x,z,0.8))pine(x,z,0.9+r()*0.6,i<12?base:mid);});
+    c.P(3,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.25,0.3,4,7),BM.pineT,x,y+0.25,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
+    if(r()<0.5)addAnimals(r()<0.6?"cerf":r()<0.5?"renard":"lapin",X,Z,1+Math.floor(r()*3),16);
+    if(r()<0.04){const x=X,z=Z;if(ok(x,z,3)){const y=groundAt(x,z);for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]])put(CY(0.08,0.08,7,4),OM.wood,x+dx,y+3.5,z+dz,mid);box(x-1.4,z-1.4,x+1.4,z+1.4,y+7,y+7.2,KM.plank,mid);walls(x-1.3,z-1.3,x+1.3,z+1.3,y+7.2,1.6,KM.plank,mid,3,2);addObstacle({type:"box",x,z,hx:1.2,hz:1.2,tall:true});}}},
+  palmeraie(c){const {X,Z,r,mid,detail,ok}=c;c.P(14,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.8+r()*0.6,mid);});c.P(12,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail);});if(r()<0.3)addAnimals("perroquet",X,Z,3,14);},
+  mesa(c){const {X,Z,r,base,mid,detail,ok}=c;
+    c.P(5,(x,z)=>{if(ok(x,z))saguaro(x,z,0.8+r()*0.5,mid);});c.P(7,(x,z)=>{if(ok(x,z))mesaRock(x,z,0.6+r()*2.6,base);});
+    c.P(6,(x,z)=>{if(ok(x,z,0.5))grassTuft(x,z,detail,WM2.straw);});if(r()<0.25){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z))tumbleweed(x,z,detail);}
+    if(r()<0.08){const x=X+r()*16-8,z=Z+r()*16-8;if(ok(x,z,3))pumpjack(x,z,mid);}
+    if(r()<0.05){const x=X+r()*16-8,z=Z+r()*16-8;if(ok(x,z,1)){const y=groundAt(x,z);put(BX(1.6,0.3,0.5),BM.bone,x,y+0.15,z,detail,r()*3);put(geo("skullB",()=>new THREE.SphereGeometry(0.3,8,6)),BM.bone,x+1,y+0.25,z,detail);}}
+    if(r()<0.35)addAnimals(r()<0.5?"coyote":"vautour",X,Z,1+Math.floor(r()*2),16);},
+  jungle(c){const {X,Z,r,base,mid,detail,ok}=c;c.P(10,(x,z,i)=>{if(ok(x,z,1))jungleTree(x,z,0.8+r()*0.5,i<6?base:mid,r);});c.P(10,(x,z)=>{if(ok(x,z,0.5))bigLeaf(x,z,detail,r);});
+    c.P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",1+r()*0.4,mid);});if(r()<0.6)addAnimals(r()<0.6?"perroquet":"singe",X,Z,2+Math.floor(r()*3),15);},
+  bambou(c){const {X,Z,r,mid,detail,ok}=c;c.P(12,(x,z)=>{if(ok(x,z,1))bambooClump(x,z,mid,r);});if(r()<0.15)addAnimals("panda_roux",X,Z,1,10);},
+  fleurs(c){const {X,Z,r,mid,detail,ok,G}=c;c.P(60,(x,z,i)=>{if(ok(x,z,0.3)){const y=groundAt(x,z);put(geo("flw",()=>new THREE.SphereGeometry(0.12,6,4)),BM.flower[i%6],x,y+0.35,z,detail);put(CY(0.01,0.01,0.35,3),BM.stem,x,y+0.17,z,detail);}});
+    c.P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"light",0.9+r()*0.4,mid);});if(!G.water&&r()<0.55)addAnimals(r()<0.6?"cheval":"mouton",X,Z,2+Math.floor(r()*3),14);if(r()<0.3)for(let k=0;k<3;k++)beehive(X-16+k*1.5,Z+17,detail);
+    if(r()<0.5)addAnimals("papillon",X,Z,4,10);},
+  dunes(c){const {X,Z,r,mid,detail,ok}=c;c.P(18,(x,z)=>{if(ok(x,z,0.4))grassTuft(x,z,detail,WM2.straw);});
+    c.P(2,(x,z)=>{if(ok(x,z)){const y=groundAt(x,z),l=put(CY(0.15,0.2,3,6),WM2.dead,x,y+0.15,z,detail,r()*3);l.rotation.z=Math.PI/2;}});
+    if(r()<0.3){const x0=X-15,z=Z+r()*20-10;for(let x=x0;x<x0+20;x+=1.2)if(ok(x,z,0))put(BX(0.08,1,0.08),OM.wood,x,groundAt(x,z)+0.5,z,detail);}
+    if(r()<0.25)addAnimals("goeland",X,Z,3,14);if(r()<0.15)addAnimals("crabe",X,Z,3,10);},
+  mangrove(c){const {X,Z,r,mid,detail,ok}=c;c.P(10,(x,z)=>{if(!inGridArea(x,z)&&!onAnyRoad(x,z,2)&&waterDepth(x,z)<1.2)mangroveTree(x,z,mid,r);});
+    if(r()<0.4)addAnimals(r()<0.5?"heron":"flamant",X,Z,2+Math.floor(r()*3),12);},
+  plage(c){const {X,Z,r}=c;if(r()<0.25)addAnimals(r()<0.6?"goeland":"crabe",X,Z,3,12);if(r()<0.12)addAnimals("pelican",X,Z,2,10);},
+  riviere(c){const {X,Z,r,mid,detail,ok}=c;c.P(10,(x,z)=>{const d=waterDepth(x,z);if(d>0.02&&d<0.8&&!onAnyRoad(x,z,2))reedClump(x,z,detail);});
+    c.P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,r()<0.5?"light":"round",0.9+r()*0.3,mid);});c.P(3,(x,z)=>{if(ok(x,z))rockAt(x,z,0.5+r(),mid);});
+    if(r()<0.3)addAnimals(r()<0.5?"canard":"heron",X,Z,2+Math.floor(r()*3),12);
+    if(r()<0.06){for(let k=0;k<10;k++){const x=X+r()*30-15,z=Z+r()*30-15;if(ok(x,z,1)){let wd=null;for(let a=0;a<8;a++){const qx=x+Math.cos(a*0.785)*3,qz=z+Math.sin(a*0.785)*3;if(waterDepth(qx,qz)>0.4){wd=Math.atan2(qx-x,-(qz-z))/D2R;break;}}if(wd!==null){addAmb("pecheur",x,z,wd);break;}}}}},
+  ilot(c){const {X,Z,r,mid,detail,ok}=c;c.P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"palm",0.8+r()*0.5,mid);});if(r()<0.4)addAnimals(r()<0.5?"pelican":"goeland",X,Z,3,12);if(r()<0.15)addAnimals("tortue",X,Z,2,10);},
+  mer(c){const {X,Z,r}=c;if(r()<0.025)addAnimals("dauphin",X,Z,3,20);}
+};
+// animaux des biomes déjà existants (complète les constructeurs de 023j)
+const BIOME_FAUNA={prairie:[["vache",0.25,3],["cheval",0.12,2],["mouton",0.18,5],["lapin",0.15,2]],ferme:[["poule",0.8,6],["cochon",0.6,3],["vache",0.5,3],["chien",0.4,1]],
+  foret:[["cerf",0.25,2],["renard",0.12,1],["lapin",0.2,2],["ecureuil",0.2,2]],lande:[["mouton",0.25,4],["lapin",0.15,2]],montagne:[["chevre",0.35,3],["aigle",0.15,1]],
+  savane:[["vache",0.15,3],["vautour",0.12,1],["flamant",0.1,3]],orangeraie:[["poule",0.1,3],["perroquet",0.08,2]],vigne:[["lapin",0.12,2]],champ:[["corbeau",0.2,3],["lapin",0.1,2]],
+  eolien:[["mouton",0.3,4]],bayou:[["heron",0.25,2],["flamant",0.15,3],["tortue",0.12,2],["canard",0.15,3]],lac:[["canard",0.35,4],["cygne",0.15,2],["heron",0.12,1]],cayo:[["pelican",0.3,3],["goeland",0.25,3]]};
 // ================================================================ traces de pas (sable seulement)
 // Une vraie empreinte de semelle (talon, voûte, avant-pied, rainures), gauche et droite en miroir,
 // plus profonde en courant. Elles n'apparaissent que sur le sable : bacs à sable, plages (module 16).
@@ -5203,7 +5368,7 @@ function showPhone(w,on){
 // --- mini-carte
 const mm=document.getElementById("minimap"),mctx=mm.getContext("2d");
 let mmZoom=22;
-const MM_COL={champ:"#a59a4a",prairie:"#6c8f45",foret:"#3d6034",lande:"#7d8550",montagne:"#8a847a",savane:"#a9a45e",orangeraie:"#5f8a3a",vigne:"#7a8a44",ferme:"#8a7a4a",eolien:"#8f9a4a",bayou:"#556b3a",plage:"#d8c49a",cayo:"#d8c49a",mer:"#3f88a8",lac:"#3f88a8",aeroport:"#6a7a5a",station_route:"#5a5e66",motel:"#5a5e66",diner:"#5a5e66",relais:"#5a5e66",camping:"#5c7d4c",aire:"#5a5e66"};
+const MM_COL={mais:"#8a9a3a",tournesol:"#c8b830",lavande:"#8a6ab8",serres:"#9ac0b0",verger:"#5f8a3a",ranch:"#a89a5a",pinede:"#3a5a32",palmeraie:"#9a9a5a",mesa:"#b8683a",jungle:"#2a5a22",bambou:"#6aa03a",fleurs:"#7aaa5a",dunes:"#e0d0a0",mangrove:"#4a5a32",riviere:"#3f88a8",ilot:"#d8c49a",champ:"#a59a4a",prairie:"#6c8f45",foret:"#3d6034",lande:"#7d8550",montagne:"#8a847a",savane:"#a9a45e",orangeraie:"#5f8a3a",vigne:"#7a8a44",ferme:"#8a7a4a",eolien:"#8f9a4a",bayou:"#556b3a",plage:"#d8c49a",cayo:"#d8c49a",mer:"#3f88a8",lac:"#3f88a8",aeroport:"#6a7a5a",station_route:"#5a5e66",motel:"#5a5e66",diner:"#5a5e66",relais:"#5a5e66",camping:"#5c7d4c",aire:"#5a5e66"};
 function drawMinimap(){
   mmZoom=lerp(mmZoom,player.speed>3?34:player.speed>1.6?27:22,0.03);
   const W=mm.width,H=mm.height,c=mctx,sc=W/2/mmZoom;
@@ -5213,7 +5378,7 @@ function drawMinimap(){
   c.translate(W/2,H/2);c.rotate(-cam.yaw*D2R);
   const px=player.root.x,pz=player.root.z,T=(x,z)=>[(x-px)*sc,(z-pz)*sc];
   c.fillStyle="#3c4046";const [ax,az]=T(-WORLD,-WORLD);c.fillRect(ax,az,WORLD*2*sc,WORLD*2*sc);{const [sx,sz]=T(588,-1300);c.fillStyle="#3f88a8";c.fillRect(sx,sz,1400*sc,2600*sc);for(const I of ISLANDS){const [ix,iz]=T(I.x,I.z);c.fillStyle="#d8c49a";c.beginPath();c.arc(ix,iz,I.r*1.05*sc,0,7);c.fill();c.fillStyle="#5f8a4c";c.beginPath();c.arc(ix,iz,I.r*0.7*sc,0,7);c.fill();}for(const f of SEA_FEATURES){const [fx,fz]=T(f.x0,f.z0);c.fillStyle="#a07850";c.fillRect(fx,fz,(f.x1-f.x0)*sc,(f.z1-f.z0)*sc);}}
-  for(let i=chunkOf(px)-2;i<=chunkOf(px)+2;i++)for(let j=chunkOf(pz)-2;j<=chunkOf(pz)+2;j++){if(!chunkExists(i,j))continue;if(isCountry(i,j)){const t=chunkType(i,j);const [qx,qz]=T(i*CHUNK-20,j*CHUNK-20);c.fillStyle=MM_COL[t]||"#6c8f45";c.fillRect(qx,qz,40*sc+1,40*sc+1);if(t!=="mer"&&t!=="lac"&&t!=="bayou")continue;for(let a=0;a<4;a++)for(let b=0;b<4;b++){const x=i*CHUNK-15+a*10,z=j*CHUNK-15+b*10;const w=waterDepth(x,z)>0;if(t==="bayou"?w:!w){const [wx,wz]=T(x-5,z-5);c.fillStyle=t==="bayou"?"#4a6a5a":"#7a9a5a";c.fillRect(wx,wz,10*sc+1,10*sc+1);}}continue;}const ch={cx:i,cz:j,bx0:i*CHUNK-12,bz0:j*CHUNK-12,bs:32,type:chunkType(i,j)};const [x,z]=T(ch.bx0,ch.bz0);c.fillStyle=TYPE_COLOR[ch.type]||"#8d9196";c.fillRect(x,z,(ch.type==="plage"?40:32)*sc,ch.bs*sc);for(const s of sandOf(i,j)){const [sx,sz]=T(s.x0,s.z0);c.fillStyle="#d8c49a";c.fillRect(sx,sz,(s.x1-s.x0)*sc,(s.z1-s.z0)*sc);}for(const F of reliefOf(ch.cx,ch.cz)){const [fx,fz]=T(F.x0,F.z0);c.fillStyle=F.kind==="box"?(F.h>2?"#e4dccb":"#bdb6a8"):"#a7a196";c.fillRect(fx,fz,(F.x1-F.x0)*sc,(F.z1-F.z0)*sc);}}
+  for(let i=chunkOf(px)-2;i<=chunkOf(px)+2;i++)for(let j=chunkOf(pz)-2;j<=chunkOf(pz)+2;j++){if(!chunkExists(i,j))continue;if(isCountry(i,j)){const t=chunkType(i,j);const [qx,qz]=T(i*CHUNK-20,j*CHUNK-20);c.fillStyle=MM_COL[t]||"#6c8f45";c.fillRect(qx,qz,40*sc+1,40*sc+1);if(t!=="mer"&&t!=="lac"&&t!=="bayou"&&t!=="riviere"&&t!=="mangrove"&&t!=="ilot")continue;for(let a=0;a<4;a++)for(let b=0;b<4;b++){const x=i*CHUNK-15+a*10,z=j*CHUNK-15+b*10;const w=waterDepth(x,z)>0;if(t==="bayou"||t==="riviere"||t==="mangrove"?w:!w){const [wx,wz]=T(x-5,z-5);c.fillStyle=t==="bayou"?"#4a6a5a":t==="riviere"||t==="mangrove"?"#3f88a8":"#d8c49a";c.fillRect(wx,wz,10*sc+1,10*sc+1);}}continue;}const ch={cx:i,cz:j,bx0:i*CHUNK-12,bz0:j*CHUNK-12,bs:32,type:chunkType(i,j)};const [x,z]=T(ch.bx0,ch.bz0);c.fillStyle=TYPE_COLOR[ch.type]||"#8d9196";c.fillRect(x,z,(ch.type==="plage"?40:32)*sc,ch.bs*sc);for(const s of sandOf(i,j)){const [sx,sz]=T(s.x0,s.z0);c.fillStyle="#d8c49a";c.fillRect(sx,sz,(s.x1-s.x0)*sc,(s.z1-s.z0)*sc);}for(const F of reliefOf(ch.cx,ch.cz)){const [fx,fz]=T(F.x0,F.z0);c.fillStyle=F.kind==="box"?(F.h>2?"#e4dccb":"#bdb6a8"):"#a7a196";c.fillRect(fx,fz,(F.x1-F.x0)*sc,(F.z1-F.z0)*sc);}}
   for(const f of SEA_FEATURES){if(f.x1<px-60||f.x0>px+60||f.z1<pz-60||f.z0>pz+60)continue;const [fx,fz]=T(f.x0,f.z0);c.fillStyle=f.port?"#8d8b86":"#a07850";c.fillRect(fx,fz,(f.x1-f.x0)*sc,(f.z1-f.z0)*sc);}
   for(const Hw of HWYS){const L=Hw.k*CHUNK-16,a=Hw.a*CHUNK-16,b=Hw.b*CHUNK-16,hw=Hw.small?5:8.6;if(Hw.ax==="ns"){if(Math.abs(L-px)>80||pz<a-80||pz>b+80)continue;const [x0,z0]=T(L-hw,Math.max(a,pz-80));c.fillStyle="#2c2f35";c.fillRect(x0,z0,hw*2*sc,(Math.min(b,pz+80)-Math.max(a,pz-80))*sc);}else{if(Math.abs(L-pz)>80||px<a-80||px>b+80)continue;const [x0,z0]=T(Math.max(a,px-80),L-hw);c.fillStyle="#2c2f35";c.fillRect(x0,z0,(Math.min(b,px+80)-Math.max(a,px-80))*sc,hw*2*sc);}}
   c.fillStyle="#5d6166";for(const o of obstacles){if(Math.abs(o.x-px)>40||Math.abs(o.z-pz)>40)continue;if(o.bld)c.fillStyle="#c9c3b6";else c.fillStyle="#5d6166";const [x,z]=T(o.x,o.z);if(o.type==="circle"){c.beginPath();c.arc(x,z,Math.max(1.5,o.r*sc),0,7);c.fill();}else c.fillRect(x-o.hx*sc,z-o.hz*sc,o.hx*2*sc,o.hz*2*sc);}
@@ -6217,6 +6382,187 @@ function updateContextButtons(dt){
   sit.style.display=seated||nearBench||player.ball||MIS.canTalk||EV.canAccept||shopNear?"block":"none";sit.textContent=MIS.canTalk&&!seated?"Parler":EV.canAccept?"Accepter":shopNear&&!seated&&!player.ball?"Acheter":player.ball?"Lâcher":seated?"Se lever":"S'asseoir";
   hands.style.display=wanted.level>0||player.handsUp?"block":"none";hands.textContent=player.handsUp?"Mains en bas":"Se rendre";
 }
+// ================================================================ ANIMAUX : vivants, animés, solides
+// Troupeaux posés par les zones (addAnimals) et créés quand on s'approche. Quadrupèdes (pattes qui marchent,
+// tête qui broute), oiseaux (marchent, picorent, s'envolent, tournent dans le ciel), nageurs (canards, cygnes),
+// échassiers (hérons, flamants dans l'eau peu profonde), dauphins qui sautent, papillons et abeilles.
+// Ils fuient si on court vers eux, si on les frappe ou si une voiture arrive ; on ne peut pas les traverser ;
+// une voiture peut les renverser (ils se relèvent). Chaque animal = 1 corps fusionné + pattes/ailes animées.
+const ANI_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85});
+// [type, longueur, hauteur au dos, largeur, couleurs {b corps, h tête, l pattes, s taches}, vitesse marche, vitesse fuite, son]
+const SPEC={
+  vache:{t:"quad",L:1.9,H:1.35,W:0.75,c:{b:"#f2efe8",h:"#f2efe8",l:"#2a2622",s:"#2a2622",n:"#e8a0a0"},walk:0.9,run:4.2,snd:"meuh",flee:5,spots:true,horn:"#e8e0c8"},
+  cheval:{t:"quad",L:2.0,H:1.55,W:0.6,c:{b:"#7a4a2a",h:"#7a4a2a",l:"#3a2414",m:"#2a1a10"},walk:1.3,run:7.5,snd:"hennir",flee:7,neck:true},
+  mouton:{t:"quad",L:1.1,H:0.8,W:0.7,c:{b:"#f4f1e6",h:"#2a2622",l:"#2a2622"},walk:0.7,run:3.6,snd:"bee",flee:7,fluffy:true},
+  chevre:{t:"quad",L:1.0,H:0.8,W:0.45,c:{b:"#e8e2d0",h:"#e8e2d0",l:"#4a4036"},walk:0.8,run:4.5,snd:"bee",flee:8,horn:"#4a4036"},
+  cochon:{t:"quad",L:1.2,H:0.75,W:0.6,c:{b:"#f2b4a8",h:"#f2b4a8",l:"#e89a8a",n:"#e88a7a"},walk:0.7,run:3.2,snd:"groin",flee:5},
+  cerf:{t:"quad",L:1.5,H:1.25,W:0.5,c:{b:"#9a6a3a",h:"#9a6a3a",l:"#5a3a1e"},walk:1.1,run:8,snd:null,flee:16,antler:true,neck:true},
+  renard:{t:"quad",L:0.8,H:0.45,W:0.28,c:{b:"#d0661e",h:"#d0661e",l:"#2a1a10",tail:"#f2efe8"},walk:1.2,run:6.5,snd:null,flee:14,tailLong:true},
+  coyote:{t:"quad",L:0.95,H:0.6,W:0.3,c:{b:"#a8875a",h:"#a8875a",l:"#5a4632"},walk:1.2,run:6.5,snd:"hurle",flee:14,tailLong:true},
+  lapin:{t:"quad",L:0.4,H:0.28,W:0.22,c:{b:"#b8a48a",h:"#b8a48a",l:"#b8a48a",tail:"#ffffff"},walk:0.8,run:6,snd:null,flee:9,ears:true,hop:true},
+  ecureuil:{t:"quad",L:0.3,H:0.2,W:0.14,c:{b:"#a8501e",h:"#a8501e",l:"#a8501e",tail:"#c8702e"},walk:1.2,run:5,snd:null,flee:7,tailLong:true,hop:true},
+  chien:{t:"quad",L:0.9,H:0.6,W:0.32,c:{b:"#c8a070",h:"#c8a070",l:"#8a6a40"},walk:1.3,run:6,snd:"wouf",flee:0,friend:true,tailLong:true},
+  singe:{t:"quad",L:0.6,H:0.5,W:0.3,c:{b:"#5a3a22",h:"#d0a880",l:"#5a3a22"},walk:1.1,run:5,snd:"singe",flee:8,tailLong:true,hop:true},
+  panda_roux:{t:"quad",L:0.7,H:0.4,W:0.3,c:{b:"#c8501e",h:"#f2efe8",l:"#2a1a10",tail:"#a8401a"},walk:0.6,run:3,snd:null,flee:6,tailLong:true},
+  tortue:{t:"quad",L:0.6,H:0.3,W:0.5,c:{b:"#4a6a32",h:"#7a8a4a",l:"#7a8a4a"},walk:0.15,run:0.25,snd:null,flee:0,shell:true,swimOk:true},
+  crabe:{t:"quad",L:0.35,H:0.16,W:0.5,c:{b:"#d0401e",h:"#d0401e",l:"#d0401e"},walk:0.6,run:2.4,snd:null,flee:4,crab:true},
+  poule:{t:"bird",L:0.4,H:0.45,c:{b:"#f2efe8",h:"#c8281e",l:"#e8a020",w:"#e8e2d0"},walk:0.6,run:3,snd:"cot",flee:4,ground:true},
+  canard:{t:"bird",L:0.45,H:0.35,c:{b:"#8a6a4a",h:"#2a6a3a",l:"#e8a020",w:"#7a5a3a"},walk:0.5,run:2.5,snd:"coin",flee:6,swim:true},
+  cygne:{t:"bird",L:0.8,H:0.6,c:{b:"#f4f4f0",h:"#f4f4f0",l:"#2a2a2a",w:"#f4f4f0",beak:"#e86a1a"},walk:0.4,run:1.6,snd:null,flee:5,swim:true,longNeck:true},
+  heron:{t:"bird",L:0.7,H:1.1,c:{b:"#aab2ba",h:"#e8e8e8",l:"#c8a050",w:"#8a929a"},walk:0.4,run:2,snd:null,flee:12,wader:true,longNeck:true},
+  flamant:{t:"bird",L:0.6,H:1.2,c:{b:"#f28aa0",h:"#f28aa0",l:"#e86a8a",w:"#e8607a",beak:"#2a2a2a"},walk:0.4,run:2,snd:null,flee:12,wader:true,longNeck:true},
+  pelican:{t:"bird",L:0.9,H:0.8,c:{b:"#e8e4dc",h:"#e8e4dc",l:"#7a7a7a",w:"#c8c4bc",beak:"#e8a040"},walk:0.4,run:2,snd:null,flee:8,ground:true},
+  goeland:{t:"bird",L:0.45,H:0.35,c:{b:"#f4f4f0",h:"#f4f4f0",l:"#e8c060",w:"#9aa3ad"},walk:0.6,run:3,snd:"mouette",flee:7,ground:true},
+  corbeau:{t:"bird",L:0.4,H:0.3,c:{b:"#1a1a1e",h:"#1a1a1e",l:"#2a2a2a",w:"#1a1a1e"},walk:0.6,run:3,snd:"croa",flee:9,ground:true},
+  pigeon:{t:"bird",L:0.3,H:0.25,c:{b:"#8a929e",h:"#5a6a7a",l:"#c84a3a",w:"#7a828e"},walk:0.6,run:3,snd:null,flee:5,ground:true},
+  perroquet:{t:"bird",L:0.4,H:0.3,c:{b:"#e8281e",h:"#f2d23a",l:"#2a2a2a",w:"#1f6ac8"},walk:0.5,run:3,snd:"perroquet",flee:0,flyer:true},
+  vautour:{t:"bird",L:0.8,H:0.5,c:{b:"#2a2622",h:"#c8a08a",l:"#2a2622",w:"#2a2622"},walk:0.5,run:2,snd:null,flee:0,circler:true,wingspan:2.4},
+  aigle:{t:"bird",L:0.8,H:0.5,c:{b:"#5a3a22",h:"#f4f4f0",l:"#e8c020",w:"#5a3a22"},walk:0.5,run:2,snd:"aigle",flee:0,circler:true,wingspan:2.2},
+  dauphin:{t:"fish",L:2.2,H:0.5,c:{b:"#7a8a9a",h:"#7a8a9a",l:"#7a8a9a"},walk:4,run:6,snd:null,flee:0},
+  papillon:{t:"swarm",c:{b:"#f2a020"},n:5},abeilles:{t:"swarm",c:{b:"#f2d23a"},n:8}
+};
+// ---------------------------------------------------------------- fabrication (boîtes colorées fusionnées)
+const _ac=new THREE.Color();
+function aBox(parts,w,h,d,x,y,z,col,rx=0,ry=0,rz=0){const g=new THREE.BoxGeometry(w,h,d).toNonIndexed();if(rx||ry||rz)g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx,ry,rz)));g.translate(x,y,z);
+  const n=g.attributes.position.count,a=new Float32Array(n*3);_ac.set(col);_ac.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_ac.r;a[i*3+1]=_ac.g;a[i*3+2]=_ac.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);}
+function aMesh(parts){const m=new THREE.Mesh(mergeGeometries(parts),ANI_MAT);parts.forEach(p=>p.dispose());m.castShadow=true;return m;}
+function buildAnimal(kind){
+  const S=SPEC[kind],c=S.c,root=new THREE.Group(),A={root,legs:[],wings:[],head:null,S,kind};
+  if(S.t==="quad"){
+    const L=S.L,H=S.H,W=S.W,legH=H*0.5,bodyH=H*0.5,P=[];
+    if(S.shell){aBox(P,W,H*0.55,L*0.85,0,H*0.45,0,c.b);aBox(P,W*0.8,H*0.15,L*0.7,0,H*0.78,0,"#6a8a4a");}
+    else if(S.crab){aBox(P,W,H,L,0,H*0.55,0,c.b);for(const s of [-1,1])aBox(P,0.12,0.1,0.18,s*W*0.6,H*0.9,L*0.45,c.b);}
+    else{aBox(P,W,bodyH,L,0,legH+bodyH/2,0,c.b);if(S.fluffy)aBox(P,W*1.15,bodyH*1.15,L*1.05,0,legH+bodyH/2,0,c.b);
+      if(S.spots){aBox(P,W+0.02,bodyH*0.5,L*0.3,0,legH+bodyH*0.6,-L*0.15,c.s);aBox(P,W+0.02,bodyH*0.4,L*0.2,0,legH+bodyH*0.4,L*0.25,c.s);}
+      aBox(P,W*0.4,W*0.35,L*0.12,0,legH+bodyH*0.75,-L/2-L*0.05,c.tail||c.b);if(S.tailLong)aBox(P,W*0.35,W*0.35,L*0.5,0,legH+bodyH*0.6,-L/2-L*0.25,c.tail||c.b,0.5);
+      if(S.hop)aBox(P,W,bodyH*0.5,L*0.3,0,legH+bodyH*0.9,-L*0.3,c.b);}
+    const body=aMesh(P);root.add(body);
+    // tête (pivot au cou)
+    const head=new THREE.Group();head.position.set(0,S.shell||S.crab?H*0.4:legH+bodyH*(S.neck?1.1:0.85),L/2*(S.crab?0.6:0.95));root.add(head);const HP=[],hs=Math.max(0.12,W*0.55);
+    if(S.neck)aBox(HP,W*0.4,H*0.55,W*0.45,0,H*0.18,0.05,c.b,-0.5);
+    if(!S.crab){aBox(HP,hs*0.9,hs*0.8,hs*1.3,0,S.neck?H*0.42:0,S.neck?0.28:hs*0.5,c.h);if(c.n)aBox(HP,hs*0.7,hs*0.45,hs*0.25,0,(S.neck?H*0.42:0)-hs*0.1,(S.neck?0.28:hs*0.5)+hs*0.72,c.n);
+      for(const s of [-1,1])aBox(HP,hs*0.18,hs*0.18,hs*0.04,s*hs*0.3,(S.neck?H*0.42:0)+hs*0.15,(S.neck?0.28:hs*0.5)+hs*0.65,"#111111");
+      if(S.ears)for(const s of [-1,1])aBox(HP,0.05,0.25,0.08,s*0.06,0.2,0.05,c.h);
+      if(S.horn)for(const s of [-1,1])aBox(HP,0.05,0.18,0.05,s*hs*0.35,(S.neck?H*0.42:0)+hs*0.5,(S.neck?0.28:hs*0.5),S.horn,0,0,s*-0.5);
+      if(S.antler)for(const s of [-1,1]){aBox(HP,0.05,0.5,0.05,s*0.12,H*0.42+0.35,0.25,"#8a6a4a",0,0,s*-0.4);aBox(HP,0.04,0.25,0.04,s*0.25,H*0.42+0.5,0.25,"#8a6a4a",0,0,s*0.6);}
+      if(c.m)aBox(HP,0.08,H*0.4,0.2,0,H*0.35,-0.05,c.m,-0.5);}
+    if(HP.length){head.add(aMesh(HP));}A.head=head;
+    // pattes (pivot à la hanche)
+    const lw=Math.max(0.05,W*0.18);
+    const legPos=S.crab?[[-W*0.6,0.2],[W*0.6,0.2],[-W*0.6,-0.1],[W*0.6,-0.1]]:[[-W*0.32,L*0.38],[W*0.32,L*0.38],[-W*0.32,-L*0.38],[W*0.32,-L*0.38]];
+    for(const [lx,lz] of legPos){const g=new THREE.Group();g.position.set(lx,S.shell||S.crab?H*0.4:legH+0.02,lz);root.add(g);const LP=[];const lh=S.shell||S.crab?H*0.4:legH;aBox(LP,lw,lh,lw,0,-lh/2,0,c.l);g.add(aMesh(LP));A.legs.push(g);}
+  }else if(S.t==="bird"){
+    const L=S.L,H=S.H,P=[],lh=S.wader?H*0.55:S.swim?0.0:H*0.3;
+    aBox(P,L*0.45,L*0.4,L,0,lh+L*0.2,0,c.b);aBox(P,L*0.3,L*0.15,L*0.35,0,lh+L*0.25,-L*0.6,c.w);
+    if(S.longNeck)aBox(P,L*0.12,H*0.45,L*0.12,0,lh+L*0.2+H*0.22,L*0.4,c.h,-0.2);
+    const hy=lh+L*0.2+(S.longNeck?H*0.45:L*0.3),hz=L*(S.longNeck?0.5:0.48);
+    aBox(P,L*0.26,L*0.26,L*0.3,0,hy,hz,c.h);aBox(P,L*0.08,L*0.08,L*(S.kind==="pelican"?0.55:0.25),0,hy-0.02,hz+L*0.25,c.beak||"#e8a020");
+    if(S.wader||S.ground)for(const s of [-1,1])aBox(P,0.03,lh,0.03,s*L*0.1,lh/2,0,c.l);
+    root.add(aMesh(P));
+    for(const s of [-1,1]){const g=new THREE.Group();g.position.set(s*L*0.22,lh+L*0.3,0);root.add(g);const WP=[];const span=S.wingspan?S.wingspan/2:L*0.7;aBox(WP,span,0.03,L*0.5,s*span/2,0,0,c.w);g.add(aMesh(WP));A.wings.push(g);}
+  }else if(S.t==="fish"){const P=[];aBox(P,0.5,0.45,S.L,0,0,0,c.b);aBox(P,0.08,0.45,0.35,0,0.35,0,c.b,0.4);aBox(P,0.8,0.06,0.35,0,0,-S.L/2,c.b);aBox(P,0.45,0.3,0.4,0,-0.08,S.L/2+0.1,"#9aa8b8");root.add(aMesh(P));}
+  else if(S.t==="swarm"){const P=[];for(let i=0;i<(S.n||5);i++)aBox(P,0.12,0.02,0.08,0,0,0,c.b);const m=aMesh(P);root.add(m);A.swarm=m;}
+  return A;
+}
+// ---------------------------------------------------------------- troupeaux et animaux
+const HERDS=[],ANIMALS=[];let ANI_KEY=null;
+function addAnimals(kind,x,z,n,rad){if(!SPEC[kind])return;HERDS.push({kind,x,z,n:Math.max(1,n|0),rad:rad||12,key:ANI_KEY,list:null});}
+function aniOk(S,x,z){const d=waterDepth(x,z);if(S.swim)return d>0.25;if(S.wader)return d<0.7;if(S.t==="fish")return d>1.5;if(S.swimOk)return d<1.2;return d<0.05&&!onAnyRoad(x,z,0.5);}
+function spawnHerd(H){
+  H.list=[];const S=SPEC[H.kind];const cap=isTouch()?26:44;
+  for(let i=0;i<H.n&&ANIMALS.length<cap;i++){let x=H.x,z=H.z,ok=false;for(let k=0;k<14;k++){x=H.x+(Math.random()-0.5)*H.rad*2;z=H.z+(Math.random()-0.5)*H.rad*2;if(aniOk(S,x,z)&&(S.t!=="quad"||freeSpot(new V3(x,0,z),0.8))){ok=true;break;}}
+    if(!ok&&!S.circler&&S.t!=="swarm")continue;
+    const A=buildAnimal(H.kind);A.x=x;A.z=z;A.yaw=Math.random()*6.28;A.state="idle";A.t=rand(0,4);A.ph=Math.random()*6.28;A.tx=x;A.tz=z;A.v=0;A.herd=H;A.snd=rand(4,20);A.hits=0;A.y=groundAt(x,z);
+    if(S.circler){A.y=groundAt(x,z)+rand(25,45);A.circle={cx:x,cz:z,r:rand(15,35),w:rand(0.15,0.3)*(Math.random()<0.5?-1:1)};A.state="circle";}
+    if(S.flyer){A.y=groundAt(x,z)+rand(6,14);A.state="fly";}
+    if(S.t==="swarm"){A.y=groundAt(x,z)+0.8;A.state="swarm";}
+    if(S.t==="fish"){A.state="swim";A.y=WATER_Y-1;}
+    A.root.position.set(A.x,A.y,A.z);scene.add(A.root);ANIMALS.push(A);H.list.push(A);}
+}
+function despawnHerd(H){for(const A of H.list||[]){scene.remove(A.root);A.root.traverse(o=>{if(o.isMesh)o.geometry.dispose();});const i=ANIMALS.indexOf(A);if(i>=0)ANIMALS.splice(i,1);}H.list=null;}
+// cris (WebAudio)
+function aniSound(kind,vol){const c=actx;if(!c||c.state!=="running"||vol<0.02)return;try{const t=c.currentTime,o=c.createOscillator(),g=c.createGain(),f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=1800;o.connect(f);f.connect(g);g.connect(sfxOut());
+  const env=(a,d,v)=>{g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v*vol,t+a);g.gain.linearRampToValueAtTime(0,t+d);};
+  if(kind==="meuh"){o.type="sawtooth";o.frequency.setValueAtTime(130,t);o.frequency.linearRampToValueAtTime(95,t+1.1);f.frequency.value=600;env(0.15,1.2,0.25);o.start(t);o.stop(t+1.25);}
+  else if(kind==="bee"){o.type="sawtooth";o.frequency.setValueAtTime(320,t);for(let k=0;k<6;k++)o.frequency.setValueAtTime(k%2?300:340,t+k*0.07);f.frequency.value=1400;env(0.05,0.5,0.18);o.start(t);o.stop(t+0.55);}
+  else if(kind==="groin"){o.type="square";o.frequency.setValueAtTime(140,t);o.frequency.linearRampToValueAtTime(90,t+0.25);f.frequency.value=700;env(0.02,0.3,0.2);o.start(t);o.stop(t+0.32);}
+  else if(kind==="hennir"){o.type="sawtooth";o.frequency.setValueAtTime(700,t);for(let k=0;k<10;k++)o.frequency.setValueAtTime(600-k*30+(k%2)*80,t+k*0.08);f.frequency.value=2200;env(0.05,0.9,0.14);o.start(t);o.stop(t+0.95);}
+  else if(kind==="cot"){o.type="square";o.frequency.setValueAtTime(900,t);o.frequency.exponentialRampToValueAtTime(500,t+0.12);f.frequency.value=2500;env(0.01,0.14,0.08);o.start(t);o.stop(t+0.16);}
+  else if(kind==="coin"){o.type="sawtooth";o.frequency.setValueAtTime(420,t);o.frequency.linearRampToValueAtTime(360,t+0.18);f.frequency.value=1500;env(0.01,0.2,0.12);o.start(t);o.stop(t+0.22);}
+  else if(kind==="wouf"){o.type="sawtooth";o.frequency.setValueAtTime(260,t);o.frequency.exponentialRampToValueAtTime(140,t+0.16);f.frequency.value=900;env(0.01,0.18,0.25);o.start(t);o.stop(t+0.2);}
+  else if(kind==="croa"){o.type="sawtooth";o.frequency.setValueAtTime(520,t);o.frequency.linearRampToValueAtTime(380,t+0.3);f.frequency.value=1600;env(0.02,0.32,0.12);o.start(t);o.stop(t+0.34);}
+  else if(kind==="hurle"){o.type="sine";o.frequency.setValueAtTime(500,t);o.frequency.linearRampToValueAtTime(900,t+0.8);o.frequency.linearRampToValueAtTime(600,t+1.6);env(0.3,1.7,0.1);o.start(t);o.stop(t+1.75);}
+  else if(kind==="mouette"){o.type="triangle";o.frequency.setValueAtTime(1700,t);o.frequency.exponentialRampToValueAtTime(1000,t+0.3);env(0.02,0.32,0.08);o.start(t);o.stop(t+0.34);}
+  else if(kind==="perroquet"){o.type="square";for(let k=0;k<5;k++)o.frequency.setValueAtTime(1200+((k*37)%5)*260,t+k*0.06);f.frequency.value=3000;env(0.01,0.32,0.06);o.start(t);o.stop(t+0.34);}
+  else if(kind==="singe"){o.type="sawtooth";for(let k=0;k<6;k++)o.frequency.setValueAtTime(k%2?700:1100,t+k*0.09);env(0.02,0.55,0.08);o.start(t);o.stop(t+0.6);}
+  else if(kind==="aigle"){o.type="triangle";o.frequency.setValueAtTime(2200,t);o.frequency.exponentialRampToValueAtTime(1400,t+0.6);env(0.02,0.62,0.06);o.start(t);o.stop(t+0.64);}
+  else{o.start(t);o.stop(t+0.01);}}catch(e){}}
+// ---------------------------------------------------------------- comportement
+let aniCk=0;
+function updateAnimals(dt){
+  const px=player.root.x,pz=player.root.z;
+  aniCk-=dt;if(aniCk<=0){aniCk=0.5;
+    for(let i=HERDS.length-1;i>=0;i--){const H=HERDS[i];if(H.key&&!chunks.has(H.key)){if(H.list)despawnHerd(H);HERDS.splice(i,1);continue;}
+      const d=Math.hypot(H.x-px,H.z-pz);if(!H.list&&d<115)spawnHerd(H);else if(H.list&&d>160)despawnHerd(H);}}
+  const pRun=player.speed>3.2,veh=drive,atk=player.atk&&!player.atk._ani&&player.atk.t>=player.atk.impactT?player.atk:null;if(atk)atk._ani=true;
+  const pf=fwdOf(player.yaw);
+  for(const A of ANIMALS){
+    const S=A.S,dx=A.x-px,dz=A.z-pz,d=Math.hypot(dx,dz);
+    A.root.visible=d<95;if(d>130)continue;
+    A.t-=dt;A.ph+=dt;
+    // coups de poing / de pied
+    if(atk&&d<1.9&&(dx*pf.x+dz*pf.z)>0&&S.t!=="swarm"&&!S.circler){A.hits++;A.fleeT=6;A.state=S.t==="bird"&&!S.swim?"fly":"flee";aniSound(S.snd,1);if(A.hits>=3&&S.t==="quad"){A.state="ko";A.t=6;}floatText(player,pick(["Pauvre bête !","Aïe !","Laisse-le tranquille !"]),"#ffd0a0");}
+    // voiture
+    if(veh&&S.t!=="swarm"&&!S.circler){const vd=Math.hypot(A.x-veh.x,A.z-veh.z);if(vd<2.6&&Math.abs(veh.v)>4&&A.state!=="ko"){A.state=S.t==="quad"?"ko":"fly";A.t=6;aniSound(S.snd,1);const k=Math.abs(veh.v)*0.25;A.x+=(A.x-veh.x)/(vd||1)*k;A.z+=(A.z-veh.z)/(vd||1)*k;veh.vel.multiplyScalar(0.85);}
+      else if(vd<14&&Math.abs(veh.v)>6&&A.state!=="ko"&&S.flee){A.fleeT=4;A.state=S.t==="bird"&&!S.swim&&!S.wader?"fly":"flee";}}
+    // peur du joueur qui court vers eux
+    if(S.flee&&d<S.flee&&(pRun||d<S.flee*0.35)&&A.state!=="ko"&&A.state!=="fly"&&A.state!=="flee"&&!S.friend){A.fleeT=rand(3,6);A.state=S.t==="bird"&&!S.swim&&!S.wader?"fly":"flee";if(Math.random()<0.5)aniSound(S.snd,clamp01(1-d/30));}
+    // cri de temps en temps
+    A.snd-=dt;if(A.snd<=0){A.snd=rand(8,25);if(S.snd&&d<30)aniSound(S.snd,clamp01(1-d/30)*0.8);}
+    let speed=0;
+    switch(A.state){
+      case "idle":case "walk":{
+        if(A.t<=0){if(A.state==="idle"&&Math.random()<0.55){A.state="walk";A.t=rand(3,8);for(let k=0;k<6;k++){const tx=A.herd.x+(Math.random()-0.5)*A.herd.rad*2,tz=A.herd.z+(Math.random()-0.5)*A.herd.rad*2;if(aniOk(S,tx,tz)){A.tx=tx;A.tz=tz;break;}}}else{A.state="idle";A.t=rand(3,9);}}
+        if(S.friend&&d<14&&d>2.2){A.tx=px;A.tz=pz;A.state="walk";A.t=1;}
+        if(A.state==="walk"){const tx=A.tx-A.x,tz=A.tz-A.z,td=Math.hypot(tx,tz);if(td<0.6){A.state="idle";A.t=rand(3,8);}else{A.yaw=lerpAngleRad(A.yaw,Math.atan2(tx,tz),dt*2.5);speed=S.walk*(S.friend&&d>6?3:1);}}
+        break;}
+      case "flee":{A.fleeT-=dt;if(A.fleeT<=0){A.state="idle";A.t=rand(2,5);break;}const away=Math.atan2(dx||0.01,dz||0.01);A.yaw=lerpAngleRad(A.yaw,away,dt*5);speed=S.run;break;}
+      case "ko":{if(A.t<=0){A.state="flee";A.fleeT=4;A.hits=0;}break;}
+      case "fly":{ // décolle, s'éloigne, se repose plus loin
+        A.fleeT=(A.fleeT||5)-dt;const g=groundAt(A.x,A.z);A.y=lerp(A.y,g+(A.fleeT>1?7+Math.sin(A.ph)*1.5:0.05),dt*(A.fleeT>1?1.5:2.5));const away=Math.atan2(dx||0.01,dz||0.01);A.yaw=lerpAngleRad(A.yaw,S.flyer?A.yaw+Math.sin(A.ph*0.5)*0.8:away,dt*2);speed=S.flyer?5:S.run*2;
+        if(!S.flyer&&A.fleeT<=0&&A.y<g+0.3){A.state="idle";A.t=rand(2,6);A.herd.x=A.x;A.herd.z=A.z;}
+        if(S.flyer){const hx=A.x-A.herd.x,hz=A.z-A.herd.z;if(Math.hypot(hx,hz)>25)A.yaw=lerpAngleRad(A.yaw,Math.atan2(-hx,-hz),dt*1.5);}break;}
+      case "circle":{const C=A.circle;C.a=(C.a||Math.random()*6.28)+C.w*dt;A.x=C.cx+Math.cos(C.a)*C.r;A.z=C.cz+Math.sin(C.a)*C.r;A.yaw=Math.atan2(-Math.sin(C.a)*Math.sign(C.w),Math.cos(C.a)*Math.sign(C.w));A.y=groundAt(C.cx,C.cz)+30+Math.sin(A.ph*0.3)*4;break;}
+      case "swarm":{A.root.position.set(A.herd.x+Math.sin(A.ph*0.7)*3,groundAt(A.herd.x,A.herd.z)+0.8+Math.sin(A.ph*1.3)*0.3,A.herd.z+Math.cos(A.ph*0.5)*3);const P=A.swarm.geometry.attributes.position;
+        if(!A.base){A.base=Float32Array.from(P.array);}const n=P.count/36|0;for(let i=0;i<n;i++){const ox=Math.sin(A.ph*2+i*1.7)*0.9,oy=Math.sin(A.ph*3+i)*0.3+(i%2?Math.sin(A.ph*25+i)*0.03:0),oz=Math.cos(A.ph*1.7+i*2.3)*0.9;for(let v=i*36;v<i*36+36;v++)P.setXYZ(v,A.base[v*3]+ox,A.base[v*3+1]+oy,A.base[v*3+2]+oz);}P.needsUpdate=true;continue;}
+      case "swim":{ // dauphins : sauts en arc
+        A.t-=dt;const T=3.2,k=(A.ph%T)/T;A.yaw+=dt*0.25;speed=S.walk;const jump=k<0.35?Math.sin(k/0.35*Math.PI):0;A.y=WATER_Y-0.9+jump*2.2;A.root.rotation.x=k<0.35?-Math.cos(k/0.35*Math.PI)*0.9:0;if(waterDepth(A.x+Math.sin(A.yaw)*6,A.z+Math.cos(A.yaw)*6)<1.5)A.yaw+=Math.PI*0.6;break;}
+    }
+    // déplacement + obstacles + eau
+    if(speed>0&&A.state!=="circle"){const nx=A.x+Math.sin(A.yaw)*speed*dt,nz=A.z+Math.cos(A.yaw)*speed*dt;
+      if(A.state==="fly"||S.t==="fish"||aniOk(S,nx,nz)){A.x=nx;A.z=nz;}else{A.yaw+=Math.PI*0.5+Math.random();if(A.state==="walk"){A.state="idle";A.t=rand(1,3);}}
+      if(S.t==="quad"&&A.state!=="fly"){const p=new V3(A.x,0,A.z);pushOutOfObstacles(p,S.W*0.6+0.2);A.x=p.x;A.z=p.z;}}
+    // solide : on ne traverse pas les animaux (et ils ne traversent pas les gens)
+    if(S.t==="quad"&&A.state!=="fly"){const rr=Math.max(0.35,Math.min(S.L*0.5,0.95));
+      for(const w of walkers){const wx=w.root.x-A.x,wz=w.root.z-A.z,wd=Math.hypot(wx,wz),mn=rr+0.3;if(wd<mn&&wd>1e-3){const push=mn-wd;w.root.x+=wx/wd*push*0.6;w.root.z+=wz/wd*push*0.6;A.x-=wx/wd*push*0.4;A.z-=wz/wd*push*0.4;}}
+      // le long du corps (animaux longs) : un 2e point
+      if(S.L>1.2){const f2x=Math.sin(A.yaw)*S.L*0.32,f2z=Math.cos(A.yaw)*S.L*0.32;for(const sgn of [-1,1]){const cx=A.x+f2x*sgn,cz=A.z+f2z*sgn;const wx=player.root.x-cx,wz=player.root.z-cz,wd=Math.hypot(wx,wz),mn=S.W*0.6+0.3;if(wd<mn&&wd>1e-3&&!drive){player.root.x+=wx/wd*(mn-wd);player.root.z+=wz/wd*(mn-wd);}}}}
+    // posture et animation
+    const g=groundAt(A.x,A.z);
+    if(S.swim){A.y=WATER_Y-0.02+Math.sin(A.ph*1.5)*0.02;}else if(S.t==="quad"||(S.t==="bird"&&A.state!=="fly"&&!S.flyer&&A.state!=="circle")){A.y=S.wader?Math.max(g,WATER_Y-0.6):g;}
+    A.root.position.set(A.x,A.y,A.z);
+    if(S.t!=="fish")A.root.rotation.set(0,A.yaw,A.state==="ko"?Math.PI/2*0.95:0);else A.root.rotation.y=A.yaw;
+    const moving=speed>0.05;
+    if(S.t==="quad"){const f=moving?(S.hop?12:speed*3.2+2):0,amp=moving?Math.min(0.7,0.25+speed*0.08):0;
+      A.legs.forEach((L,i)=>{L.rotation.x=Math.sin(A.ph*f+((i===0||i===3)?0:Math.PI))*amp*(S.hop?0.5:1);});
+      if(A.head){A.head.rotation.x=A.state==="idle"&&!S.crab?lerp(A.head.rotation.x,0.55+Math.sin(A.ph*1.3)*0.08,dt*2):lerp(A.head.rotation.x,0,dt*4);}
+      if(S.hop&&moving)A.root.position.y+=Math.abs(Math.sin(A.ph*12))*0.12;}
+    else if(S.t==="bird"){const flying=A.state==="fly"||A.state==="circle"||S.flyer;
+      A.wings.forEach((W,i)=>{W.rotation.z=(i?-1:1)*(flying?(S.circler?0.15+Math.sin(A.ph*1.5)*0.12:Math.sin(A.ph*16)*0.9):0.05);});
+      if(!flying&&A.state==="idle"&&S.ground)A.root.rotation.x=Math.max(0,Math.sin(A.ph*3))*0.5;}
+  }
+}
+function lerpAngleRad(a,b,t){let d=((b-a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;return a+d*Math.min(1,t);}
 // ================================================================ MODULE 25 : cycle jour / nuit et météo
 // Une journée dure 24 minutes par défaut (réglable). Le soleil tourne, le ciel passe par l'aube, le plein jour,
 // le coucher de soleil et la nuit étoilée (lune). La nuit : fenêtres et lampadaires allumés, enseignes plus vives.
@@ -6704,7 +7050,7 @@ function updateRadio(dt){
 // --- noms de rues (inventés) : avenues nord-sud, rues est-ouest
 const AVENUES=[],RUES=[];for(let i=-NCH;i<=NCH;i++){AVENUES.push("Avenue "+AV_N[(i+14)%AV_N.length]);RUES.push("Rue "+RU_N[(i+14)%RU_N.length]);}
 const roadIdx=v=>Math.round((v+16)/CHUNK);
-const BIO_LABEL={champ:"Champs",prairie:"Prairie",foret:"Forêt",lande:"Lande",montagne:"Montagne",savane:"Savane",orangeraie:"Orangeraie",vigne:"Vignoble",ferme:"Ferme",eolien:"Parc éolien",bayou:"Bayou",plage:"Plage sauvage",cayo:"Les Cayos",mer:"En mer",lac:"Lac",aeroport:"Aéroport"};
+const BIO_LABEL={mais:"Champ de maïs",tournesol:"Champ de tournesols",lavande:"Champs de lavande",serres:"Serres",verger:"Verger",ranch:"Ranch",pinede:"Pinède",palmeraie:"Palmeraie",mesa:"Plateau Rouge",jungle:"Jungle",bambou:"Bambouseraie",fleurs:"Prairie fleurie",dunes:"Dunes",mangrove:"Mangrove",riviere:"Rivière",ilot:"Îlot",champ:"Champs",prairie:"Prairie",foret:"Forêt",lande:"Lande",montagne:"Montagne",savane:"Savane",orangeraie:"Orangeraie",vigne:"Vignoble",ferme:"Ferme",eolien:"Parc éolien",bayou:"Bayou",plage:"Plage sauvage",cayo:"Les Cayos",mer:"En mer",lac:"Lac",aeroport:"Aéroport"};
 function streetAt(x,z){
   if(inGridArea(x,z)){const ix=roadIdx(x),iz=roadIdx(z),dx=Math.abs(x-(ix*CHUNK-16)),dz=Math.abs(z-(iz*CHUNK-16));
     const T=townAt(Math.floor((x+12)/CHUNK),Math.floor((z+12)/CHUNK)),o=T?T.i0*3+T.j0:0;
@@ -8090,7 +8436,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
@@ -8127,7 +8473,7 @@ function tick(dt,time){
     const L=player.L,R=player.R;
     window.__air=(window.__air||0)+((player.L.stepping&&player.R.stepping)?1:0);window.__maxH=Math.max(window.__maxH||0,player.height/(player.LEG*player.P.standRatio+player.P.ankleHeight));window.__dbg={fd:hdist(L.footPos,R.footPos),L:hdist(L.footPos,player.pelvisPos),R:hdist(R.footPos,player.pelvisPos),h:player.height,hMax:player.LEG*player.P.standRatio+player.P.ankleHeight,steps:player.stepCount,cross:new V3().subVectors(R.footPos,L.footPos).dot(rightOf(player.yaw)),spd:player.speed,n:walkers.length};
   }
-window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
+window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__ANIMALS=ANIMALS;window.__HERDS=HERDS;window.__zone=(x,z)=>zoneAt(x,z);window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   const time=now/1000;
