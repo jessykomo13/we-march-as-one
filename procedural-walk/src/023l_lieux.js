@@ -98,3 +98,23 @@ BUILDERS.paillotes=function(ch,C){const {X,Z,bx0,bz0,bx1,bz1,bcx,bcz,r,base,mid,
     treeAt(x+4.5,z+3.5,"palm",0.8+r()*0.4,mid);}
   for(let k=0;k<4;k++)treeAt(bx0+3+r()*26,bcz+r()*4-2,"palm",0.9+r()*0.4,mid);for(const [x,z] of [[bx0+1.1,bcz],[bx1-1.1,bcz]])prop("lamp",x,z,0);
   if(r()<0.5)addAnimals("perroquet",bcx,bcz,3,10);};
+// ---------------------------------------------------------------- chemins de terre : des lieux jusqu'à la route la plus proche
+// Un chemin en L (axes x puis z) part du lieu et rejoint l'autoroute la plus proche (si elle est à moins de 700 m).
+const PATH_KINDS=new Set(["hameau","chapelle","moulin","stand","caravanes","drive_in","carriere","camping","tour_guet","cimetiere","chateau_eau","maison_abandon","pique_nique","solaire","radar","ruines"]);
+const PATH_CACHE=new Map();
+function lieuPath(cx,cz){const k=cx+","+cz;if(PATH_CACHE.has(k))return PATH_CACHE.get(k);let P=null;const L=lieuAt(cx,cz);
+  if(L&&PATH_KINDS.has(L)){const X=cx*40,Z=cz*40;let best=null,bd=700;for(const H of HWYS){const d=hwyDist(X,Z,H);if(d<bd){bd=d;best=H;}}
+    if(best){const Lh=hwyLine(best),[a,b]=hwyRange(best);if(best.ax==="ns"){const zz=clamp(Z,a,b);P={segs:[[X,Z,X,zz],[X,zz,Lh,zz]]};}else{const xx=clamp(X,a,b);P={segs:[[X,Z,xx,Z],[xx,Z,xx,Lh]]};}}}
+  PATH_CACHE.set(k,P);return P;}
+// tronçons de chemin qui traversent la zone (cx,cz) : on regarde les lieux proches
+function pathsThrough(cx,cz){const out=[],R=18;for(let i=cx-R;i<=cx+R;i++)for(let j=cz-R;j<=cz+R;j++){if(hash(i*91.7+j*37.3+7.1)>0.045)continue;const P=lieuPath(i,j);if(!P)continue;
+  for(const [x0,z0,x1,z1] of P.segs){const X0=cx*40-20,X1=cx*40+20,Z0=cz*40-20,Z1=cz*40+20,ax=Math.min(x0,x1),bx=Math.max(x0,x1),az=Math.min(z0,z1),bz=Math.max(z0,z1);
+    if(bx<X0-2||ax>X1+2||bz<Z0-2||az>Z1+2)continue;out.push([Math.max(ax,X0),Math.max(az,Z0),Math.min(bx,X1),Math.min(bz,Z1),x0===x1]);}}return out;}
+const PATH_M=new THREE.MeshStandardMaterial({color:0x9a8262,roughness:1,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3,map:CMP.dirt.map});
+function buildPaths(ch,X,Z,g){
+  for(const [ax,az,bx,bz,vert] of pathsThrough(ch.cx,ch.cz)){const len=vert?bz-az:bx-ax;if(len<1)continue;const n=Math.max(1,Math.round(len/4)),pos=[],idx=[],uv=[];
+    for(let k=0;k<=n;k++){const t=k/n,cxp=vert?ax:ax+(bx-ax)*t,czp=vert?az+(bz-az)*t:az;for(const o of [-1.4,1.4]){const x=vert?cxp+o:cxp,z=vert?czp:czp+o;if(inGridArea(x,z)||onAnyRoad(x,z,0)){pos.push(x,-50,z);}else{const y=groundAt(x,z);pos.push(x,(waterDepth(x,z)>0?-50:y+0.03),z);}uv.push(o>0?1:0,(vert?czp:cxp)/3);}}
+    for(let k=0;k<n;k++){const a=k*2;if(vert)idx.push(a,a+2,a+1,a+1,a+2,a+3);else idx.push(a,a+1,a+2,a+1,a+3,a+2);}
+    const gm=new THREE.BufferGeometry();gm.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));gm.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));gm.setIndex(idx);gm.computeVertexNormals();
+    const m=new THREE.Mesh(gm,PATH_M);m.receiveShadow=true;g.add(m);}
+}
