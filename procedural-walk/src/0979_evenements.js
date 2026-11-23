@@ -133,6 +133,7 @@ const AMB_LINES={
   domino:{near:["¡Dominó! J'ai gagné !","Assieds-toi, on joue la prochaine.","Mon cousin triche, je te jure."],idle:["¡Ay, no!","Pose ta pièce, allez.","Ha ! Double six !"]},
   marchand:{near:["Mangues, ananas, goyaves ! Trois pour cinq euros !","Goûte, c'est sucré comme le miel.","Les meilleurs fruits du barrio !"],idle:["Mangues ! Ananas !","Fruits frais, fruits frais !"]},
   radio:{near:[],idle:[]},
+  docker:{near:["Hé ! Casque obligatoire sur les quais !","Fais gaffe, le portique bouge.","Le Marevia Star a encore six heures de retard…","Tu cherches du boulot ? Va voir la capitainerie.","Zone réservée au personnel, mon gars.","Perds-toi pas dans les conteneurs, on t'y retrouvera jamais."],idle:["Recule ! Recule ! … Stop !","Encore un conteneur et je fais ma pause.","Qui a laissé cette palette ici ?","Allez, on charge !"]},
   barman:{near:["Qu'est-ce que je te sers ?","Une boisson fraîche ? C'est la meilleure de l'île.","Il fait soif, hein ?"],idle:[]}};
 const rodGeo=new THREE.CylinderGeometry(0.012,0.02,2.6,5).translate(0,1.3,0),rodMat=new THREE.MeshStandardMaterial({color:0x2a2a2a,roughness:0.5});
 class AmbientBrain extends NpcBrain{
@@ -143,6 +144,7 @@ class AmbientBrain extends NpcBrain{
     const S=this.spot,to=new V3(S.x-w.root.x,0,S.z-w.root.z),d=to.length();
     if(d>0.4){w.wish.copy(to.divideScalar(d).multiplyScalar(Math.min(1,d)));w.run=false;w.speedMul=0.8;w.faceYaw=null;return;}
     w.wish.set(0,0,0);const dp=hdist(player.root,w.root);
+    if(S.b){this.wt=(this.wt??rand(4,9))-dt;if(this.wt<=0){this.wt=null;const ox=S.x,oz=S.z;S.x=S.b.x;S.z=S.b.z;S.b={x:ox,z:oz};S.yaw=(S.yaw+180)%360;}}
     if(dp<5&&S.role!=="pecheur"){const tp=new V3().subVectors(player.root,w.root);w.faceYaw=Math.atan2(tp.x,-tp.z)/D2R;w.lookAt=player;w.lookW=0.6;}else{w.faceYaw=S.yaw;w.lookAt=null;}
     // pose : pouce levé, canne à pêche
     if(S.role==="autostop"){const dom=w.arms[1];dom.rFn=(ww,sh,arm)=>({target:sh.clone().add(local(ww.chestRot,arm.side*0.55,0.05,0.1)),w:1,wrist:-20});}
@@ -159,6 +161,7 @@ function updateAmbient(dt){
     if(a.w&&!walkers.includes(a.w)){if(a.w.brain.rod)scene.remove(a.w.brain.rod);a.w=null;a.cool=clockT+60;}
     if(a.role==="radio")continue;
     if(!a.w&&d<55&&d>8&&!(a.cool>clockT)){const look=randomPerson(rng);if(a.role==="pecheur"){look.top="tee";look.jacket="#3a5a3a";}
+      if(a.role==="docker"){look.jacket=pick(["#f2a516","#d9ef2a","#f26b1d"]);look.top=pick(["tee","long"]);look.topColor=pick(["#2b2b2b","#3a4a5a","#5a4a3a","#e8e4da"]);look.bottom="pants";look.bottomColor=pick(["#2b3a55","#3a3a3a","#4a4636"]);look.boots=true;look.glasses="none";look.hat="hard";look.hatTint=Math.floor(Math.random()*3);if(look.hair&&look.hair!=="buzz"&&look.hair!=="bald")look.hair=look.sex==="f"?"ponytail":"buzz";}
       a.w=spawnSpecial(look,new AmbientBrain(a),new V3(a.x,0,a.z),a.yaw);}
     else if(a.w&&d>85&&!a.w.ko){if(a.w.brain.rod)scene.remove(a.w.brain.rod);removeWalker(a.w,true);a.w=null;}
     if(a.w&&a.w.ko&&a.w.brain.rod){scene.remove(a.w.brain.rod);a.w.brain.rod=null;}

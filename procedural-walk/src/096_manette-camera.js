@@ -43,7 +43,7 @@ function shoulderOn(){return !galleryOn&&(cam.mode>0||pad.aim||touchAim);}
 function cameraBlocked(p){
   if(p.y<groundAt(p.x,p.z)+0.12)return true;
   if(p.x>SEA_X-1&&p.y<WATER_Y+0.25)return true;
-  for(const o of obsAt(p))if(o.tall&&o.bld&&obstacleClosest(o,p).d<0.25)return true;
+  for(const o of obsAt(p))if(o.tall&&(o.bld||(o.top!==undefined&&p.y<o.top+0.2))&&obstacleClosest(o,p).d<0.25)return true;
   return false;
 }
 function cameraRig(dt,want){

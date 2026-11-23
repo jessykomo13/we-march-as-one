@@ -542,6 +542,13 @@ export function makeHuman(o) {
     blob(G.shoe, { c: hc.clone().add(new V3(0, 0.032 * hs, hrz * 1.12)), rx: 0.072 * hs, ry: 0.006 * hs, rz: 0.045 * hs, ws: 16, hs: 6, q: new THREE.Quaternion().setFromAxisAngle(X, 0.28), keep: u => u.z > -0.3, w: [[bi.Head, 1]], color: () => blk });
     blob(G.eye, { c: hc.clone().add(new V3(0, 0.075 * hs, hrz * 1.13)), rx: 0.016 * hs, ry: 0.018 * hs, rz: 0.004, ws: 10, hs: 8, w: [[bi.Head, 1]], color: () => [0.85, 0.7, 0.25] });
   }
+  // casque de chantier (dockers)
+  if (o.hat === "hard") {
+    const hcol = [[0.95, 0.74, 0.08], [0.93, 0.93, 0.9], [0.95, 0.42, 0.08]][(o.hatTint || 0) % 3];
+    blob(G.shoe, { c: hc.clone().add(new V3(0, 0.045 * hs, -0.004)), rx: hrx * 1.16, ry: hry * 0.78, rz: hrz * 1.16, ws: 36, hs: 20, keep: u => u.y > -0.02, w: [[bi.Head, 1]], color: () => hcol });
+    sweep(G.shoe, { a: hc.clone().add(new V3(0, 0.038 * hs, 0)), b: hc.clone().add(new V3(0, 0.05 * hs, 0)), n: 30, seg: 1, ax: X, az: Z, rx: () => hrx * 1.3, rz: () => hrz * 1.36, w: () => [[bi.Head, 1]], color: () => hcol });
+    blob(G.shoe, { c: hc.clone().add(new V3(0, 0.045 * hs + hry * 0.72, 0)), rx: 0.012 * hs, ry: 0.012 * hs, rz: hrz * 0.9, ws: 10, hs: 6, w: [[bi.Head, 1]], color: () => hcol });
+  }
   if (o.badge) {
     const ty = tOfY(0.76 * H), bz = rzT(ty) * S * gd + 0.018 * S + torsoShape(ty, Math.PI / 2 - 0.4);
     blob(G.eye, { c: new V3(0.075 * S, 0.76 * H, bz), rx: 0.022 * S, ry: 0.026 * S, rz: 0.004, ws: 10, hs: 8, w: [[bi.Spine2, 1]], color: () => [0.86, 0.72, 0.28] });

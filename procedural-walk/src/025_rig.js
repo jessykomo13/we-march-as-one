@@ -9,6 +9,8 @@ function setWorldQ(bone,q){
 }
 function buildRig(gltf){
   const model=gltf.scene;
+  // caché jusqu'à sa première pose (sinon une silhouette en T apparaît une image au point 0,0)
+  model.visible=false;
   scene.add(model);
   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;}});
   const tclip=(gltf.animations||[]).find(a=>/t-?pose/i.test(a.name));

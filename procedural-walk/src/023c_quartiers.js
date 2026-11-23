@@ -13,6 +13,7 @@ function district(cx,cz){
 function chunkType(cx,cz){
   if(cz<-14)return inTown(cx,cz)?townType(cx,cz):countryType(cx,cz);
   if(cx===0&&cz===0)return "place";
+  if(inPort(cx,cz))return portType(cx,cz);
   const sp=SPECIALS[cx+","+cz];if(sp)return sp;
   if(inPop(cx,cz))return popType(cx,cz);
   const d=district(cx,cz),r=hash(cx*12.9898+cz*78.233+3.1);

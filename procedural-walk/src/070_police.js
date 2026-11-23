@@ -412,7 +412,7 @@ function updateHeli(dt){
   H.beam.scale.set(1,dl.length()/18,1);
   // repérage depuis le ciel (les arbres te cachent)
   if(!H.leaving&&wanted.level>0){
-    const under=obsAt(player.root).some(o=>o.tall&&obstacleClosest(o,player.root).d<0.3);
+    const under=obsAt(player.root).some(o=>o.tall&&obstacleClosest(o,player.root).d<0.3)||portHidden(player.root);
     if(hdist(H.aim,player.root)<9&&!under){wanted.lastSeenPos.copy(player.root);wanted.lastSeenT=clockT;}
   }
   if(H.leaving&&d<5){scene.remove(H.g);scene.remove(H.spot.target);heli=null;}
@@ -434,6 +434,7 @@ function drawMinimap(){
   const px=player.root.x,pz=player.root.z,T=(x,z)=>[(x-px)*sc,(z-pz)*sc];
   c.fillStyle="#3c4046";const [ax,az]=T(-WORLD,-WORLD);c.fillRect(ax,az,WORLD*2*sc,WORLD*2*sc);{const [sx,sz]=T(588,-WORLD);c.fillStyle="#3f88a8";c.fillRect(sx,sz,700*sc,WORLD*2*sc);for(const I of ISLANDS){const [ix,iz]=T(I.x,I.z);c.fillStyle="#d8c49a";c.beginPath();c.arc(ix,iz,I.r*1.05*sc,0,7);c.fill();c.fillStyle="#5f8a4c";c.beginPath();c.arc(ix,iz,I.r*0.7*sc,0,7);c.fill();}for(const f of SEA_FEATURES){const [fx,fz]=T(f.x0,f.z0);c.fillStyle="#a07850";c.fillRect(fx,fz,(f.x1-f.x0)*sc,(f.z1-f.z0)*sc);}}
   for(let i=chunkOf(px)-2;i<=chunkOf(px)+2;i++)for(let j=chunkOf(pz)-2;j<=chunkOf(pz)+2;j++){if(!chunkExists(i,j))continue;if(isCountry(i,j)){const t=chunkType(i,j);const [qx,qz]=T(i*CHUNK-20,j*CHUNK-20);c.fillStyle=t==="autoroute"?"#6c8f45":({champ:"#a59a4a",foret:"#3d6034",etang:"#3d6f7f"}[t]||"#6c8f45");c.fillRect(qx,qz,40*sc,40*sc);if(t==="autoroute"){const [hx]=T(HWY_X-8.5,0);c.fillStyle="#2c2f35";c.fillRect(hx,qz,17*sc,40*sc);}continue;}const ch={cx:i,cz:j,bx0:i*CHUNK-12,bz0:j*CHUNK-12,bs:32,type:chunkType(i,j)};const [x,z]=T(ch.bx0,ch.bz0);c.fillStyle=TYPE_COLOR[ch.type]||"#8d9196";c.fillRect(x,z,(ch.type==="plage"?40:32)*sc,ch.bs*sc);for(const s of sandOf(i,j)){const [sx,sz]=T(s.x0,s.z0);c.fillStyle="#d8c49a";c.fillRect(sx,sz,(s.x1-s.x0)*sc,(s.z1-s.z0)*sc);}for(const F of reliefOf(ch.cx,ch.cz)){const [fx,fz]=T(F.x0,F.z0);c.fillStyle=F.kind==="box"?(F.h>2?"#e4dccb":"#bdb6a8"):"#a7a196";c.fillRect(fx,fz,(F.x1-F.x0)*sc,(F.z1-F.z0)*sc);}}
+  for(const f of SEA_FEATURES){if(f.x1<px-60||f.x0>px+60||f.z1<pz-60||f.z0>pz+60)continue;const [fx,fz]=T(f.x0,f.z0);c.fillStyle=f.port?"#8d8b86":"#a07850";c.fillRect(fx,fz,(f.x1-f.x0)*sc,(f.z1-f.z0)*sc);}
   c.fillStyle="#5d6166";for(const o of obstacles){if(Math.abs(o.x-px)>40||Math.abs(o.z-pz)>40)continue;if(o.bld)c.fillStyle="#c9c3b6";else c.fillStyle="#5d6166";const [x,z]=T(o.x,o.z);if(o.type==="circle"){c.beginPath();c.arc(x,z,Math.max(1.5,o.r*sc),0,7);c.fill();}else c.fillRect(x-o.hx*sc,z-o.hz*sc,o.hx*2*sc,o.hz*2*sc);}
   if(wanted.level>0&&clockT-wanted.lastSeenT>0.8){const [x,z]=T(wanted.lastSeenPos.x,wanted.lastSeenPos.z);c.fillStyle="rgba(255,60,60,.16)";c.beginPath();c.arc(x,z,wanted.searchR*sc,0,7);c.fill();c.strokeStyle=Math.floor(clockT*2)%2?"rgba(255,80,80,.8)":"rgba(80,120,255,.8)";c.lineWidth=2;c.stroke();}
   if(wanted.level>0)for(const w of walkers){if(!w.isCop||w.ko)continue;const [x,z]=T(w.root.x,w.root.z),a=w.yaw*D2R-Math.PI/2;c.fillStyle="rgba(120,170,255,.18)";c.beginPath();c.moveTo(x,z);c.arc(x,z,14*sc,a-0.9,a+0.9);c.closePath();c.fill();}

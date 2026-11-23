@@ -43,7 +43,7 @@ const reliefAt=(x,z)=>reliefOf(Math.round((x-4)/CHUNK),Math.round((z-4)/CHUNK));
 // hauteur du sol à un endroit : 0 sur la route, 12 cm sur les trottoirs, plus sur les terrasses et escaliers
 function groundAt(x,z){
   if(x>SEA_X)return Math.max(seaFloor(x,z),seaFeatureH(x,z));
-  const b=blockOf(x,z);if(!b)return 0;
+  const b=blockOf(x,z);if(!b){if(x>578&&x<=588&&z>-WORLD&&z<WORLD){const f=seaFeatureH(x,z);if(f>0)return f;}return 0;}
   let h=SIDEWALK;if(x>578){const f=seaFeatureH(x,z);if(f>h)h=f;}
   for(const f of reliefAt(x,z)){const v=featureH(f,x,z);if(v>h)h=v;}
   return h;

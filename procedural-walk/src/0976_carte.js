@@ -11,7 +11,7 @@ function streetAt(x,z){
 const QUARTIER=QUARTIER_NOMS;
 // --- points d'intérêt (déterministes, comme la ville)
 const POIS=[];
-const SPECIAL_POI={pop_marche:["marche","Mercado Coral"],pop_place:["jeux","Place des Dominos"],zenith:["tour","Tour Zénith"],foire:["jeux","Fête foraine"],etang_urbain:["parc","Étang des Canards"],commissariat:["police","Commissariat"],hopital:["hopital","Hôpital"],ecole:["ecole","Groupe scolaire"],station:["station","Station Azur"],eglise:["eglise","Chapelle Saint-Ange"],supermarche:["super","Marché Azur"],marche:["marche","Marché du Port"],terrain:["sport","Terrain de basket"]};
+const SPECIAL_POI={pop_marche:["marche","Mercado Coral"],pop_place:["jeux","Place des Dominos"],zenith:["tour","Tour Zénith"],foire:["jeux","Fête foraine"],etang_urbain:["parc","Étang des Canards"],commissariat:["police","Commissariat"],hopital:["hopital","Hôpital"],ecole:["ecole","Groupe scolaire"],station:["station","Station Azur"],eglise:["eglise","Chapelle Saint-Ange"],supermarche:["super","Marché Azur"],marche:["marche","Marché du Port"],port_capitainerie:["port","Capitainerie du port"],terrain:["sport","Terrain de basket"]};
 for(let cx=-NCH;cx<=NCH;cx++)for(let cz=CZ_MIN;cz<=NCH;cz++){
   if(isCountry(cx,cz)){const t=chunkType(cx,cz);if(t==="aire")POIS.push({type:"aire",x:cx*CHUNK,z:cz*CHUNK,name:"Aire de repos de la Garrigue"});if(t==="relais")POIS.push({type:"relais",x:cx*CHUNK,z:cz*CHUNK,name:"Le Relais des Routiers"});continue;}
   const t=chunkType(cx,cz),X=cx*CHUNK+4,Z=cz*CHUNK+4,rel=reliefOf(cx,cz),sand=sandOf(cx,cz);
@@ -23,9 +23,9 @@ for(let cx=-NCH;cx<=NCH;cx++)for(let cz=CZ_MIN;cz<=NCH;cz++){
   if(t!=="parc"&&t!=="plage")for(const s of sand)POIS.push({type:"jeux",x:(s.x0+s.x1)/2,z:(s.z0+s.z1)/2,name:"Aire de jeux"});
 }
 POIS.push({type:"depart",x:0,z:0,name:"Point de départ"});
-for(const I of ISLANDS)POIS.push({type:"ile",x:I.x,z:I.z,name:I.name});POIS.push({type:"plonge",x:644,z:300,name:"Ponton de plongée"});
+for(const I of ISLANDS)POIS.push({type:"ile",x:I.x,z:I.z,name:I.name});POIS.push({type:"plonge",x:644,z:300,name:"Ponton de plongée"});POIS.push({type:"port",x:646,z:-425,name:"Port de la Vigie (quais)"},{type:"port",x:620,z:-312,name:"Quai de pêche"});
 POIS.push({type:"ville",x:184,z:-1180,name:"Port-Soleil"});
-const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"]};
+const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"],port:["⚓","#7fb0d8"]};
 // --- itinéraire GPS : on suit le quadrillage des rues (plus court chemin entre carrefours)
 let waypoint=null,route=null,routeT=0,routeLen=0;
 const NODE=(i,j)=>({i,j,x:i*CHUNK-16,z:j*CHUNK-16});
@@ -154,7 +154,7 @@ function drawBigMap(){
   }
   for(const I of ISLANDS){const [ix,iy]=m2s(I.x,I.z);c.fillStyle="#d8c49a";c.beginPath();c.arc(ix,iy,I.r*1.05*z,0,7);c.fill();c.fillStyle="#5f8a4c";c.beginPath();c.arc(ix,iy,I.r*0.75*z,0,7);c.fill();
     if(MAP.zoom>1){c.fillStyle="#fff";c.font=`600 ${12*dpr}px system-ui`;c.textAlign="center";c.fillText(I.name,ix,iy+4*dpr);}}
-  for(const f of SEA_FEATURES){const [fx,fy]=m2s(f.x0,f.z0);c.fillStyle="#a07850";c.fillRect(fx,fy,(f.x1-f.x0)*z,Math.max(2,(f.z1-f.z0)*z));}
+  for(const f of SEA_FEATURES){const [fx,fy]=m2s(f.x0,f.z0);c.fillStyle=f.port?"#8d8b86":"#a07850";c.fillRect(fx,fy,(f.x1-f.x0)*z,Math.max(2,(f.z1-f.z0)*z));}
   c.fillStyle="#d4cdbd";for(const o of obstacles)if(o.bld){const [ox,oy]=m2s(o.x-o.hx,o.z-o.hz);c.fillRect(ox,oy,o.hx*2*z,o.hz*2*z);}
   // noms des rues quand on zoome
   if(MAP.zoom>1.1){c.fillStyle="rgba(255,255,255,.75)";c.font=`${11*dpr}px system-ui`;c.textAlign="center";
@@ -241,7 +241,7 @@ const streetEl=document.getElementById("street");let streetName="",streetT=0,str
 function updateStreet(dt){
   streetCk-=dt;if(streetCk>0)return;streetCk=0.5;
   const bi=Math.round((player.root.x-4)/CHUNK),bj=Math.round((player.root.z-4)/CHUNK);
-  const n=player.root.x>SEA_X?(onIsland(player.root.x,player.root.z)?.name||(seaFeatureH(player.root.x,player.root.z)>0?(player.root.z>0?"Ponton de plongée":"Pont des Pélicans"):"En mer")):blockOf(player.root.x,player.root.z)?`${streetAt(player.root.x,player.root.z)} · ${inTown(bi,bj)?"Port-Soleil":QUARTIER[chunkType(bi,bj)]}`:streetAt(player.root.x,player.root.z);
+  const n=player.root.x>SEA_X?(onIsland(player.root.x,player.root.z)?.name||(inPortDeck(player.root.x,player.root.z)?(player.root.z>-310?"Quai de pêche · Port de la Vigie":"Quai de la Vigie · Port de la Vigie"):seaFeatureH(player.root.x,player.root.z)>0?(player.root.z>0?"Ponton de plongée":"Pont des Pélicans"):"En mer")):blockOf(player.root.x,player.root.z)?`${streetAt(player.root.x,player.root.z)} · ${inTown(bi,bj)?"Port-Soleil":QUARTIER[chunkType(bi,bj)]}`:streetAt(player.root.x,player.root.z);
   if(n!==streetName){streetName=n;streetEl.textContent=n;streetEl.classList.add("show");streetT=clockT;}
   else if(clockT-streetT>4)streetEl.classList.remove("show");
 }

@@ -46,6 +46,7 @@ python3 build.py --test     # → test/index.html qui charge three depuis /node_
 Tous les `src/*.js` sont concaténés dans **un seul module** (pas d'import entre eux). Conséquences importantes :
 - **L'ordre alphabétique compte** (`0976` < `0977` < `097_` < `097b` ; `023` < `023b` < … < `023h`). Les `function` sont hoistées, mais les `const`/`let` de haut niveau ne le sont pas : utiliser une `const` d'un fichier plus loin **pendant l'évaluation** d'un fichier plus tôt = `ReferenceError` (TDZ) → écran noir. Au runtime (dans tick/update) c'est OK. `node --check` ne détecte PAS ces erreurs : il faut lancer le jeu (test Playwright).
   - Exemple réel : `chunkType()` est appelé à l'évaluation (skyline dans `023g`) → il appelle `inPop()` de `023h` → `inPop` ne doit utiliser que des littéraux, pas la const `POP`.
+- Un modèle humain (`buildRig`) est caché jusqu'à sa première pose (`animate`) : sinon une silhouette en T apparaît au point (0,0).
 - Pas de doublon de nom global entre fichiers (déjà eu : `CM` en double → renommé `CMP`).
 - Attention aux commentaires `//` en fin de ligne : déjà eu un bug où `// commentaire…cars.push(c);return c;` avalait du code. Mets le code sur une nouvelle ligne.
 - N'écris jamais un fichier avec `open(f,'w').write(open(f).read()...)` en Python (le fichier est tronqué avant la lecture).
@@ -67,6 +68,7 @@ Tous les `src/*.js` sont concaténés dans **un seul module** (pas d'import entr
 | 023f_trafic | voitures IA sur l'autoroute (modèle IDM, klaxon, renversent les piétons) |
 | 023g_centre | MODULE 15 : centre d'affaires (CBD ±3 chunks), `towerPlan()` déterministe, gratte-ciels variés, **Tour Zénith** 168 m, chariots hot-dogs, **skyline lointaine** (silhouettes ramenées à camera.far-14, même taille apparente) |
 | 023h_populaire | MODULE 17 : **Barrio Coral** (cx -9..-4, cz 4..10) : maisons de ville colorées, balcons, linge, boutiques, Mercado Coral, Place des Dominos, fresques, guirlandes, **musique latine procédurale** (WebAudio) autour des « radios » |
+| 023i_port | MODULE 18 : **Port de la Vigie** (îlots cx 12..14, cz -13..-8 + quai sur la mer x 588..652, z -530..-302, h 1,3, rampe x 580..588) : labyrinthes de conteneurs (`portMaze`, obstacles `cont:true` avec `top`), 4 portiques animés, cargos *Marevia Star* / *Balena Aurora*, chalutiers, chariots élévateurs (`portFork`, obstacle mobile), dockers (rôle `docker`, casque `look.hat="hard"`), mouettes, sons (corne, bips). Le quai est découpé en 4 tronçons `PORT_SEC` construits/détruits selon la distance (`updatePortStream`). `portHidden(p)` : l'hélico ne voit pas entre les conteneurs. `waterDepth` = 0 sous le quai |
 | 024_traces | traces de pas dans le sable (InstancedMesh) |
 | 025_rig | squelette / os du perso |
 | 030_marcheur | **class Walker** : locomotion procédurale (pas, IK, buste, bras), `groundStep` (marches 0,4 m, chutes, air), nage, **vol (mode créatif)** `flyStep/setFly`, KO, coups reçus `takeHit`, `setRig(rig,true)` = téléportation (recale sol et lastOk) |
@@ -95,6 +97,7 @@ Tous les `src/*.js` sont concaténés dans **un seul module** (pas d'import entr
 ### Géographie du monde
 - Ville : chunks de 40 m, grille de -14 à 14 (x et z de -600 à 600). Îlot d'un chunk (cx,cz) = carré [cx*40-12, cx*40+20] ; routes centrées sur i*40-16.
 - District : `centre` (|cx|,|cz|≤3, CBD), `commerces` (≤5), `residentiel`, `industrie` (cx≤-10), `plage` (cx≥14, colonne d'hôtels Art déco cx=13), Barrio Coral (cx -9..-4, cz 4..10).
+- Nord-est : **Port de la Vigie** (îlots cx 12..14, cz -13..-8 ; capitainerie en (12,-10), parc à camions (12,-13), quai sur la mer x 588..652 / z -530..-302).
 - Est : mer à partir de x=588 jusqu'à 1180, 8 îles (Pélicans reliée par un pont, Phare, Corail, Tortues, Grande Île, Mouettes, Sauvage, Trésor), ponton de plongée.
 - Nord (z<-560) : campagne, autoroute A1 (x≈177–191, z -598 → -1058), aire de repos, relais, Port-Soleil (cx 1..8, cz -33..-27).
 - Départ : place centrale (0,0). Nino est à (-7.5, 9.5).
@@ -109,11 +112,11 @@ Mobile : joystick gauche, boutons Courir/Garde/Poing/Pied/Accroupi/Épaule/S'ass
 
 ## 4. Plan des 40 modules et état
 
-Fait (jouable) : 1–7 fondations (locomotion, humains, foule, combat, réactions/voix, KO/ambulance, police 6 étoiles), 8 architecture/sauvegarde/debug, 9 chunks, 10 collisions/escaliers/chutes, 11 caméra/manette/mobile, 12 menus/réglages, 13 minicarte/GPS/grande carte, 14 routes/feux/passages piétons, **15 centre-ville d'affaires**, **16 mer/îles/nage**, **17 quartier populaire**, + prototype du **36** (missions Nino), basket (37 partiel), boutiques (32 partiel), campagne/autoroute/Port-Soleil (21–22 partiels), mode créatif.
+Fait (jouable) : 1–7 fondations (locomotion, humains, foule, combat, réactions/voix, KO/ambulance, police 6 étoiles), 8 architecture/sauvegarde/debug, 9 chunks, 10 collisions/escaliers/chutes, 11 caméra/manette/mobile, 12 menus/réglages, 13 minicarte/GPS/grande carte, 14 routes/feux/passages piétons, **15 centre-ville d'affaires**, **16 mer/îles/nage**, **17 quartier populaire**, **18 port et docks**, + prototype du **36** (missions Nino), basket (37 partiel), boutiques (32 partiel), campagne/autoroute/Port-Soleil (21–22 partiels), mode créatif.
 
-**Prochain : 18 — Port et docks industriels** : conteneurs empilés en labyrinthe où l'on peut se perdre et se cacher, grues portiques (animées), entrepôts, bateaux amarrés (cargos, chalutiers), quais, bittes d'amarrage, chariots élévateurs, dockers (figurants). Critère : « on peut se perdre et se cacher entre les conteneurs » (la police doit perdre la vue). Emplacement logique : district industrie (cx≤-10) ou un port au sud-est sur la mer.
+**Prochain : 19 — banlieue résidentielle** (maisons, jardins, piscines, clôtures non traversables).
 
-Ensuite : 19 banlieue résidentielle (maisons, jardins, piscines, clôtures non traversables), 20 marina et îles (yachts, ponts vers les îles du large), 21 marais/bayou, 22 petites villes/stations-service/motels, 23 aéroport (avions décor qui décollent/atterrissent), 24 intérieurs (magasins, appartement, commissariat, hôpital, entrée/sortie sans chargement), 25 cycle jour/nuit + pluie/orages (passants qui se couvrent), 26 conduite voiture (monter/descendre animés, physique, dérapage), 27 trafic IA en ville (feux, klaxons, évitement piétons, pas de bouchon infini), 28 dégâts véhicules, 29 motos/vélos/**bateaux** (très attendu : naviguer vers les îles), 30 police v2 en voiture (poursuites, barrages), 31 armes et visée/couverture, 32 économie (banque, distributeurs), 33 garde-robe/coiffeur/tatouages (changer de tenue efface la description police), 34 téléphone (contacts, photos, réseau social parodique), 35 PNJ avec métiers et routines jour/nuit, gangs, 36 histoire complète avec deux personnages jouables, 37 activités (salle de sport, sports, jeux), 38 stats qui progressent, 39 radios originales et sons de quartier, 40 optimisation PC/mobile (60 FPS PC, jouable mobile).
+Ensuite : 20 marina et îles (yachts, ponts vers les îles du large), 21 marais/bayou, 22 petites villes/stations-service/motels, 23 aéroport (avions décor qui décollent/atterrissent), 24 intérieurs (magasins, appartement, commissariat, hôpital, entrée/sortie sans chargement), 25 cycle jour/nuit + pluie/orages (passants qui se couvrent), 26 conduite voiture (monter/descendre animés, physique, dérapage), 27 trafic IA en ville (feux, klaxons, évitement piétons, pas de bouchon infini), 28 dégâts véhicules, 29 motos/vélos/**bateaux** (très attendu : naviguer vers les îles), 30 police v2 en voiture (poursuites, barrages), 31 armes et visée/couverture, 32 économie (banque, distributeurs), 33 garde-robe/coiffeur/tatouages (changer de tenue efface la description police), 34 téléphone (contacts, photos, réseau social parodique), 35 PNJ avec métiers et routines jour/nuit, gangs, 36 histoire complète avec deux personnages jouables, 37 activités (salle de sport, sports, jeux), 38 stats qui progressent, 39 radios originales et sons de quartier, 40 optimisation PC/mobile (60 FPS PC, jouable mobile).
 
 Le plan complet existe aussi dans un Claude Doc « Procedural Walk — Plan des modules » (colonnes Module / Groupe / Statut / Pour valider).
 
@@ -160,4 +163,4 @@ Les scripts `tests/run*.py` ont été écrits pour un serveur sur `/tmp/t` et `/
 ---
 
 ## 8. Tâche immédiate
-Lance-toi sur le **module 18 (port et docks)** quand il dit « vas-y », ou traite d'abord le bug qu'il te montre. Avant toute chose : `python3 build.py && node --check check.mjs`, ouvre le jeu en test et vérifie que tout tourne sans erreur.
+Lance-toi sur le **module 19 (banlieue résidentielle)** quand il dit « vas-y », ou traite d'abord le bug qu'il te montre. Avant toute chose : `python3 build.py && node --check check.mjs`, ouvre le jeu en test et vérifie que tout tourne sans erreur.

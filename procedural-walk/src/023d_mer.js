@@ -77,7 +77,7 @@ const seaGroup=new THREE.Group();scene.add(seaGroup);
   });
   for(const fx of [598,611,626])addAmb("pecheur",fx,301.15,180);
   // bateaux au large et bouées
-  for(let i=0;i<8;i++){const x=640+i*55,z=-500+((i*137)%900);if(!onIsland(x,z))boatAt(x,z,i*0.8,g);}
+  for(let i=0;i<8;i++){const x=640+i*55,z=-500+((i*137)%900);if(!onIsland(x,z)&&!(x<720&&z>-560&&z<-280))boatAt(x,z,i*0.8,g);}
   for(let z=-560;z<=560;z+=40){const b=put(geo("buoy",()=>new THREE.SphereGeometry(0.35,10,8)),KM.red,630,WATER_Y,z,g);b.userData.bob=z;}
   // le groupe est fusionné, sauf ce qui bouge (bateaux, bouées, lumière du phare)
 }
@@ -89,7 +89,7 @@ function boatAt(x,z,yaw,g){const b=new THREE.Group();b.position.set(x,WATER_Y,z)
   addObstacle({type:"circle",x,z,r:2.2});return b;}
 const seaMovers=[];seaGroup.traverse(o=>{if(o.userData.boat!==undefined||o.userData.bob!==undefined||o.userData.phare){seaMovers.push(o);o.userData.keep=true;}});
 bake(seaGroup);
-function waterDepth(x,z){return x>SEA_X?WATER_Y-seaFloor(x,z):0;}
+function waterDepth(x,z){return x>SEA_X&&!inPortDeck(x,z)?WATER_Y-seaFloor(x,z):0;}
 function updateSeaLife(dt){
   const t=clockT;
   for(const o of seaMovers){if(o.userData.boat!==undefined){o.position.y=WATER_Y+Math.sin(t*1.1+o.userData.boat)*0.08;o.rotation.z=Math.sin(t*0.9+o.userData.boat)*0.04;o.rotation.x=Math.sin(t*0.7+o.userData.boat*2)*0.03;}

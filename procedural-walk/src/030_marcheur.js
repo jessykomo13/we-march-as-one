@@ -57,6 +57,8 @@ class Walker{
     this.moveRoot(dt,time);
   }
   animate(dt,time){
+    const M=this.rig.model;
+    if(!M.userData.posed){M.userData.posed=true;M.visible=true;}
     this.updateStyle(time,dt);
     const st=this.sit.state;
     if(this.ko)this.updateKO(dt,time);

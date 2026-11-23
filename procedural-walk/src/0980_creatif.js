@@ -35,6 +35,7 @@ function teleportTo(x,z,label){
   let y=groundAt(x,z);if(x>SEA_X)y=Math.max(y,WATER_Y+0.15);
   const flying=!!pl.fly;
   pl.root.set(x,flying?y+6:y,z);pl.vel.set(0,0,0);pl.swim=null;pl.air=null;pl.setRig(pl.rig,true);pl.gy=pl.root.y;pl.lastOk.copy(pl.root);
+  if(!flying&&nearPort(x,z)<80){streamWorld(true);updatePortStream(0,true);for(let k=0;k<3;k++)pushOutOfObstacles(pl.root,0.4);pl.setRig(pl.rig,true);pl.gy=pl.root.y;pl.lastOk.copy(pl.root);}
   if(!flying&&waterDepth(x,z)>1.1){pl.setFly(true);}   // au-dessus de l'eau : on reste en vol
   cam.cur=cam.dist;cam.focus.set(x,pl.root.y+1,z);camera.position.set(x,pl.root.y+4,z+6);
   hudMsg("Téléporté"+(label?" : "+label:""),2);playSound("slap",0.04);
