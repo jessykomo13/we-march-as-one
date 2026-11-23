@@ -93,8 +93,10 @@ function treeAt(x,z,kind,s,g,obsR=0.3){
 }
 // --- voiture garée (alignée sur les axes) ; dir = cap en radians (0 = vers +z)
 function parkedCar(x,z,ry,g,paint,kind){
-  const y=groundAt(x,z),c=carMesh(paint||CAR_PAINT[Math.floor(Math.abs(Math.sin(x*12.9+z*78.2))*CAR_PAINT.length)],kind);c.position.set(x,y,z);c.rotation.y=ry;g.add(c);
-  const al=Math.abs(Math.cos(ry))>0.5;addObstacle({type:"box",x,z,hx:al?0.95:2.2,hz:al?2.2:0.95});
+  if(TAKEN.has(carKey(x,z)))return;   // déjà volée
+  const P=paint||CAR_PAINT[Math.floor(Math.abs(Math.sin(x*12.9+z*78.2))*CAR_PAINT.length)],y=groundAt(x,z),c=carMesh(P,kind);c.position.set(x,y,z);c.rotation.y=ry;g.add(c);
+  const pc={x,z,ry,paint:P,kind,ranges:[]};c.userData.pcar=pc;
+  const al=Math.abs(Math.cos(ry))>0.5;addObstacle({type:"box",x,z,hx:al?0.95:2.2,hz:al?2.2:0.95,pcar:pc});
 }
 function carMesh(P,kind,driver){
   const c=new THREE.Group();

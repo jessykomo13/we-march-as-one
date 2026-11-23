@@ -116,16 +116,18 @@ function bake(group,cast=true){
   const byMat=new Map(),old=[];
   const walk=(o,fn)=>{if(o.userData.keep)return;fn(o);for(const c of o.children)walk(c,fn);};
   walk(group,o=>{if(!o.isMesh)return;old.push(o);
+    let a=o;while(a&&a!==group&&!a.userData.pcar)a=a.parent;const pc=a&&a.userData.pcar;
     let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();
     for(const k of Object.keys(g.attributes))if(k!=="position"&&k!=="normal"&&k!=="uv"&&!(k==="color"&&o.material.vertexColors))g.deleteAttribute(k);
     if(!g.attributes.uv)g.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
     g.applyMatrix4(o.matrixWorld);
-    const L=byMat.get(o.material)||[];L.push(g);byMat.set(o.material,L);
+    const L=byMat.get(o.material)||[];L.push(g);g.userData.pc=pc;byMat.set(o.material,L);
     if(!o.geometry.userData.shared)o.geometry.dispose();
   });
   for(const o of old)o.removeFromParent();
   const prune=o=>{for(const c of [...o.children]){if(c.userData.keep)continue;prune(c);if(c.isGroup&&!c.children.length)o.remove(c);}};prune(group);
-  for(const [mat,L] of byMat){const m=new THREE.Mesh(mergeGeometries(L),mat);L.forEach(x=>x.dispose());m.castShadow=cast&&mat!==WM.line&&mat!==WM.zebra;m.receiveShadow=true;group.add(m);}
+  for(const [mat,L] of byMat){const m=new THREE.Mesh(mergeGeometries(L),mat);
+    let off=0;for(const q of L){const n=q.attributes.position.count;if(q.userData.pc)q.userData.pc.ranges.push({mesh:m,start:off,count:n});off+=n;}L.forEach(x=>x.dispose());m.castShadow=cast&&mat!==WM.line&&mat!==WM.zebra;m.receiveShadow=true;group.add(m);}
 }
 function reliefMesh(F,g){
   const w=F.x1-F.x0,d=F.z1-F.z0;

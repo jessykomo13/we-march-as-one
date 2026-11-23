@@ -106,7 +106,7 @@ function buildHighways(ch,X,Z,r,base,mid,detail){
     if(!wet&&Math.abs(seg)%7===3&&!H.small){const [px,pz]=hwyAt(H,mid0,hw+6);billboard(px,pz,H.ax==="ns"?Math.PI/2:0,seg,mid);}
     // panne ou auto-stoppeur au bord de la route
     const hh=hash(seg*3.7+L*0.013);
-    if(!wet&&!H.small&&hh<0.05){const [px,pz]=hwyAt(H,mid0,-(hw-1.6));parkedCar(px,pz,H.ax==="ns"?0:Math.PI/2,mid,KM.red);const [ax2,az2]=hwyAt(H,mid0+0.5,-(hw+1.3));addAmb("panne",ax2,az2,H.ax==="ns"?90:180);}
+    if(!wet&&!H.small&&hh<0.05){const [px,pz]=hwyAt(H,mid0,-(hw+2.4));parkedCar(px,pz,H.ax==="ns"?0:Math.PI/2,mid,KM.red);const [ax2,az2]=hwyAt(H,mid0+0.5,-(hw+4.4));addAmb("panne",ax2,az2,H.ax==="ns"?90:180);}
     else if(!wet&&hh>0.965){const [ax2,az2]=hwyAt(H,mid0,-(hw+1.4));addAmb("autostop",ax2,az2,H.ax==="ns"?180:270);}
   }
 }
