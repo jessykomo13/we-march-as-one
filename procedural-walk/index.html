@@ -1730,7 +1730,7 @@ function buildBlock(ch,C){
   streetNameSign(bx0+0.6,bz0+0.6,false,"Avenue "+AV_N[(ia+14)%AV_N.length],detail);
   streetNameSign(bx0+1.3,bz0+0.6,true,"Rue "+RU_N[(iz+14)%RU_N.length],detail);
   if(T!=="plage")hydrant(bx0+5,bz0+0.7,detail);
-  const B=BUILDERS[T]||BUILDERS.place;B(ch,C);
+  const B=BUILDERS[T]||BUILDERS.place;{const TW=townAt(C.cx,C.cz),rs=TW?tintTown(TW.style):null;try{B(ch,C);}finally{if(rs)rs();}}
   if((T==="place"||T==="pop_place"||T==="marche")&&r()<0.7)addAnimals("pigeon",bcx,bcz,5+Math.floor(r()*5),7);
   if((T==="maisons"||T==="villas"||T==="pop_rue"||T==="cabanes")&&r()<0.3)addAnimals("chien",bcx,bz0+1.5,1,3);
   if(T==="parc"&&r()<0.4)addAnimals(r()<0.6?"ecureuil":"pigeon",bcx,bcz,3,8);
@@ -3632,6 +3632,18 @@ function buildPaths(ch,X,Z,g){
     const gm=new THREE.BufferGeometry();gm.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));gm.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));gm.setIndex(idx);gm.computeVertexNormals();
     const m=new THREE.Mesh(gm,PATH_M);m.receiveShadow=true;g.add(m);}
 }
+// ---------------------------------------------------------------- palette de chaque ville (contre la répétition)
+// Pendant la construction d'un îlot de bourg, les façades et murs de maisons sont remplacés par des copies teintées
+// selon le style de la ville ; fenêtres allumées la nuit conservées.
+const TOWN_TINT={desert:[0xf2c08a,0xe8a878,0xf8d8a8],tropical:[0xffb4c8,0x9ee8d2,0xfff09a,0xb8d8ff],pecheurs:[0xb8d4ff,0xffffff,0xd8e8f0],montagne:[0xd8b890,0xc8c0b0,0xe0c8a0],
+  bayou:[0xc8bca0,0xb8b090,0xd0c4b0],balneaire:[0xffd0e0,0xd0f0ff,0xfff0c0,0xe0ffd8],marina:[0xe8f4ff,0xfff8e8],resort:[0xfff0d8,0xd8fff0,0xffe0f0],village:[0xf8e8d0,0xe8f0d8]};
+const TINT_CACHE=new Map();
+function tintMat(m,col,key){let t=TINT_CACHE.get(key);if(!t){t=m.clone();t.color=new THREE.Color(col);TINT_CACHE.set(key,t);if(typeof NIGHT_MATS!=="undefined"&&m.emissiveMap)NIGHT_MATS.push([t,NIGHT_MATS.find(q=>q[0]===m)?.[1]??1]);}return t;}
+function tintTown(style){const P=TOWN_TINT[style];if(!P)return null;
+  const f0=FACADES.slice(),h0=KM.houseWall.slice();
+  for(let i=0;i<FACADES.length;i++)FACADES[i]=tintMat(f0[i],P[i%P.length],style+"F"+i);
+  for(let i=0;i<KM.houseWall.length;i++)KM.houseWall[i]=tintMat(h0[i],P[(i+1)%P.length],style+"H"+i);
+  return ()=>{for(let i=0;i<f0.length;i++)FACADES[i]=f0[i];for(let i=0;i<h0.length;i++)KM.houseWall[i]=h0[i];};}
 // ================================================================ traces de pas (sable seulement)
 // Une vraie empreinte de semelle (talon, voûte, avant-pied, rainures), gauche et droite en miroir,
 // plus profonde en courant. Elles n'apparaissent que sur le sable : bacs à sable, plages (module 16).
