@@ -106,6 +106,7 @@ function updateContextButtons(dt){
   ctxT-=dt;if(ctxT>0||!isTouch())return;ctxT=0.25;
   const sit=document.getElementById("sitBtn"),hands=document.getElementById("handsBtn");
   if(driveCtx(sit))return;
+  if(secretNear()){sit.style.display="block";sit.textContent="Fouiller";return;}
   const seated=player.sit.state!=="none",nearBench=benchSpots.some(s=>!s.taken&&hdist(s.pos,player.root)<2.4);
   sit.style.display=seated||nearBench||player.ball||MIS.canTalk||EV.canAccept||shopNear?"block":"none";sit.textContent=MIS.canTalk&&!seated?"Parler":EV.canAccept?"Accepter":shopNear&&!seated&&!player.ball?"Acheter":player.ball?"Lâcher":seated?"Se lever":"S'asseoir";
   hands.style.display=wanted.level>0||player.handsUp?"block":"none";hands.textContent=player.handsUp?"Mains en bas":"Se rendre";

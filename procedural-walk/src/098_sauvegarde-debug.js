@@ -10,7 +10,7 @@ function gatherSave(){
     player:{x:+player.root.x.toFixed(3),z:+player.root.z.toFixed(3),yaw:+player.yaw.toFixed(1),hp:Math.max(20,Math.round(player.hp)),stamina:Math.round(player.stamina??100),hand:player.hand,look:playerLook,endu:player.enduBoost||0},
     money,jog:jogOn,npc:npcTarget,voice:voiceOn,prints:showPrints,
     wanted:{level:wanted.level,heat:wanted.heat,x:wanted.lastSeenPos.x,z:wanted.lastSeenPos.z,ev:{...wanted.evidence}},
-    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave()};
+    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),taken:[...TAKEN].slice(-300)};
 }
 function saveGame(force){
   if(window.__noSave||galleryOn||(arrestEl.style.display==="flex"&&!force))return false;
@@ -22,7 +22,7 @@ function applySave(d){
   const P=d.player||{};
   if(P.look)try{setPlayerLook(P.look);}catch(e){}
   const x=clamp(+P.x||0,W_MIN+40,W_MAX-40),z=clamp(+P.z||0,W_MIN+40,W_MAX-40);
-  missionLoad(d.missions);player.enduBoost=clamp(+P.endu||0,0,4);
+  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
   player.root.set(x,0,z);pushOutOfObstacles(player.root,0.3);
   player.yaw=player.targetYaw=+P.yaw||0;player.vel.set(0,0,0);player.setRig(player.rig,true);
   player.hp=clamp(+P.hp||100,1,100);player.stamina=clamp(+P.stamina||100,0,100);
@@ -52,6 +52,7 @@ function newGame(){
   wanted.level=0;wanted.heat=0;wanted.lose=0;wanted.evidence={cctv:false,clothes:false,face:false};wanted.escapedT=-999;wanted.hot=null;
   if(player.ko)player.endKO();if(player.sit.state!=="none")player.standUp();
   if(player.handsUp)toggleHandsUp();
+  SECRET.stars.clear();SECRET.found.clear();SECRET.looted.clear();SECRET.gold=false;
   setPlayerLook(PLAYER_LOOK);
   applySave({player:{x:0,z:0,yaw:0,hp:100,stamina:100,hand:1},money:0,jog:false,npc:npcTarget,voice:voiceOn,prints:showPrints});
   saveGame(true);hudMsg("Nouvelle partie");

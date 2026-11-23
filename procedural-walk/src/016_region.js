@@ -40,12 +40,12 @@ const HWYS=[
 ];
 const AIRPORT={i0:-48,i1:-30,j0:20,j1:29,name:"Aéroport International d'Azuria"};
 const LAKES=[{x:-1800,z:-3500,r:520,name:"Lac Miroir"},{x:1500,z:-5300,r:300,name:"Lac des Hérons"},{x:-4300,z:3900,r:380,name:"Lac Caïman"},{x:2600,z:-2200,r:180,name:"Étang Bleu"}];
-const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1300,h:26,name:"Collines d'Ambre"},{x:-2600,z:4700,r:1200,h:16,name:"Coteaux de Santa Brisa"},{x:3200,z:-5600,r:900,h:30,name:"Massif du Nord"}];
+const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1300,h:26,name:"Collines d'Ambre"},{x:-2600,z:4700,r:1200,h:16,name:"Coteaux de Santa Brisa"},{x:450,z:-5850,r:950,h:34,name:"Massif du Nord"}];
 const BAYOU={x:-4300,z:700,r:2100,name:"Bayou des Alligators"};
 const KEYS=[{x:1750,z:2560,r:150,name:"Cayo Brisa"},{x:2500,z:2620,r:190,name:"Cayo Lumière"},{x:3300,z:2540,r:130,name:"Cayo Tortuga"},{x:4200,z:2610,r:230,name:"Cayo Coral"},{x:5250,z:2580,r:440,name:"Punta Esperanza"}];
 const REGIONS=[{x:-4700,z:-4900,r:1800,name:"Monts Bleus"},{x:BAYOU.x,z:BAYOU.z,r:2000,name:BAYOU.name},{x:-1800,z:-3500,r:900,name:"Lac Miroir"},
-  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:2200,z:-1600,r:1300,name:"Côte Nord"},
-  {x:3200,z:-5600,r:1100,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
+  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:900,z:-1800,r:600,name:"Côte Nord"},
+  {x:450,z:-5850,r:1000,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
 // ---------------------------------------------------------------- petits outils (bruit 2D déterministe)
 function vnoise(x,z,s){const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
   const h=(a,b)=>{const q=Math.sin(a*127.1+b*311.7+s*74.7)*43758.5453;return q-Math.floor(q);};

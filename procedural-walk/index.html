@@ -907,12 +907,12 @@ const HWYS=[
 ];
 const AIRPORT={i0:-48,i1:-30,j0:20,j1:29,name:"Aéroport International d'Azuria"};
 const LAKES=[{x:-1800,z:-3500,r:520,name:"Lac Miroir"},{x:1500,z:-5300,r:300,name:"Lac des Hérons"},{x:-4300,z:3900,r:380,name:"Lac Caïman"},{x:2600,z:-2200,r:180,name:"Étang Bleu"}];
-const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1300,h:26,name:"Collines d'Ambre"},{x:-2600,z:4700,r:1200,h:16,name:"Coteaux de Santa Brisa"},{x:3200,z:-5600,r:900,h:30,name:"Massif du Nord"}];
+const HILLS=[{x:-4700,z:-4900,r:2300,h:58,name:"Monts Bleus"},{x:900,z:-3900,r:1300,h:26,name:"Collines d'Ambre"},{x:-2600,z:4700,r:1200,h:16,name:"Coteaux de Santa Brisa"},{x:450,z:-5850,r:950,h:34,name:"Massif du Nord"}];
 const BAYOU={x:-4300,z:700,r:2100,name:"Bayou des Alligators"};
 const KEYS=[{x:1750,z:2560,r:150,name:"Cayo Brisa"},{x:2500,z:2620,r:190,name:"Cayo Lumière"},{x:3300,z:2540,r:130,name:"Cayo Tortuga"},{x:4200,z:2610,r:230,name:"Cayo Coral"},{x:5250,z:2580,r:440,name:"Punta Esperanza"}];
 const REGIONS=[{x:-4700,z:-4900,r:1800,name:"Monts Bleus"},{x:BAYOU.x,z:BAYOU.z,r:2000,name:BAYOU.name},{x:-1800,z:-3500,r:900,name:"Lac Miroir"},
-  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:2200,z:-1600,r:1300,name:"Côte Nord"},
-  {x:3200,z:-5600,r:1100,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
+  {x:900,z:-3900,r:1200,name:"Collines d'Ambre"},{x:-600,z:3600,r:1800,name:"Savane du Sud"},{x:-2600,z:-1500,r:1500,name:"Plaine des Vergers"},{x:900,z:-1800,r:600,name:"Côte Nord"},
+  {x:450,z:-5850,r:1000,name:"Massif du Nord"},{x:-5500,z:-1500,r:1300,name:"Forêt de Gaïa"},{x:-5200,z:5200,r:1600,name:"Marécages du Sud-Ouest"},{x:2400,z:4300,r:1500,name:"Mer des Cayos"}];
 // ---------------------------------------------------------------- petits outils (bruit 2D déterministe)
 function vnoise(x,z,s){const i=Math.floor(x),j=Math.floor(z),fx=x-i,fz=z-j,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
   const h=(a,b)=>{const q=Math.sin(a*127.1+b*311.7+s*74.7)*43758.5453;return q-Math.floor(q);};
@@ -2890,7 +2890,7 @@ function terrColor(x,z,y,bio){
   if(y<WATER_Y+0.12){ // rivage, fond de l'eau
     const k=clamp01((WATER_Y+0.12-y)/3.5);
     if(bio==="bayou"||bio==="lac")c=[0.36-k*0.15,0.33-k*0.12,0.22-k*0.08];else c=[0.84-k*0.42,0.76-k*0.32,0.56-k*0.18];}
-  else if(y>22){const k=clamp01((y-22)/18);c=[lerp(c[0],0.56,k),lerp(c[1],0.54,k),lerp(c[2],0.5,k)];if(y>46){const s=clamp01((y-46)/8);c=[lerp(c[0],0.9,s),lerp(c[1],0.92,s),lerp(c[2],0.94,s)];}}
+  else if(y>26){const k=clamp01((y-26)/16);c=[lerp(c[0],0.47,k),lerp(c[1],0.46,k),lerp(c[2],0.44,k)];if(y>52){const s=clamp01((y-52)/8);c=[lerp(c[0],0.93,s),lerp(c[1],0.95,s),lerp(c[2],0.98,s)];}}
   const n=(vnoise(x/23,z/23,2)-0.5)*0.16+(vnoise(x/7,z/7,4)-0.5)*0.06;
   _tc.setRGB(clamp01(c[0]+n),clamp01(c[1]+n*1.1),clamp01(c[2]+n*0.6),THREE.SRGBColorSpace);return _tc;
 }
@@ -5492,6 +5492,7 @@ class PlayerBrain{
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
+    if(sitRequest&&trySecret()){sitRequest=false;return;}
     if(sitRequest&&tryEnterVehicle()){sitRequest=false;return;}
     if(sitRequest){sitRequest=false;const sp=nearestFreeSpot(w,3);if(sp&&w.goSit(sp))return;}
     let x=0,y=0;
@@ -6193,6 +6194,7 @@ function updateContextButtons(dt){
   ctxT-=dt;if(ctxT>0||!isTouch())return;ctxT=0.25;
   const sit=document.getElementById("sitBtn"),hands=document.getElementById("handsBtn");
   if(driveCtx(sit))return;
+  if(secretNear()){sit.style.display="block";sit.textContent="Fouiller";return;}
   const seated=player.sit.state!=="none",nearBench=benchSpots.some(s=>!s.taken&&hdist(s.pos,player.root)<2.4);
   sit.style.display=seated||nearBench||player.ball||MIS.canTalk||EV.canAccept||shopNear?"block":"none";sit.textContent=MIS.canTalk&&!seated?"Parler":EV.canAccept?"Accepter":shopNear&&!seated&&!player.ball?"Acheter":player.ball?"Lâcher":seated?"Se lever":"S'asseoir";
   hands.style.display=wanted.level>0||player.handsUp?"block":"none";hands.textContent=player.handsUp?"Mains en bas":"Se rendre";
@@ -6338,7 +6340,7 @@ function stepVehicle(V,dt,inp){
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
   updateBoatSpots(dt);
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");hintEl.style.display=t?"block":"none";hintEl.textContent=t;}
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");const t2=t||(!drive&&secretNear()?"E : fouiller":"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
@@ -6475,7 +6477,7 @@ POIS.push({type:"depart",x:0,z:0,name:"Point de départ"});
 for(const I of ISLANDS)POIS.push({type:"ile",x:I.x,z:I.z,name:I.name});POIS.push({type:"plonge",x:644,z:300,name:"Ponton de plongée"});POIS.push({type:"port",x:646,z:-425,name:"Port de la Vigie (quais)"},{type:"port",x:620,z:-312,name:"Quai de pêche"});
 POIS.push({type:"ville",x:184,z:-1180,name:"Port-Soleil"});
 const TOWN_LABELS=[{x:0,z:0,name:"AZURIA"},...TOWNS.map(T=>({x:(T.i0+T.i1)/2*CHUNK,z:(T.j0+T.j1)/2*CHUNK,name:T.name}))];
-const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"],motel:["🛏","#e86aa0"],camping:["⛺","#5fae5a"],lac:["🎣","#5fc4e0"],avion:["✈","#9fd0ff"],nature:["🐊","#7fae5a"],port:["⚓","#7fb0d8"]};
+const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"],motel:["🛏","#e86aa0"],camping:["⛺","#5fae5a"],lac:["🎣","#5fc4e0"],avion:["✈","#9fd0ff"],nature:["🐊","#7fae5a"],secret:["★","#b98aff"],port:["⚓","#7fb0d8"]};
 // --- itinéraire GPS : on suit le quadrillage des rues (plus court chemin entre carrefours)
 let waypoint=null,route=null,routeT=0,routeLen=0;
 const NODE=(i,j)=>({i,j,x:i*CHUNK-16,z:j*CHUNK-16});
@@ -7128,6 +7130,103 @@ function updateAmbient(dt){
     if(a.w&&a.w.ko&&a.w.brain.rod){scene.remove(a.w.brain.rod);a.w.brain.rod=null;}
   }
 }
+// ================================================================ SECRETS DE FLORALIA
+// • Les Étoiles de Floralia : des étoiles dorées cachées partout (sommets, îles, Cayos, bayou, villes, bout du monde…).
+//   Chacune rapporte de l'argent ; toutes ensemble débloquent une récompense secrète.
+// • Des lieux secrets à découvrir (OVNI écrasé, village fantôme, monstre du lac, épave d'avion, trésor, tête de pierre…)
+//   construits seulement quand on s'approche ; une fois découverts, ils apparaissent sur la carte.
+const SECRET={stars:new Set(),found:new Set(),looted:new Set(),gold:false};
+const STARS=[];
+{
+  const S=(x,z,hint)=>STARS.push({id:STARS.length,x,z,hint,m:null});
+  for(const H of HILLS){let bx=H.x,bz=H.z,bh=-1;for(let a=0;a<14;a++)for(let d=0.1;d<0.7;d+=0.1){const x=H.x+Math.cos(a/14*6.28)*H.r*d,z=H.z+Math.sin(a/14*6.28)*H.r*d,h=hillAt(x,z);if(h>bh){bh=h;bx=x;bz=z;}}S(bx,bz,"le sommet "+H.name);}
+  for(const L of LAKES)S(L.x,L.z-L.r*1.12,"la rive du "+L.name);
+  for(const K of KEYS)S(K.x+K.r*0.35,K.z-K.r*0.25,K.name);
+  for(const I of ISLANDS)S(I.x+I.r*0.15,I.z+I.r*0.55,I.name);
+  S(590,-500,"le port");S(-1885,1066,"le bout de la piste");S(3750,2584,"le Pont des Cayos");S(-3600,1400,"le bayou");S(-4900,200,"le bayou profond");
+  for(const T of TOWNS){const ci=Math.round((T.i0+T.i1)/2),cj=Math.round((T.j0+T.j1)/2);S(ci*40-16+1.5,cj*40-16+12,T.name);}
+  S(-6600,-6600,"le bout du monde (nord-ouest)");S(-6600,6600,"le bout du monde (sud-ouest)");S(-6650,-200,"la frontière ouest");S(200,-6650,"le grand nord");
+  S(8.5,17,"le belvédère de la place");S(-800,3620,"la Tête de Pierre");S(525,-5635,"l'OVNI");S(-6300,-2380,"Cendrebourg");S(-4800,1520,"l'épave");S(-5480,-1500,"le cercle de pierres");
+}
+const starGeo=(()=>{const s=new THREE.Shape();for(let i=0;i<10;i++){const a=i/10*Math.PI*2-Math.PI/2,r=i%2?0.22:0.5;i?s.lineTo(Math.cos(a)*r,Math.sin(a)*r):s.moveTo(Math.cos(a)*r,Math.sin(a)*r);}const e=new THREE.ExtrudeGeometry(s,{depth:0.12,bevelEnabled:false});e.center();return e;})();
+const starMat=new THREE.MeshStandardMaterial({color:0xffd24a,emissive:0xffb400,emissiveIntensity:0.9,metalness:0.6,roughness:0.25});
+const starGlow=new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:0.18,depthWrite:false});
+function chime(){const c=actx;if(!c)return;try{const t=c.currentTime;[784,988,1319,1568].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.value=f;g.gain.setValueAtTime(0,t+i*0.07);g.gain.linearRampToValueAtTime(0.12,t+i*0.07+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.07+0.5);o.connect(g);g.connect(sfxOut());o.start(t+i*0.07);o.stop(t+i*0.07+0.55);});}catch(e){}}
+function giveMoney(n){money+=n;moneyEl.textContent=money+" €";}
+// ---------------------------------------------------------------- lieux secrets
+const LANDMARKS=[
+  {id:"ovni",name:"L'OVNI écrasé",x:520,z:-5640,build(g,y,L){
+    const c=new THREE.Mesh(new THREE.CircleGeometry(16,24).rotateX(-Math.PI/2),mat({color:0x2a2620,roughness:1}));c.position.set(L.x,y+0.05,L.z);g.add(c);
+    const s=new THREE.Group();s.position.set(L.x,y+1.4,L.z);s.rotation.set(0.35,0.4,0.15);g.add(s);
+    put(geo("ufo1",()=>new THREE.SphereGeometry(6,24,10).scale(1,0.22,1)),mat({color:0xaab3bd,metalness:0.9,roughness:0.25}),0,0,0,s);put(geo("ufo2",()=>new THREE.SphereGeometry(2.4,16,10,0,Math.PI*2,0,Math.PI/2)),mat({color:0x7fe0ff,emissive:0x1a8aa0,emissiveIntensity:0.6,transparent:true,opacity:0.75}),0,0.9,0,s);
+    for(let i=0;i<8;i++){const l=new THREE.Mesh(geo("ufoL",()=>new THREE.SphereGeometry(0.3,8,6)),new THREE.MeshBasicMaterial({color:0x6aff8a}));l.position.set(Math.cos(i/8*6.28)*5.2,0,Math.sin(i/8*6.28)*5.2);s.add(l);l.userData.keep=true;L.lights=(L.lights||[]).concat(l);}
+    s.userData.keep=true;for(let i=0;i<6;i++)deadTree(L.x+Math.cos(i)*13,L.z+Math.sin(i)*13,1,g);
+    // petit visiteur gris, immobile près de l'épave
+    const a=new THREE.Group();a.position.set(L.x+7,y,L.z+3);a.rotation.y=-1;g.add(a);const gm=mat({color:0x9aa39a,roughness:0.6});put(CY(0.15,0.2,0.7,8),gm,0,0.45,0,a);put(geo("alienH",()=>new THREE.SphereGeometry(0.32,12,10).scale(1,1.25,1)),gm,0,1.05,0,a);for(const sx of [-0.12,0.12])put(geo("alienE",()=>new THREE.SphereGeometry(0.09,8,6).scale(1.4,0.8,0.5)),KM.dark,sx,1.1,0.25,a);
+    addObstacle({type:"circle",x:L.x,z:L.z,r:6.2,tall:true});addObstacle({type:"circle",x:L.x+7,z:L.z+3,r:0.3});
+    L.chest={x:L.x+7,z:L.z+3,r:2.6,money:3000,msg:"Le visiteur te tend un objet brillant… +3 000 € (« Nous reviendrons »)"};}},
+  {id:"cendre",name:"Cendrebourg, le village fantôme",x:-6300,z:-2400,build(g,y,L){
+    const wm=mat({color:0x4a4440,map:KM.plank.map,roughness:1}),rm=mat({color:0x2a2624,roughness:1});
+    for(let i=0;i<7;i++){const a=i/7*6.28,x=L.x+Math.cos(a)*24,z=L.z+Math.sin(a)*24,yy=groundAt(x,z);walls(x-4,z-3,x+4,z+3,yy,3.2,wm,g,3,3);gableRoof(x-4.3,z-3.3,x+4.3,z+3.3,yy+3.2,2.2,rm,g);addObstacle({type:"box",x,z,hx:4,hz:3,tall:true,bld:true});deadTree(x+6,z+2,1.1,g);}
+    put(BX(5,1,0.15),signMat("Bienvenue à Cendrebourg","#2a2420","#c9b89a",{w:512,h:96}),L.x,y+2.4,L.z-14,g);put(CY(0.08,0.08,3,6),OM.wood,L.x-2.2,y+1.2,L.z-14,g);put(CY(0.08,0.08,3,6),OM.wood,L.x+2.2,y+1.2,L.z-14,g);
+    L.orbs=[];for(let i=0;i<5;i++){const o=new THREE.Mesh(geo("orb",()=>new THREE.SphereGeometry(0.25,10,8)),new THREE.MeshBasicMaterial({color:0xbfe8ff,transparent:true,opacity:0.7}));o.userData.keep=true;g.add(o);L.orbs.push(o);}
+    L.chest={x:L.x,z:L.z,r:2.4,money:2500,msg:"Dans le puits du village : une vieille boîte en fer… +2 500 €"};put(CY(1.2,1.3,1,12),KM.stone,L.x,y+0.5,L.z,g);addObstacle({type:"circle",x:L.x,z:L.z,r:1.3});}},
+  {id:"epave",name:"L'épave du vol AZ-404",x:-4800,z:1500,build(g,y,L){
+    const p=planeMesh(g,1);p.position.set(L.x,Math.max(y,WATER_Y)-1.6,L.z);p.rotation.set(0.12,0.7,0.35);const w=put(BX(14,0.35,5),WM2.plane,L.x+16,Math.max(y,WATER_Y)-0.3,L.z+9,g,0.4);w.rotation.z=0.25;
+    addObstacle({type:"box",x:L.x,z:L.z,hx:6,hz:6,tall:true});L.chest={x:L.x+3,z:L.z-8,r:2.6,money:4000,msg:"Une valise dans la soute : +4 000 € (et un vieux plan de l'aéroport)"};}},
+  {id:"tresor",name:"Le trésor de l'Île du Trésor",x:820,z:-412,build(g,y,L){
+    const c=new THREE.Group();c.position.set(L.x,y,L.z);g.add(c);put(BX(1.2,0.7,0.8),OM.wood,0,0.35,0,c);put(geo("chestLid",()=>new THREE.CylinderGeometry(0.4,0.4,1.2,10,1,false,0,Math.PI).rotateZ(Math.PI/2)),OM.wood,0,0.7,0,c);put(BX(1.24,0.1,0.84),KM.yellow,0,0.5,0,c);
+    for(let i=0;i<4;i++)put(geo("skull",()=>new THREE.SphereGeometry(0.16,8,6)),KM.white,Math.cos(i)*2,0.12,Math.sin(i)*2,g===null?c:c);addObstacle({type:"box",x:L.x,z:L.z,hx:0.7,hz:0.5});
+    L.chest={x:L.x,z:L.z,r:2.2,money:7500,msg:"Le coffre du pirate Barbe-Corail ! +7 500 €"};}},
+  {id:"tete",name:"La Tête de Pierre",x:-800,z:3600,build(g,y,L){
+    const sm=mat({color:0x8d877c,roughness:1});put(BX(5,9,4),sm,L.x,y+4.5,L.z,g);put(BX(5.4,2,1.4),sm,L.x,y+5.8,L.z+2.3,g);put(BX(1.2,3.2,1.6),sm,L.x,y+4.2,L.z+2.6,g);put(BX(5.2,1,4.2),sm,L.x,y+9.3,L.z,g);
+    for(const s of [-1.2,1.2])put(BX(1,0.5,0.2),KM.dark,L.x+s,y+6.6,L.z+2.05,g);addObstacle({type:"box",x:L.x,z:L.z,hx:2.6,hz:2.4,tall:true});
+    for(let i=0;i<10;i++)grassTuft(L.x+Math.cos(i)*7,L.z+Math.sin(i)*7,g);}},
+  {id:"cercle",name:"Le cercle de pierres",x:-5500,z:-1500,build(g,y,L){
+    for(let i=0;i<12;i++){const a=i/12*6.28,x=L.x+Math.cos(a)*9,z=L.z+Math.sin(a)*9,yy=groundAt(x,z);put(BX(1.2,3.6,0.8),WM2.rock,x,yy+1.8,z,g,a);addObstacle({type:"circle",x,z,r:0.7,tall:true});}
+    put(BX(3,0.5,1.2),WM2.rock,L.x,y+0.6,L.z,g);addObstacle({type:"box",x:L.x,z:L.z,hx:1.5,hz:0.6});}},
+  {id:"monstre",name:"Le monstre du Lac Miroir",x:-1800,z:-3500,lake:true,build(g,y,L){
+    L.humps=[];const m=mat({color:0x2a3a2a,roughness:0.5});for(let i=0;i<4;i++){const h=new THREE.Mesh(geo("hump",()=>new THREE.SphereGeometry(1.4,12,8,0,Math.PI*2,0,Math.PI/2)),m);h.userData.keep=true;g.add(h);L.humps.push(h);}
+    const hd=new THREE.Group();hd.userData.keep=true;g.add(hd);put(CY(0.5,0.7,4,8),m,0,2,0,hd);put(BX(0.9,0.8,1.6),m,0,4.2,0.5,hd);for(const s of [-0.3,0.3])put(geo("mEye",()=>new THREE.SphereGeometry(0.1,6,4)),KM.yellow,s,4.4,1.2,hd);L.head=hd;}}
+];
+const LMK={g:new Map()};
+function updateSecrets(dt){
+  const px=player.root.x,pz=player.root.z;
+  // étoiles : maillage seulement à moins de 70 m
+  for(const S of STARS){if(SECRET.stars.has(S.id))continue;const d=Math.hypot(S.x-px,S.z-pz);
+    if(d<70&&!S.m){const y=groundAt(S.x,S.z)+(waterDepth(S.x,S.z)>0?WATER_Y-groundAt(S.x,S.z):0);const g=new THREE.Group();g.position.set(S.x,y+1.3,S.z);g.add(new THREE.Mesh(starGeo,starMat));const gl=new THREE.Mesh(geo("starGlow",()=>new THREE.SphereGeometry(0.9,12,8)),starGlow);g.add(gl);scene.add(g);S.m=g;S.y=y;}
+    else if(d>90&&S.m){scene.remove(S.m);S.m=null;}
+    if(S.m){S.m.rotation.y+=dt*2;S.m.position.y=S.y+1.3+Math.sin(clockT*2+S.id)*0.15;
+      if(d<1.9&&Math.abs(player.root.y-S.y)<2.6){SECRET.stars.add(S.id);scene.remove(S.m);S.m=null;giveMoney(250);chime();rumble(120,0.5);
+        const n=SECRET.stars.size;misBanner("Étoile de Floralia "+n+" / "+STARS.length,n===STARS.length?"Toutes les étoiles ! Récompense : la Comète dorée t'attend":"+250 € · trouvée vers "+S.hint,"#ffd24a");
+        if(n===STARS.length&&!SECRET.gold){SECRET.gold=true;giveMoney(25000);spawnGoldCar();}}}}
+  // lieux secrets : construits à moins de 320 m, découverts à moins de 30 m
+  for(const L of LANDMARKS){const d=Math.hypot(L.x-px,L.z-pz);
+    const BR=L.lake?760:320;
+    if(d<BR&&!LMK.g.has(L.id)){const g=new THREE.Group(),obs=[];obsSink=obs;L.chest=null;L.build(g,groundAt(L.x,L.z),L);obsSink=null;bake(g);scene.add(g);LMK.g.set(L.id,{g,obs});}
+    else if(d>BR+140&&LMK.g.has(L.id)){const E=LMK.g.get(L.id);for(const o of E.obs)removeObstacle(o);E.g.traverse(o=>{if(o.isMesh&&!o.geometry.userData.shared)o.geometry.dispose();});scene.remove(E.g);LMK.g.delete(L.id);}
+    if(!LMK.g.has(L.id))continue;
+    if(d<30&&!SECRET.found.has(L.id)&&!L.lake){SECRET.found.add(L.id);giveMoney(500);chime();misBanner("Lieu secret découvert",L.name+" · +500 €","#b98aff");addSecretPOI(L);}
+    if(L.lights)L.lights.forEach((l,i)=>l.visible=Math.floor(clockT*3+i)%2===0);
+    if(L.orbs)L.orbs.forEach((o,i)=>{const a=clockT*0.4+i*1.3;o.position.set(L.x+Math.cos(a)*(10+i*3),groundAt(L.x,L.z)+1.5+Math.sin(clockT*1.3+i)*0.6,L.z+Math.sin(a*1.1)*(10+i*3));});
+    if(L.humps){const k=Math.max(0,Math.sin(clockT*0.18)),cx=L.x+Math.cos(clockT*0.05)*180,cz=L.z+Math.sin(clockT*0.05)*140;
+      L.humps.forEach((h,i)=>{const e=clockT*0.05+i*0.012;h.position.set(L.x+Math.cos(e)*180,WATER_Y-1.5+k*1.2*(1-i*0.12)+Math.sin(clockT*1.5+i)*0.15,L.z+Math.sin(e)*140);});
+      const e=clockT*0.05-0.014;L.head.position.set(L.x+Math.cos(e)*180,WATER_Y-4.5+k*4.2,L.z+Math.sin(e)*140);L.head.rotation.y=-e;
+      if(k>0.85&&!SECRET.found.has(L.id)&&Math.hypot(L.head.position.x-px,L.head.position.z-pz)<260){SECRET.found.add(L.id);giveMoney(1500);chime();misBanner("Tu l'as vu !","Le monstre du Lac Miroir existe… +1 500 €","#7fe0a0");addSecretPOI(L);}}
+  }
+}
+// coffres / objets : E (ou le bouton) tout près
+function trySecret(){
+  for(const L of LANDMARKS){const C=L.chest;if(!C||SECRET.looted.has(L.id))continue;if(Math.hypot(C.x-player.root.x,C.z-player.root.z)<C.r){SECRET.looted.add(L.id);giveMoney(C.money);chime();misBanner("Trésor !",C.msg,"#ffd24a");return true;}}
+  return false;
+}
+function secretNear(){for(const L of LANDMARKS){const C=L.chest;if(C&&!SECRET.looted.has(L.id)&&Math.hypot(C.x-player.root.x,C.z-player.root.z)<C.r)return true;}return false;}
+function addSecretPOI(L){if(!POIS.some(P=>P.name===L.name))POIS.push({type:"secret",x:L.x,z:L.z,name:L.name});}
+// la récompense finale : la Comète dorée (voiture)
+const GOLD_PAINT=mat({color:0xffc83a,metalness:0.95,roughness:0.18});
+function spawnGoldCar(){const f=fwdOf(player.yaw),x=player.root.x+f.x*5,z=player.root.z+f.z*5;const V=makeVehicle(x,z,player.yaw,GOLD_PAINT,null);V.owned=true;V.gold=true;hudMsg("La Comète dorée est à toi !");}
+function secretSave(){return {s:[...SECRET.stars],f:[...SECRET.found],l:[...SECRET.looted],g:SECRET.gold};}
+function secretLoad(d){if(!d)return;(d.s||[]).forEach(i=>{if(i>=0&&i<STARS.length)SECRET.stars.add(i|0);});(d.f||[]).forEach(i=>{const L=LANDMARKS.find(L=>L.id===i);if(L){SECRET.found.add(i);addSecretPOI(L);}});(d.l||[]).forEach(i=>SECRET.looted.add(String(i)));SECRET.gold=!!d.g;}
 // ================================================================ prendre les habits d'une personne à terre
 // Plus de bouton « Nouveau look » : pour changer de tenue, il faut mettre quelqu'un K.O. puis lui prendre
 // ses vêtements (E, bouton « Prendre les habits » sur téléphone, croix ↑ à la manette). Le corps reste en sous-vêtements.
@@ -7452,7 +7551,7 @@ function gatherSave(){
     player:{x:+player.root.x.toFixed(3),z:+player.root.z.toFixed(3),yaw:+player.yaw.toFixed(1),hp:Math.max(20,Math.round(player.hp)),stamina:Math.round(player.stamina??100),hand:player.hand,look:playerLook,endu:player.enduBoost||0},
     money,jog:jogOn,npc:npcTarget,voice:voiceOn,prints:showPrints,
     wanted:{level:wanted.level,heat:wanted.heat,x:wanted.lastSeenPos.x,z:wanted.lastSeenPos.z,ev:{...wanted.evidence}},
-    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave()};
+    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),taken:[...TAKEN].slice(-300)};
 }
 function saveGame(force){
   if(window.__noSave||galleryOn||(arrestEl.style.display==="flex"&&!force))return false;
@@ -7464,7 +7563,7 @@ function applySave(d){
   const P=d.player||{};
   if(P.look)try{setPlayerLook(P.look);}catch(e){}
   const x=clamp(+P.x||0,W_MIN+40,W_MAX-40),z=clamp(+P.z||0,W_MIN+40,W_MAX-40);
-  missionLoad(d.missions);player.enduBoost=clamp(+P.endu||0,0,4);
+  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
   player.root.set(x,0,z);pushOutOfObstacles(player.root,0.3);
   player.yaw=player.targetYaw=+P.yaw||0;player.vel.set(0,0,0);player.setRig(player.rig,true);
   player.hp=clamp(+P.hp||100,1,100);player.stamina=clamp(+P.stamina||100,0,100);
@@ -7494,6 +7593,7 @@ function newGame(){
   wanted.level=0;wanted.heat=0;wanted.lose=0;wanted.evidence={cctv:false,clothes:false,face:false};wanted.escapedT=-999;wanted.hot=null;
   if(player.ko)player.endKO();if(player.sit.state!=="none")player.standUp();
   if(player.handsUp)toggleHandsUp();
+  SECRET.stars.clear();SECRET.found.clear();SECRET.looted.clear();SECRET.gold=false;
   setPlayerLook(PLAYER_LOOK);
   applySave({player:{x:0,z:0,yaw:0,hp:100,stamina:100,hand:1},money:0,jog:false,npc:npcTarget,voice:voiceOn,prints:showPrints});
   saveGame(true);hudMsg("Nouvelle partie");
@@ -7716,7 +7816,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
@@ -7753,7 +7853,7 @@ function tick(dt,time){
     const L=player.L,R=player.R;
     window.__air=(window.__air||0)+((player.L.stepping&&player.R.stepping)?1:0);window.__maxH=Math.max(window.__maxH||0,player.height/(player.LEG*player.P.standRatio+player.P.ankleHeight));window.__dbg={fd:hdist(L.footPos,R.footPos),L:hdist(L.footPos,player.pelvisPos),R:hdist(R.footPos,player.pelvisPos),h:player.height,hMax:player.LEG*player.P.standRatio+player.P.ankleHeight,steps:player.stepCount,cross:new V3().subVectors(R.footPos,L.footPos).dot(rightOf(player.yaw)),spd:player.speed,n:walkers.length};
   }
-window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
+window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   const time=now/1000;

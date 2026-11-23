@@ -34,7 +34,7 @@ function terrColor(x,z,y,bio){
   if(y<WATER_Y+0.12){ // rivage, fond de l'eau
     const k=clamp01((WATER_Y+0.12-y)/3.5);
     if(bio==="bayou"||bio==="lac")c=[0.36-k*0.15,0.33-k*0.12,0.22-k*0.08];else c=[0.84-k*0.42,0.76-k*0.32,0.56-k*0.18];}
-  else if(y>22){const k=clamp01((y-22)/18);c=[lerp(c[0],0.56,k),lerp(c[1],0.54,k),lerp(c[2],0.5,k)];if(y>46){const s=clamp01((y-46)/8);c=[lerp(c[0],0.9,s),lerp(c[1],0.92,s),lerp(c[2],0.94,s)];}}
+  else if(y>26){const k=clamp01((y-26)/16);c=[lerp(c[0],0.47,k),lerp(c[1],0.46,k),lerp(c[2],0.44,k)];if(y>52){const s=clamp01((y-52)/8);c=[lerp(c[0],0.93,s),lerp(c[1],0.95,s),lerp(c[2],0.98,s)];}}
   const n=(vnoise(x/23,z/23,2)-0.5)*0.16+(vnoise(x/7,z/7,4)-0.5)*0.06;
   _tc.setRGB(clamp01(c[0]+n),clamp01(c[1]+n*1.1),clamp01(c[2]+n*0.6),THREE.SRGBColorSpace);return _tc;
 }
