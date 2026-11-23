@@ -317,7 +317,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
       if(G.water){P(10,(x,z)=>{if(ok(x,z,1,true))put(geo("lily",()=>new THREE.CircleGeometry(0.45,8).rotateX(-Math.PI/2)),WM2.lily,x,WATER_Y+0.012,z,detail);});
         P(10,(x,z)=>{if(ok(x,z,0.5,true)&&waterDepth(x,z)<0.7)grassTuft(x,z,detail,KMP_BUSH);});
         if(r()<0.45){const x=X+r()*30-15,z=Z+r()*30-15;if(ok(x,z,2,true))gatorAt(x,z,detail,r);}
-        if(r()<0.08){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,3,true)&&waterDepth(x,z)>0.4)airboat(x,z,r()*6,mid);}}
+        if(r()<0.1){const x=X+r()*20-10,z=Z+r()*20-10;if(ok(x,z,3,true)&&waterDepth(x,z)>0.4)addBoatSpot(x,z,r()*360,"airboat");}}
       if(r()<0.07){const x=X+r()*16-8,z=Z+r()*16-8;if(!onAnyRoad(x,z,6)&&!inGridArea(x,z))stiltShack(x,z,mid,r,cell);}
       break;
     case "plage": case "cayo":

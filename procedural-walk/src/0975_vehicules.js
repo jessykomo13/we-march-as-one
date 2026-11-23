@@ -20,12 +20,17 @@ body.driving.touch #kickBtn,body.driving.touch #crouchBtn,body.driving.touch #ai
 body.driving.touch #runBtn{display:none!important}`;document.head.appendChild(st);}
 function makeVehicle(x,z,yawDeg,paint,kind){
   const m=carMesh(paint,kind,null);scene.add(m);m.traverse(o=>{if(o.isMesh){o.castShadow=true;}});
-  const head=new THREE.Mesh(geo("drvHead",()=>new THREE.SphereGeometry(0.13,10,8)),mat({color:playerLook?.skin||"#e3ac88"}));head.position.set(0.38,1.25,0.15);head.visible=false;m.add(head);
+  const head=driverDummy();head.position.set(0.38,0,0.15);head.visible=false;m.add(head);
   const V={m,head,x,z,yaw:yawDeg,vel:new V3(),v:0,steer:0,y:groundAt(x,z),vy:0,paint,kind,hp:100,van:kind==="van",owned:false,lastUse:clockT,o:null,pitch:0,roll:0,sink:0};
   V.o=addObstacle({type:"circle",x,z,r:1.25,veh:V});VEH.push(V);placeVehicle(V);return V;
 }
 function placeVehicle(V){V.m.position.set(V.x,V.y,V.z);V.m.rotation.set(0,Math.PI-V.yaw*D2R,0,"YXZ");V.m.rotation.x=V.pitch;V.m.rotation.z=V.roll;}
 function removeVehicle(V){scene.remove(V.m);if(V.o){removeObstacle(V.o);V.o=null;}const i=VEH.indexOf(V);if(i>=0)VEH.splice(i,1);}
+// silhouette du conducteur (buste + tête + cheveux) aux couleurs du joueur
+function driverDummy(){const g=new THREE.Group();g.userData.parts={torso:put(BX(0.46,0.5,0.28),mat({color:"#335"}),0,0.98,0,g),head:put(geo("drvHead",()=>new THREE.SphereGeometry(0.13,10,8)),mat({color:"#e3ac88"}),0,1.33,0,g),
+  hair:put(geo("drvHair",()=>new THREE.SphereGeometry(0.135,10,6,0,Math.PI*2,0,Math.PI/2)),mat({color:"#222"}),0,1.35,-0.01,g)};
+  for(const s of [-1,1]){const a=put(BX(0.11,0.11,0.42),g.userData.parts.torso.material,s*0.2,1.0,0.25,g);a.rotation.x=-0.5;}return g;}
+function dressDriver(g){const L=playerLook||{},P=g.userData.parts;P.torso.material.color.set(L.jacket||L.topColor||"#335");P.head.material.color.set(L.skin||"#e3ac88");P.hair.material.color.set(L.hairColor||"#222");P.hair.visible=L.hair!=="bald";}
 // voiture garée la plus proche (cuite dans le décor) ou véhicule libre
 function nearestCar(p,R=3.4){
   let best=null,bd=R;
@@ -36,8 +41,9 @@ function nearestCar(p,R=3.4){
 // on « retire » la voiture cuite du décor (ses triangles sont repliés) et on la remplace par une vraie
 function unbakeParked(pc){for(const R of pc.ranges||[]){const P=R.mesh.geometry.attributes.position;for(let k=R.start;k<R.start+R.count;k++)P.setXYZ(k,pc.x,-60,pc.z);P.needsUpdate=true;}}
 function tryEnterVehicle(){
-  if(drive||player.ko||player.swim||player.fly||player.sit.state!=="none")return false;
+  if(drive||player.ko||player.fly||player.sit.state!=="none")return false;
   const n=nearestCar(player.root);if(!n)return false;
+  if(player.swim&&!(n.V&&n.V.boat))return false;
   let V=n.V;
   if(n.pc){const pc=n.pc;TAKEN.add(carKey(pc.x,pc.z));unbakeParked(pc);removeObstacle(n.o);
     V=makeVehicle(pc.x,pc.z,180-pc.ry/D2R,pc.paint,pc.kind);V.stolen=true;}
@@ -45,21 +51,25 @@ function tryEnterVehicle(){
 }
 function enterVehicle(V){
   drive=V;if(V.o){removeObstacle(V.o);V.o=null;}
-  player.rig.model.visible=false;V.head.visible=true;V.head.material.color.set(playerLook?.skin||"#e3ac88");document.body.classList.add("driving");
+  player.rig.model.visible=false;V.head.visible=true;dressDriver(V.head);document.body.classList.add("driving");
   player.vel.set(0,0,0);V.lastUse=clockT;DRV.camDist0=cam.dist;
   if(V.stolen&&!V.owned){V.owned=true;// vol de voiture : délit si quelqu'un le voit
     const victim={isCop:false,_crime:null,brain:{},root:V.m.position};registerCrime(victim,false);
     hudMsg(pick(["Voiture volée !","Tu as forcé la portière…","Le moteur démarre. Fonce !"]));}
-  else hudMsg("En voiture !");
+  else hudMsg(V.boat?(V.kind==="airboat"?"Hydroglisseur ! Fonce dans le bayou":"À la barre !"):"En voiture !");
   engineNodes();playSound("slap",0.06);
 }
 function exitVehicle(force){
   const V=drive;if(!V)return;
   if(!force&&Math.abs(V.v)>4){hudMsg("Ralentis pour descendre");return;}
   const f=fwdOf(V.yaw),r=rightOf(V.yaw);
-  let p=null;for(const side of [-1,1]){const q=new V3(V.x,0,V.z).addScaledVector(r,side*2.0).addScaledVector(f,0.3);pushOutOfObstacles(q,0.45);if(hdist(q,new V3(V.x,0,V.z))>1.3){p=q;break;}}
+  let p=null;
+  if(V.boat){p=boatExitSpot(V);if(!p){drive=null;V.head.visible=false;V.v=0;V.vel.set(0,0,0);V.o=addObstacle({type:"circle",x:V.x,z:V.z,r:1.5,veh:V});
+      player.root.set(V.x+r.x*2.4,WATER_Y-1.2,V.z+r.z*2.4);player.swim={t:0,dive:0};player.gy=WATER_Y-1.2;player.lastOk.copy(player.root);player.rig.model.visible=true;document.body.classList.remove("driving");speedoEl.style.display="none";
+      if(DRV.eng)DRV.eng.g.gain.setTargetAtTime(0,actx.currentTime,0.1);cam.dist=DRV.camDist0||cam.dist;hudMsg("Plouf ! Tu nages.");return;}}
+  else for(const side of [-1,1]){const q=new V3(V.x,0,V.z).addScaledVector(r,side*2.0).addScaledVector(f,0.3);pushOutOfObstacles(q,0.45);if(hdist(q,new V3(V.x,0,V.z))>1.3){p=q;break;}}
   if(!p)p=new V3(V.x,0,V.z).addScaledVector(f,-3.2);
-  drive=null;V.head.visible=false;V.v=0;V.vel.set(0,0,0);V.o=addObstacle({type:"circle",x:V.x,z:V.z,r:1.25,veh:V});
+  drive=null;V.head.visible=false;V.v=0;V.vel.set(0,0,0);V.o=addObstacle({type:"circle",x:V.x,z:V.z,r:V.boat?1.5:1.25,veh:V});
   player.root.set(p.x,0,p.z);player.yaw=player.targetYaw=V.yaw;player.vel.set(0,0,0);player.setRig(player.rig,true);player.gy=player.root.y=groundAt(p.x,p.z);player.lastOk.copy(player.root);
   player.rig.model.visible=true;document.body.classList.remove("driving");speedoEl.style.display="none";
   if(DRV.eng)DRV.eng.g.gain.setTargetAtTime(0,actx.currentTime,0.1);
@@ -128,19 +138,20 @@ function stepVehicle(V,dt,inp){
 // la circulation voit la voiture du joueur (elle freine derrière)
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3)?"E : conduire":"");hintEl.style.display=t?"block":"none";hintEl.textContent=t;}
+  updateBoatSpots(dt);
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":"E : conduire"):"");hintEl.style.display=t?"block":"none";hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
     if(sitRequest){sitRequest=false;exitVehicle(false);}
-    if(drive){const inp=menuOpen||mapOpen?{thr:0,st:0,hand:true}:driveInput();stepVehicle(V,dt,inp);
+    if(drive){const inp=menuOpen||mapOpen?{thr:0,st:0,hand:true}:driveInput();(V.boat?stepBoat:stepVehicle)(V,dt,inp);
       player.root.set(V.x,V.y,V.z);player.gy=V.y;player.lastOk.copy(player.root);player.yaw=player.targetYaw=V.yaw;player.vel.copy(V.vel);player.air=null;player.swim=null;
       if(cam.dist<6.5)cam.dist=lerp(cam.dist,7.2,1-Math.exp(-3*dt));
       if(clockT-lastCamInput>1.2&&Math.abs(V.v)>2){const want=V.v>0?V.yaw:V.yaw+180;cam.yaw+=deltaAngle(cam.yaw,want)*(1-Math.exp(-2.2*dt));cam.pitch=lerp(cam.pitch,12,1-Math.exp(-1.5*dt));}
       const kmh=Math.round(Math.abs(V.v)*3.6);speedoEl.style.display="block";speedoEl.innerHTML=`${kmh}<small>KM/H${V.hp<40?" · MOTEUR ABÎMÉ":""}</small>`;
-      if(DRV.eng){const t=actx.currentTime,rpm=0.25+Math.abs(V.v)/40;DRV.eng.o1.frequency.setTargetAtTime(38+rpm*110,t,0.05);DRV.eng.o2.frequency.setTargetAtTime(19+rpm*55,t,0.05);DRV.eng.f.frequency.setTargetAtTime(300+rpm*900,t,0.05);DRV.eng.g.gain.setTargetAtTime(menuOpen?0:0.05+Math.min(0.06,Math.abs(inp.thr)*0.05),t,0.08);}
+      if(DRV.eng){const t=actx.currentTime,rpm=0.25+Math.abs(V.v)/40;DRV.eng.o1.frequency.setTargetAtTime((V.boat?60:38)+rpm*(V.boat?160:110),t,0.05);DRV.eng.o2.frequency.setTargetAtTime(19+rpm*55,t,0.05);DRV.eng.f.frequency.setTargetAtTime(300+rpm*900,t,0.05);DRV.eng.g.gain.setTargetAtTime(menuOpen?0:0.05+Math.min(0.06,Math.abs(inp.thr)*0.05),t,0.08);}
       if(DRV.horn>0){if(!DRV.hornOn){DRV.hornOn=true;hornSound(1);for(const w of walkers)if(w!==player&&!w.ko&&hdist(w.root,player.root)<12&&w.brain&&Math.random()<0.5)bark(w,["Hé, doucement !","Ça va pas ?!","Oh là !"]);}DRV.horn-=dt;}else DRV.hornOn=false;
-      if(V.sink>1.2){hudMsg("La voiture coule ! Nage !");const S=V;exitVehicle(true);player.root.set(S.x,WATER_Y-1.2,S.z);player.swim={t:0,dive:0};player.gy=WATER_Y-1.2;S.sinking=true;}
+      if(!V.boat&&V.sink>1.2){hudMsg("La voiture coule ! Nage !");const S=V;exitVehicle(true);player.root.set(S.x,WATER_Y-1.2,S.z);player.swim={t:0,dive:0};player.gy=WATER_Y-1.2;S.sinking=true;}
     }
   }
   // véhicules libres : se posent, coulent, disparaissent quand on est loin
@@ -150,8 +161,8 @@ function updateVehicles(dt){
 }
 // bouton contextuel (mobile) : Conduire / Descendre
 function driveCtx(sit){
-  if(drive){sit.style.display="block";sit.textContent="Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
+  if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
   document.getElementById("punchBtn").textContent="Poing";document.getElementById("guardBtn").textContent="Garde";
-  if(player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3)){sit.style.display="block";sit.textContent="Conduire";return true;}
+  if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":"Conduire";return true;}}
   return false;
 }
