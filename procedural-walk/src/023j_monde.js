@@ -433,23 +433,40 @@ const FAR={N:96,S:50,mesh:null,cx:1e9,cz:1e9,base:null,pending:null,pcx:1e9,pcz:
   FAR.base=new Float32Array(gm.attributes.position.count);
 }
 function farSample(x,z,c){
-  if(x<W_MIN||x>W_MAX||z<W_MIN||z>W_MAX){_tc.setRGB(0.24,0.42,0.52,THREE.SRGBColorSpace);c.copy(_tc);return WATER_Y-0.4;}
+  if(x<W_MIN||x>W_MAX||z<W_MIN||z>W_MAX){const cz=clamp(z,W_MIN,W_MAX);if(x>coastX(cz)+300){_tc.setRGB(0.24,0.42,0.52,THREE.SRGBColorSpace);c.copy(_tc);FAR.lastBio=null;return WATER_Y-0.4;}
+    const out=Math.max(W_MIN-x,x-W_MAX,W_MIN-z,z-W_MAX,0),y=150+out*0.12+vnoise(x/300,z/300,61)*60;const s=clamp01((y-150)/60);_tc.setRGB(lerp(0.5,0.92,s),lerp(0.48,0.94,s),lerp(0.45,0.97,s),THREE.SRGBColorSpace);c.copy(_tc);FAR.lastBio=null;return y;}
+  FAR.lastBio=null;
   if(inGridArea(x,z)){const v=0.55+vnoise(x/60,z/60,3)*0.15;_tc.setRGB(v,v*0.98,v*0.95,THREE.SRGBColorSpace);c.copy(_tc);return -0.1;}
   let y=inOldSea(x,z)?seaFloor(x,z):rawLand(x,z);
   if(y<WATER_Y){const b=bayouK(x,z)>0.05&&!inOldSea(x,z);_tc.setRGB(b?0.25:0.17,b?0.32:0.42,b?0.22:0.52,THREE.SRGBColorSpace);c.copy(_tc);return WATER_Y-0.02;}
   if(rectDist(AIR_RECT,x,z)<1){_tc.setRGB(0.45,0.5,0.4,THREE.SRGBColorSpace);c.copy(_tc);return y;}
-  const bio=biomeAt(x,z);c.copy(terrColor(x,z,y,bio));if(bio==="foret"||bio==="bayou"){c.multiplyScalar(0.72);y+=6;}else if(bio==="orangeraie")c.multiplyScalar(0.85);return y;
+  const bio=biomeAt(x,z);FAR.lastBio=bio;c.copy(terrColor(x,z,y,bio));if(bio==="foret"||bio==="bayou"||bio==="jungle"||bio==="pinede")c.multiplyScalar(0.8);else if(bio==="orangeraie")c.multiplyScalar(0.9);return y;
 }
+const FARTREE_N=11000,FT_DENS={foret:5,pinede:5,jungle:5,bambou:3,orangeraie:1.4,verger:1.4,palmeraie:1.6,bayou:2,montagne:0.6,lande:0.7,prairie:0.7,fleurs:0.5,savane:0.5,mangrove:1.6,riviere:0.8,ferme:0.5,ranch:0.25,vigne:0.3,champ:0.2,mais:0.1,lavande:0.15,tournesol:0.15,mesa:0.35,dunes:0.15,cayo:1,ilot:1};
+const FT_KIND={pinede:1,montagne:1,lande:1,foret:2,mesa:3,palmeraie:4,savane:4,cayo:4,ilot:4,dunes:4,mangrove:2,jungle:2};
+function ftGeo(k){const parts=[],col=(g,c)=>{g=g.toNonIndexed();const n=g.attributes.position.count,a=new Float32Array(n*3);_tc.set(c);_tc.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_tc.r;a[i*3+1]=_tc.g;a[i*3+2]=_tc.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);};
+  if(k===0){col(new THREE.CylinderGeometry(0.3,0.45,4,5).translate(0,2,0),"#5b4030");col(new THREE.ConeGeometry(2.6,8,6).translate(0,7,0),"#2f5532");}
+  else if(k===1){col(new THREE.CylinderGeometry(0.3,0.45,4,5).translate(0,2,0),"#5b4030");col(new THREE.IcosahedronGeometry(3.2,0).scale(1,1.1,1).translate(0,6.4,0),"#4f6e34");}
+  else if(k===2){col(new THREE.CylinderGeometry(0.45,0.55,4.5,6).translate(0,2.25,0),"#4f7a3a");}
+  else{col(new THREE.CylinderGeometry(0.2,0.3,7,5).translate(0,3.5,0),"#6b4a33");col(new THREE.ConeGeometry(2.6,1.6,6).translate(0,7.4,0),"#4e7a3a");}
+  const g=mergeGeometries(parts);parts.forEach(q=>q.dispose());return g;}
+const farTrees=[0,1,2,3].map(k=>{const m=new THREE.InstancedMesh(ftGeo(k),new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}),k<2?6000:2500);m.count=0;m.frustumCulled=false;m.castShadow=false;scene.add(m);return m;});
+FAR.trees=[];
 function farRebuild(){ // construit en plusieurs images (pas de saccade)
   const P=FAR.pending;if(!P)return;const N=FAR.N,pos=FAR.mesh.geometry.attributes.position,col=FAR.mesh.geometry.attributes.color,c=new THREE.Color(),half=N*FAR.S/2;
-  for(let k=0;k<6&&P.row<=N;k++,P.row++){for(let i=0;i<=N;i++){const x=P.x0+i*FAR.S,z=P.z0+P.row*FAR.S;P.h[P.row*(N+1)+i]=farSample(x,z,c);P.c.set([c.r,c.g,c.b],(P.row*(N+1)+i)*3);}}
-  if(P.row>N){FAR.base.set(P.h);col.array.set(P.c);col.needsUpdate=true;FAR.mesh.position.set(P.x0+half,0,P.z0+half);FAR.cx=P.cx;FAR.cz=P.cz;FAR.pending=null;FAR.pcx=1e9;farSink();FAR.mesh.visible=true;}
+  if(!P.trees)P.trees=[];
+  for(let k=0;k<6&&P.row<=N;k++,P.row++){for(let i=0;i<=N;i++){const x=P.x0+i*FAR.S,z=P.z0+P.row*FAR.S;const y=farSample(x,z,c);P.h[P.row*(N+1)+i]=y;P.c.set([c.r,c.g,c.b],(P.row*(N+1)+i)*3);
+    const bio=FAR.lastBio,dn=bio&&y>WATER_Y?FT_DENS[bio]||0:0;let n=Math.floor(dn)+(hash(x*0.13+z*0.71)<dn%1?1:0);const cap=FARTREE_N*clamp(+(SET.farView??1),0.3,1.2);while(n-->0&&P.trees.length<cap){const tx=x+(hash(x*1.7+z*0.3+n)-0.5)*FAR.S,tz=z+(hash(x*0.9+z*2.3+n)-0.5)*FAR.S;P.trees.push([tx,y,tz,(FT_KIND[bio]||2)-1,0.8+hash(tx+tz)*0.6]);}}}
+  if(P.row>N){FAR.base.set(P.h);FAR.trees=P.trees;col.array.set(P.c);col.needsUpdate=true;FAR.mesh.position.set(P.x0+half,0,P.z0+half);FAR.cx=P.cx;FAR.cz=P.cz;FAR.pending=null;FAR.pcx=1e9;farSink();FAR.mesh.visible=true;}
 }
 // sous les zones chargées, le paysage lointain s'enfonce (les vraies zones sont dessinées par-dessus)
 function farSink(){const N=FAR.N,pos=FAR.mesh.geometry.attributes.position,pcx=chunkOf(player.root.x),pcz=chunkOf(player.root.z);if(pcx===FAR.pcx&&pcz===FAR.pcz)return;FAR.pcx=pcx;FAR.pcz=pcz;
   const R=(LOAD_R+0.5)*CHUNK-6,ox=FAR.mesh.position.x-N*FAR.S/2,oz=FAR.mesh.position.z-N*FAR.S/2;
   for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){const k=j*(N+1)+i,x=ox+i*FAR.S,z=oz+j*FAR.S;const inside=Math.abs(x-pcx*CHUNK)<R&&Math.abs(z-pcz*CHUNK)<R;pos.setY(k,inside?FAR.base[k]-25:FAR.base[k]-0.45);}
-  pos.needsUpdate=true;FAR.mesh.geometry.computeVertexNormals();}
+  pos.needsUpdate=true;FAR.mesh.geometry.computeVertexNormals();
+  // arbres lointains : seulement hors des zones chargées
+  const mm=new THREE.Matrix4(),cnt=[0,0,0,0];for(const [x,y,z,k,s] of FAR.trees){if(Math.abs(x-pcx*CHUNK)<R+20&&Math.abs(z-pcz*CHUNK)<R+20)continue;const M=farTrees[k];if(cnt[k]>=M.instanceMatrix.count)continue;mm.makeScale(s,s,s).setPosition(x,y-0.3,z);M.setMatrixAt(cnt[k]++,mm);}
+  farTrees.forEach((M,k)=>{M.count=cnt[k];M.instanceMatrix.needsUpdate=true;});}
 function updateFar(dt){
   const snap=400,cx=Math.round(player.root.x/snap)*snap,cz=Math.round(player.root.z/snap)*snap;
   if(!FAR.pending&&(cx!==FAR.cx||cz!==FAR.cz)){const N=FAR.N,half=N*FAR.S/2;FAR.pending={cx,cz,x0:cx-half,z0:cz-half,row:0,h:new Float32Array((N+1)*(N+1)),c:new Float32Array((N+1)*(N+1)*3)};}
