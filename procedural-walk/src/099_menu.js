@@ -92,7 +92,7 @@ function renderMenu(){
       const dis=menuTab==="load"&&!d?" disabled":"";const conf=confirmK===k?(menuTab==="save"?" — confirmer l'écrasement ?":" — confirmer ?"):"";
       return `<button data-nav class="slot" data-slot="${k}"${dis}><b>${name}${conf}</b><small>${slotLabel(d)}</small></button>`;}).join("")+T("back","Retour")+`</div>`;
   }else if(menuTab==="keys"){
-    h+=`<div class="keysgrid"><div><b>Clavier</b><br>ZQSD / WASD marcher · Shift sprint · X jogging · Ctrl s'accroupir · F / clic poing · C / clic droit pied · L coup le plus fort · Espace garde · E s'asseoir · J se rendre · Y saluer · I provoquer · R caméra épaule · Tab carte · G mode créatif (2× Espace voler) · H debug · F9 sauver · Échap menu</div>
+    h+=`<div class="keysgrid"><div><b>Clavier</b><br>E conduire une voiture garée, braquer une voiture arrêtée, piloter un bateau, fouiller · en voiture : Z/W gaz, S frein, Q/A D tourner, Espace frein à main, F klaxon · ZQSD / WASD marcher · Shift sprint · X jogging · Ctrl s'accroupir · F / clic poing · C / clic droit pied · L coup le plus fort · Espace garde · E s'asseoir · J se rendre · Y saluer · I provoquer · R caméra épaule · Tab carte · G mode créatif (2× Espace voler) · H debug · F9 sauver · Échap menu</div>
       <div><b>Manette</b><br>${PADMAP.map(m=>m[1]).join(" · ").replace("Start : aide manette","Start : menu")}</div>
       <div><b>Téléphone</b><br>Pouce gauche : joystick où tu poses le doigt · glisser à droite : caméra · pincer : zoom · boutons Poing, Pied, Garde, Courir, Accroupi, Épaule · ☰ : menu</div></div>`+`<div class="col">${T("back","Retour")}</div>`;
   }
