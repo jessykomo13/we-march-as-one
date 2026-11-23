@@ -9,6 +9,7 @@ function streetAt(x,z){
     return dx<dz?AVENUES[md(ix+NCH+o,AVENUES.length)]:RUES[md(iz+NCH+o,RUES.length)];}
   const [H,d]=nearestHwy(x,z);if(d<hwyHalf(H)+3)return bridgeAt(x,z)?(H.id==="A3C"?"Pont des Cayos":"Pont · "+H.name):H.name;
   if(rectDist(AIR_RECT,x,z)<1)return AIRPORT.name;
+  {const cx=Math.round(x/CHUNK),cz=Math.round(z/CHUNK),lk=lieuAt(cx,cz);if(lk&&Math.hypot(x-cx*CHUNK,z-cz*CHUNK)<24)return lieuName(lk,cx,cz);}
   const K=keyAt(x,z);if(K)return K.name;
   for(const L of LAKES)if(Math.hypot(x-L.x,z-L.z)<L.r*1.15)return L.name;
   return regionName(x,z)||BIO_LABEL[biomeAt(x,z)]||"Campagne";
@@ -39,7 +40,7 @@ POIS.push({type:"depart",x:0,z:0,name:"Point de départ"});
 for(const I of ISLANDS)POIS.push({type:"ile",x:I.x,z:I.z,name:I.name});POIS.push({type:"plonge",x:644,z:300,name:"Ponton de plongée"});POIS.push({type:"port",x:646,z:-425,name:"Port de la Vigie (quais)"},{type:"port",x:620,z:-312,name:"Quai de pêche"});
 POIS.push({type:"ville",x:184,z:-1180,name:"Port-Soleil"});
 const TOWN_LABELS=[{x:0,z:0,name:"AZURIA"},...TOWNS.map(T=>({x:(T.i0+T.i1)/2*CHUNK,z:(T.j0+T.j1)/2*CHUNK,name:T.name}))];
-const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"],motel:["🛏","#e86aa0"],camping:["⛺","#5fae5a"],lac:["🎣","#5fc4e0"],avion:["✈","#9fd0ff"],nature:["🐊","#7fae5a"],secret:["★","#b98aff"],port:["⚓","#7fb0d8"]};
+const POI_ICON={tour:["🏙","#9fb3d0"],ville:["🏘","#ffffff"],aire:["🅿","#5fa0e0"],relais:["🍔","#e0a04a"],ile:["🏝","#e8d29a"],plonge:["🤿","#5fc4e0"],parc:["🌳","#5fae5a"],vue:["🔭","#e0b44a"],jeux:["🛝","#e08a4a"],depart:["⭐","#ffffff"],police:["🚓","#3a6ad0"],hopital:["🏥","#e04a4a"],ecole:["🏫","#e0b44a"],station:["⛽","#2fa060"],eglise:["⛪","#c9b48a"],super:["🛒","#e05a4a"],marche:["🍎","#e08a4a"],sport:["🏀","#e07a3a"],plage:["🏖","#e8d29a"],motel:["🛏","#e86aa0"],camping:["⛺","#5fae5a"],lac:["🎣","#5fc4e0"],avion:["✈","#9fd0ff"],nature:["🐊","#7fae5a"],secret:["★","#b98aff"],lieu:["📍","#e8c070"],port:["⚓","#7fb0d8"]};
 // --- itinéraire GPS : on suit le quadrillage des rues (plus court chemin entre carrefours)
 let waypoint=null,route=null,routeT=0,routeLen=0;
 const NODE=(i,j)=>({i,j,x:i*CHUNK-16,z:j*CHUNK-16});

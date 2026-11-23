@@ -221,6 +221,7 @@ const ROADSIDE=new Map();
 function countryTypeAt(cx,cz){
   if(inAirport(cx,cz))return "aeroport";
   const R=ROADSIDE.get(cx+","+cz);if(R)return R.kind;
+  const LI=lieuAt(cx,cz);if(LI)return "lieu_"+LI;
   return biomeAt(cx*40,cz*40);
 }
 const ROADSIDE_NAMES={station_route:["Station Azur","Station du Soleil","Station Coralis","Station Phare"],motel:["Motel Flamingo","Motel Palmeraie","Motel Lune Rose","Motel Horizon"],diner:["Diner Rétro 59","Chez Dolly","Le Comet Diner","Sunny Diner"],relais:["Le Relais des Routiers"],camping:["Camping des Pins","Camping Bel-Air"],aire:["Aire de repos de la Garrigue"]};
@@ -267,6 +268,7 @@ function buildCountry(ch,X,Z,r,base,mid,detail){
   const t=ch.type;
   if(t==="aeroport"){buildAirport(ch,X,Z,r,base,mid,detail);return;}
   if(ROADSIDE.has(ch.cx+","+ch.cz)){buildRoadside(ch,X,Z,r,base,mid,detail);return;}
+  if(t.startsWith("lieu_")){lieuBuild(ch,X,Z,r,base,mid,detail);return;}
   const ok=(x,z,m=1.5,wet=false)=>{if(inGridArea(x,z)||onAnyRoad(x,z,m+1)||rectDist(AIR_RECT,x,z)<4)return false;const d=waterDepth(x,z);return wet?d>0.15:d<0.02;};
   const P=(n,f)=>{for(let i=0;i<n;i++){const x=X-19+r()*38,z=Z-19+r()*38;f(x,z,i);}};
   let hmin=1e9,hmax=-1e9;for(let a=-20;a<=20;a+=10)for(let b=-20;b<=20;b+=10){const h=nodeH(Math.round((X+a)/4),Math.round((Z+b)/4));hmin=Math.min(hmin,h);hmax=Math.max(hmax,h);}
@@ -478,6 +480,7 @@ function updateFar(dt){
   for(const m of worldMovers.slice()){if(!m.o.parent||!m.o.parent.parent){worldMovers.splice(worldMovers.indexOf(m),1);continue;}
     if(m.kind==="bob"){m.o.position.y=WATER_Y+Math.sin(clockT*1.1+m.ph)*0.07;m.o.rotation.z=Math.sin(clockT*0.9+m.ph)*0.04;}
     else if(m.kind==="gator")updateGator(m,dt);
+    else if(m.kind==="screen"){const k=(clockT*0.07+m.ph)%1;m.o.material.color.setHSL(k,0.35,0.45+0.15*Math.sin(clockT*3));}
     else if(m.kind==="pump")m.o.rotation.x=Math.sin(clockT*1.6+m.ph)*0.32;
     else if(m.kind==="tumble"){const k=((clockT*2.2+m.ph*10)%46)-23,x=m.x0+k,z=m.z0+Math.sin(clockT*0.7+m.ph)*3;m.o.position.set(x,groundAt(x,z)+0.45+Math.abs(Math.sin(clockT*3+m.ph))*0.35,z);m.o.rotation.z-=dt*5;}}
   updateAirplanes(dt);if(!WMAP.done&&!mapOpen)worldMapStep(1.5);CH_WATER.map.offset.x=(clockT*0.03)%1;
