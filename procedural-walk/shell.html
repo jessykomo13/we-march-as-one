@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Procedural Walk</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#c7d0db;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{display:block}
+  #hud{position:fixed;left:12px;top:12px;background:rgba(16,18,24,.72);color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;max-width:calc(100vw - 260px);pointer-events:none;backdrop-filter:blur(6px)}
+  #hud b{color:#ffb070}
+  #step{font-variant-numeric:tabular-nums}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#222;font-size:16px;pointer-events:none}
+  #side{position:fixed;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  #side button{background:rgba(16,18,24,.72);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer}
+  #bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .bubble{position:absolute;background:#fff;color:#111;padding:7px 12px;border-radius:14px;font-size:14px;font-weight:600;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+  .bubble:after{content:'';position:absolute;left:50%;bottom:-7px;margin-left:-7px;border:7px solid transparent;border-top-color:#fff;border-bottom:0}
+  #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,0,0,0) 40%,rgba(200,0,0,.85));opacity:0}
+  #hpBar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);width:280px;height:22px;background:rgba(16,18,24,.7);border-radius:11px;overflow:hidden;pointer-events:none}
+  #hpFill{height:100%;width:100%;background:#4cd964;transition:width .15s}
+  #hpTxt{position:absolute;left:12px;top:2px;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 2px #000}
+  #hand{position:absolute;right:12px;top:3px;color:#ddd;font-size:12px}
+  #money{position:fixed;left:50%;bottom:46px;transform:translateX(-50%);color:#7dffa1;font-weight:800;font-size:18px;text-shadow:0 2px 4px #000;pointer-events:none}
+  .touch #money{bottom:auto;top:146px}
+  #stars{position:fixed;right:14px;top:132px;font-size:24px;letter-spacing:1px;pointer-events:none;text-shadow:0 2px 4px #000}
+  .st{color:rgba(255,255,255,.14)}.st.on{color:#fff}.st.dim{color:rgba(255,255,255,.3)}.st.red{color:#ff3b30}
+  .st.hollow{color:transparent;-webkit-text-stroke:1.5px #fff}
+  #evidence{position:fixed;right:14px;top:166px;display:flex;gap:4px;pointer-events:none}
+  #evidence span{background:#c8102e;color:#fff;font-size:10px;font-weight:800;padding:3px 6px;border-radius:4px;letter-spacing:.5px}
+  #stamBar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);width:280px;height:5px;background:rgba(16,18,24,.6);border-radius:3px;overflow:hidden;pointer-events:none}
+  #stamFill{height:100%;width:100%;background:#4db8ff}
+  .touch #stamBar{bottom:auto;top:145px}
+  #msg{position:fixed;left:50%;top:22%;transform:translateX(-50%);color:#fff;font-size:20px;font-weight:800;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+  #minimap{position:fixed;left:16px;bottom:16px;width:170px;height:170px;pointer-events:none}
+  .touch #minimap{left:auto;right:12px;bottom:auto;top:170px;width:120px;height:120px}
+  #arrest{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#fff;font-size:86px;font-weight:900;letter-spacing:6px;pointer-events:none;text-shadow:0 4px 20px #000}
+  #arrest small{font-size:20px;letter-spacing:1px;font-weight:600;margin-top:10px}
+  #bench{position:fixed;left:12px;top:130px;background:rgba(16,18,24,.8);color:#fff;font-size:13px;line-height:1.55;padding:10px 14px;border-radius:10px;pointer-events:none;font-variant-numeric:tabular-nums}
+  #bench b{color:#ffb070}
+  #gallery{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:none;gap:8px;align-items:center;background:rgba(16,18,24,.8);color:#fff;padding:8px 12px;border-radius:12px;font-size:14px;white-space:nowrap}
+  #gallery button{background:#ffb070;color:#111;border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer}
+  #ko{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#fff;font-size:72px;font-weight:900;letter-spacing:4px;text-shadow:0 4px 18px #000;pointer-events:none}
+  .dmg{position:absolute;font-weight:900;font-size:17px;transform:translate(-50%,-100%);white-space:nowrap;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+  .npchp{position:absolute;width:56px;height:6px;background:rgba(0,0,0,.55);border-radius:3px;transform:translate(-50%,-100%);overflow:hidden}
+  .npchp i{display:block;height:100%;background:#ff4d4d}
+  #punchBtn,#kickBtn{position:fixed;bottom:130px;width:70px;height:56px;border-radius:14px;background:rgba(200,50,40,.55);color:#fff;border:2px solid rgba(255,255,255,.6);font-size:13px;display:none}
+  #punchBtn{right:24px}#kickBtn{right:104px}
+  .touch #punchBtn,.touch #kickBtn{display:block}
+  .touch #hpBar{bottom:auto;top:120px}
+  #crowd{background:rgba(16,18,24,.55);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px}
+  #joy{position:fixed;left:24px;bottom:24px;width:130px;height:130px;border-radius:50%;background:rgba(20,22,28,.25);border:2px solid rgba(255,255,255,.5);display:none}
+  #knob{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.85)}
+  #runBtn{position:fixed;right:24px;bottom:40px;width:84px;height:84px;border-radius:50%;background:rgba(20,22,28,.45);color:#fff;border:2px solid rgba(255,255,255,.6);font-size:14px;display:none}
+  #runBtn.on{background:rgba(240,120,40,.85)}
+  #sitBtn{position:fixed;right:120px;bottom:52px;width:72px;height:60px;border-radius:14px;background:rgba(20,22,28,.45);color:#fff;border:2px solid rgba(255,255,255,.6);font-size:13px;display:none}
+  .touch #joy,.touch #runBtn,.touch #sitBtn{display:block}
+  #crouchBtn,#handsBtn{position:fixed;bottom:200px;width:70px;height:50px;border-radius:14px;background:rgba(20,22,28,.45);color:#fff;border:2px solid rgba(255,255,255,.6);font-size:12px;display:none}
+  #crouchBtn{right:24px}#handsBtn{right:104px}
+  .touch #crouchBtn,.touch #handsBtn{display:block}
+  #dbg{position:fixed;left:12px;bottom:192px;display:none;background:rgba(8,10,14,.82);color:#e8eef5;font:11.5px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:8px 11px;border-radius:8px;pointer-events:none;max-width:430px;z-index:5}
+  #dbg hr{border:0;border-top:1px solid rgba(255,255,255,.15);margin:4px 0}
+  #seek{position:fixed;top:164px;right:16px;font:600 12px system-ui;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none;text-align:right}
+  .touch .keys{display:none}
+  /* téléphone : barres de vie et d'endurance en haut à gauche, rien au milieu de l'écran */
+  .touch #hud{display:none}
+  #hud{transition:opacity 1.2s}#hud.faded{opacity:0}
+  .touch #side{top:8px;right:8px;gap:4px}
+  .touch #side button{padding:6px 10px;font-size:11px}
+  .touch #importBtn{display:none}
+  .touch #hpBar{left:10px;top:10px;bottom:auto;transform:none;width:min(44vw,190px);height:18px;font-size:11px}
+  .touch #stamBar{left:10px;top:31px;bottom:auto;transform:none;width:min(44vw,190px)}
+  .touch #money{left:12px;top:40px;bottom:auto;transform:none;font-size:15px}
+  .touch #stars{left:10px;right:auto;top:62px;font-size:18px}
+  .touch #evidence{left:10px;right:auto;top:88px}
+  .touch #seek{left:10px;right:auto;top:110px;text-align:left}
+  .touch #minimap{left:10px;right:auto;bottom:auto;top:130px;width:110px;height:110px}
+  @media (orientation:landscape){
+    .touch #side{flex-direction:row;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end;max-width:60vw}
+    .touch #minimap{top:118px;width:86px;height:86px}
+  }
+  /* module 11 : contrôles tactiles revus */
+  #guardBtn,#aimBtn,#menuBtn{display:none}
+  .touch #joy{opacity:.45;transition:opacity .15s}
+  .touch #joy.active{opacity:1;transition:none}
+  .touch #guardBtn,.touch #aimBtn{display:block;position:fixed;width:70px;height:56px;border-radius:14px;background:rgba(20,22,28,.45);color:#fff;border:2px solid rgba(255,255,255,.6);font-size:13px}
+  .touch #guardBtn{right:120px;bottom:52px}
+  .touch #sitBtn{right:24px;bottom:206px;display:none}
+  .touch #handsBtn{right:104px;bottom:206px;display:none}
+  .touch #crouchBtn{right:184px;bottom:136px;width:70px;height:56px}
+  .touch #aimBtn{right:184px;bottom:206px}
+  .touch #crouchBtn.on,.touch #aimBtn.on,.touch #guardBtn.on{background:rgba(80,140,255,.65)}
+  .touch #menuBtn{display:block;position:fixed;top:8px;right:8px;width:42px;height:36px;border-radius:10px;border:0;background:rgba(16,18,24,.72);color:#fff;font-size:18px}
+  .touch #side{display:none}
+  .touch.menuOpen #side{display:flex;top:50px}
+  /* module 12 : menu pause */
+  #pause{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,10,16,.55);backdrop-filter:blur(5px);z-index:50;touch-action:pan-y}
+  .pbox{background:rgba(18,20,28,.94);color:#eef2f7;border-radius:16px;padding:20px 22px;width:min(560px,92vw);max-height:86vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+  .pbox h1{margin:0 0 14px;font-size:22px;letter-spacing:.5px}
+  .pbox .col{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .pbox button{background:#2a2f3b;color:#fff;border:0;border-radius:10px;padding:12px 14px;font-size:15px;text-align:left;cursor:pointer}
+  .pbox button:hover,.pbox .nav{outline:2px solid #ffb347;outline-offset:1px}
+  .pbox button:disabled{opacity:.4}
+  .pbox .slot{display:flex;flex-direction:column;gap:3px}.pbox .slot small{opacity:.7;font-size:12px}
+  .pbox .sec{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#ffb347}
+  .pbox .opt{display:grid;grid-template-columns:1fr 150px 54px;align-items:center;gap:10px;padding:5px 0;font-size:14px}
+  .pbox .opt select,.pbox .opt .tog{grid-column:2/4;background:#2a2f3b;color:#fff;border:0;border-radius:8px;padding:8px;font-size:14px;text-align:center}
+  .pbox .opt .tog.on{background:#2f7a52}
+  .pbox .opt input[type=range]{width:100%;accent-color:#ffb347}
+  .pbox .opt b{font-weight:600;font-size:13px;text-align:right}
+  .pbox .keysgrid{display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.6;opacity:.9}
+  #fps{position:fixed;left:50%;top:6px;transform:translateX(-50%);color:#7dff9a;font:700 12px ui-monospace,monospace;text-shadow:0 1px 2px #000;pointer-events:none;display:none}
+  .showFps #fps{display:block}
+  .noHelp #hud .keys{display:none}
+  #mission{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:rgba(16,18,24,.84);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;display:none;pointer-events:none;text-align:center;border-top:3px solid #4ad66d;min-width:240px;max-width:80vw}
+  #mission .mt{font-weight:800;color:#bff5c9;font-size:13px;letter-spacing:.3px}#mission .mo{font-weight:600;margin-top:2px}#mission .mx{font-size:12px;opacity:.85;margin-top:2px}#mission .hot{color:#ff8a6a}
+  .touch #mission{top:84px;font-size:12px;min-width:0;max-width:50vw;padding:6px 10px}
+  #shopPrompt{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(60,40,10,.88);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;display:none;pointer-events:none}#shopPrompt b{color:#ffd25a}
+  #crea{position:fixed;left:12px;top:12px;z-index:30;background:rgba(12,24,36,.88);color:#fff;border:2px solid #7fd8ff;border-radius:12px;padding:8px;width:300px;display:none;font:13px system-ui}
+  #crea button,#crea select{background:#24384a;color:#fff;border:1px solid #4d6b85;border-radius:8px;padding:6px 8px;margin:2px;font:600 12px system-ui;cursor:pointer}
+  #crea button.on{background:#2b86c5;border-color:#7fd8ff}#crea button:disabled{opacity:.4}#crea .ct{width:calc(100% - 4px);background:#163247;color:#7fd8ff;font-weight:800}
+  #crea select{width:calc(100% - 4px)}#crea .cg{display:flex;flex-wrap:wrap}#crea .ch{display:block;opacity:.7;margin:4px 2px 0}#crea small{font-weight:400;opacity:.75}
+  .creaOn #hud{display:none}
+  .touch #crea{top:max(6px,env(safe-area-inset-top));left:max(6px,env(safe-area-inset-left));bottom:auto;width:min(340px,60vw);max-height:calc(100vh - 12px);overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:5px;font-size:11px;z-index:45}
+  .touch #crea button,.touch #crea select{padding:4px 7px;margin:1px;font-size:11px;min-height:26px}
+  .touch #crea .ch{display:none}
+  .touch #crea.mini{width:auto;padding:2px;border-width:1px;left:50%;transform:translateX(-50%);top:max(4px,env(safe-area-inset-top))}
+  .touch #crea.mini .ct{width:auto;min-height:24px;padding:3px 10px}
+  #flyUp,#flyDn{position:fixed;right:24px;width:64px;height:56px;border-radius:14px;background:rgba(43,134,197,.85);color:#fff;border:2px solid #bfeaff;font-size:26px;font-weight:800;display:none;z-index:25;touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  #flyUp{top:150px;right:12px;bottom:auto;height:50px}#flyDn{top:150px;right:84px;bottom:auto;height:50px}
+  #misPrompt{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(20,90,40,.88);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:700;display:none;pointer-events:none}
+  .misBanner{position:fixed;left:50%;top:30%;transform:translateX(-50%);text-align:center;font:900 38px system-ui;text-shadow:0 3px 10px #000;pointer-events:none;transition:opacity .7s;opacity:1;white-space:nowrap}
+  .misBanner small{display:block;font-size:18px;color:#fff;font-weight:700}.misBanner.out{opacity:0}
+  .touch .misBanner{font-size:26px}
+  #prompt{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:rgba(16,18,24,.8);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;display:none;pointer-events:none}
+  #lootBtn{display:none;position:fixed;right:24px;bottom:276px;width:150px;height:52px;border-radius:14px;background:rgba(240,150,40,.85);color:#fff;border:2px solid rgba(255,255,255,.7);font-size:14px;font-weight:700}
+  /* module 13 : carte, GPS */
+  #minimap{pointer-events:auto;cursor:pointer}
+  #bigmap{position:fixed;inset:0;width:100vw;height:100vh;display:none;z-index:40;touch-action:none}
+  #gps{position:fixed;left:16px;bottom:192px;background:rgba(16,18,24,.82);color:#fff;padding:7px 11px;border-radius:9px;font-size:13px;display:none;pointer-events:none;border-left:4px solid #b56cff;max-width:240px}
+  #gps span{color:#d9c2ff;font-size:12px}
+  #street{position:fixed;left:196px;bottom:44px;color:#fff;font:700 15px system-ui;text-shadow:0 2px 4px #000;opacity:0;transition:opacity .6s;pointer-events:none}
+  #street.show{opacity:1}
+  .touch #gps{left:10px;top:248px;bottom:auto;font-size:12px}
+  .touch #street{left:auto;right:12px;bottom:auto;top:52px;font-size:13px}
+  @media (orientation:landscape){.touch #gps{top:210px}}
+  #mapClose{position:fixed;right:12px;bottom:14px;z-index:41;display:none;background:rgba(16,18,24,.85);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600}
+  .mapOn #mapClose{display:block}
+  #basket{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:rgba(16,18,24,.82);color:#fff;padding:7px 14px;border-radius:10px;font-size:14px;display:none;pointer-events:none;text-align:center;border-bottom:3px solid #e07a3a}
+  #basket span{font-size:11px;opacity:.75}
+  .touch #basket{top:auto;bottom:300px;font-size:12px}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="hud">
+  <div class="keys"><b>E</b> conduire / piloter / braquer / fouiller · <b>ZQSD / WASD</b> marcher · <b>X</b> jogging · <b>Shift</b> sprint · <b>T</b> banc d'essai · <b>Glisser souris</b> caméra · <b>Molette</b> zoom · <b>Y</b> saluer · <b>I</b> provoquer · <b>Espace</b> garde · <b>K</b> partenaire d'entraînement · <b>F</b> / clic poing · <b>C</b> / clic droit pied · <b>L</b> coup le plus fort · <b>M</b> gaucher/droitier · <b>E</b> s'asseoir · <b>Ctrl</b> s'accroupir · <b>J</b> se rendre · <b>V</b> voix · <b>U</b> galerie · <b>N</b> / <b>B</b> +/- passants · <b>P</b> empreintes · <b>R</b> caméra épaule · <b>Tab</b> carte · <b>H</b> debug · <b>F9</b> sauver · <b>Échap</b> menu</div>
+  <div id="speed">Vitesse 0.00 m/s</div>
+  <div id="step">Aucune animation : chaque os est calculé en temps réel.</div>
+</div>
+<div id="side">
+  <div style="display:flex;gap:6px"><button id="newBtn">Nouvelle partie</button></div>
+  <button id="galBtn">Galerie des persos (U)</button>
+  <button id="importBtn">Importer un perso .glb (Mixamo)</button>
+  <div id="crowd">…</div>
+</div>
+<input type="file" id="fileIn" accept=".glb,.gltf" style="display:none">
+<div id="flash"></div>
+<div id="hpBar"><div id="hpFill"></div><span id="hpTxt">100 PV</span><span id="hand">Droitier</span></div>
+<div id="money">0 €</div>
+<div id="stars"></div>
+<div id="evidence"></div>
+<div id="stamBar"><div id="stamFill"></div></div>
+<div id="msg"></div>
+<div id="gallery"><button id="galPrev">←</button><span></span><button id="galNext">→</button><button id="galNew">Nouveaux persos (R)</button></div>
+<div id="bench" style="display:none"></div>
+<canvas id="minimap" width="170" height="170"></canvas>
+<div id="arrest"><div>ARRÊTÉ</div><small></small></div>
+<div id="ko">K.O.</div>
+<div id="bubbles"></div>
+<div id="loading">Chargement…</div>
+<div id="pause"></div><canvas id="bigmap"></canvas><button id="mapClose">✕ Fermer la carte</button><div id="gps"></div><div id="basket"></div><div id="street"></div><div id="prompt"></div><div id="mission"></div><button id="lootBtn">Prendre les habits</button><div id="fps"></div>
+<div id="joy"><div id="knob"></div></div>
+<button id="runBtn">Courir</button>
+<button id="guardBtn">Garde</button><button id="aimBtn">Épaule</button><button id="menuBtn">☰</button>
+<button id="punchBtn">Poing</button><button id="kickBtn">Pied</button>
+<button id="sitBtn">S'asseoir</button>
+<button id="crouchBtn">Accroupi</button><button id="handsBtn">Se rendre</button>
+<div id="seek"></div>
+<div id="dbg"></div>
+<!--SCRIPT-->
+</body>
+</html>

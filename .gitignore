@@ -9,3 +9,6 @@
 *.sln
 .vs/
 .idea/
+procedural-walk/test/
+procedural-walk/check.mjs
+node_modules/
