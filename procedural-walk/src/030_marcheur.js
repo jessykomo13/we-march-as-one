@@ -483,11 +483,23 @@ class Walker{
       const S=this.swim;S.t+=dt;
       if(S.t>1.2)for(const L of LADDERS)if(Math.hypot(this.root.x-L.x,this.root.z-L.z)<0.9){ // échelle : on remonte
         this.swim=null;this.root.x=L.x+L.ix;this.root.z=L.z+L.iz;this.gy=this.root.y=groundAt(this.root.x,this.root.z);this.lastOk.copy(this.root);this.vel.set(0,0,0);this.dip=0.2;this.swimEnd();return;}
+      // rebord (ponton, quai, passerelle, bateau) touché en nageant : on se hisse dessus
+      if(this===player&&S.t>0.5&&!this.ko&&this.wish.lengthSq()>0.1){const d=new V3(this.wish.x,0,this.wish.z).normalize();
+        for(const k of [0.7,1.1]){const px=this.root.x+d.x*k,pz=this.root.z+d.z*k,gp=groundAt(px,pz);
+          if(gp>WATER_Y-0.25&&gp<WATER_Y+2.3){const tx=this.root.x+d.x*(k+0.45),tz=this.root.z+d.z*(k+0.45),gt=groundAt(tx,tz);const q=new V3(tx,0,tz);pushOutOfObstacles(q,0.35);
+            if(gt>WATER_Y-0.25&&Math.abs(groundAt(q.x,q.z)-gp)<0.6){this.swim=null;this.root.x=q.x;this.root.z=q.z;this.gy=this.root.y=groundAt(q.x,q.z);this.lastOk.copy(this.root);this.vel.set(0,0,0);this.dip=0.3;this.swimEnd();playSound("whoosh",0.25);return;}}}}
       if(deep<1.0){this.swim=null;this.swimEnd();}
       else{if(S.dive>0)S.dive=Math.max(0,S.dive-dt*1.2);this.gy=lerp(this.gy,WATER_Y-1.2,1-Math.exp(-6*dt));this.root.y=this.gy-(S.dive||0)*0.8;this.lastOk.copy(this.root);
         if(this.speed>0.3&&Math.random()<dt*2.5)ripple(this.root.x,this.root.z,false);return;}
     }else if(WATER_Y-g>1.15&&!this.ko){this.swim={t:0,dive:0};this.gy=this.root.y;return;}
     const base=this.gy;
+    // escalade : en poussant contre un rebord de 0,4 à 1,8 m (quai, muret, passerelle, terrasse), on se hisse dessus
+    if(this===player&&g>base+STEP_UP&&g<=base+1.8&&!this.ko&&!this.fly&&this.wish.lengthSq()>0.25){
+      this.mantleT=(this.mantleT||0)+dt;
+      if(this.mantleT>0.15){const d=new V3(this.root.x-ox,0,this.root.z-oz);if(d.lengthSq()<1e-8)d.set(this.wish.x,0,this.wish.z);d.normalize();
+        const q=new V3(this.root.x+d.x*0.35,0,this.root.z+d.z*0.35);pushOutOfObstacles(q,0.3);const gq=groundAt(q.x,q.z);
+        if(gq>base+STEP_UP*0.5&&gq<=base+1.9){this.root.x=q.x;this.root.z=q.z;this.gy=this.root.y=gq;this.lastOk.copy(this.root);this.vel.multiplyScalar(0.3);this.dip=0.3;this.mantleT=0;playSound("whoosh",0.2);return;}}
+    }else if(this===player)this.mantleT=0;
     if(g>base+STEP_UP){ // rebord trop haut : on glisse le long
       const gx=groundAt(this.root.x,oz),gz=groundAt(ox,this.root.z);
       if(gx<=base+STEP_UP){this.root.z=oz;this.vel.z*=0.2;g=gx;}

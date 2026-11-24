@@ -48,7 +48,7 @@ function toggleCreative(on=!CREA.on){
   misBanner(on?"Mode créatif":"Mode normal",on?"Vol, téléportation, pas de police":"Retour au jeu normal",on?"#7fd8ff":"#ffd25a");
   renderCrea();
 }
-function toggleFly(){if(!CREA.on||player.ko)return;if(player.sit.state!=="none")player.standUp();player.setFly(!player.fly);hudMsg(player.fly?"Vol : Espace monter · Ctrl descendre · Shift très vite":"Atterrissage",2.5);renderCrea();}
+function toggleFly(){if(!CREA.on||player.ko)return;if(player.sit.state!=="none")player.standUp();player.setFly(!player.fly);hudMsg(player.fly?(isTouch()?"Vol : ▲ monter · ▼ descendre · Courir = très vite":"Vol : Espace monter · Ctrl descendre · Shift très vite"):"Atterrissage",2.5);renderCrea();}
 for(const ev of ["pointerdown","touchstart","touchmove","wheel"])creaEl.addEventListener(ev,e=>e.stopPropagation(),{passive:true});
 creaEl.addEventListener("change",e=>{const t=e.target;if(t.dataset.c==="tp"&&t.value!==""){const d=creaTeleports()[+t.value];teleportTo(d[1],d[2],d[0]);t.blur();if(isTouch())CREA.open=false;renderCrea();}});
 creaEl.addEventListener("click",e=>{
