@@ -53,7 +53,7 @@ const BIOME2={
   tournesol(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24)){c.P(4,(x,z)=>{if(ok(x,z))treeAt(x,z,"light",0.9,mid);});return;}
     fieldPlane(X,Z,CMP.field[1],c.base);for(let z=-15;z<=15;z+=3.4)sunflowerRow(X-16,Z+z,32,mid);if(r()<0.5)addAnimals("abeilles",X,Z,1,6);},
   lavande(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24)){c.P(5,(x,z)=>{if(ok(x,z))treeAt(x,z,"light",0.8,mid);});return;}
-    for(let a=-16;a<=16;a+=2.2)for(let z=Z-17;z<Z+17;z+=6){const zc=z+3,y=groundAt(X+a,zc);put(geo("lavRow",()=>{const L=[];for(let k=0;k<6;k++){const s=new THREE.IcosahedronGeometry(0.55,0);s.scale(1,0.7,1.2);s.translate(0,0.3,-2.5+k);L.push(s.toNonIndexed());}const m=mergeGeometries(L);L.forEach(q=>q.dispose());return m;}),BM.lav,X+a,y,zc,mid);}
+    for(let a=-16;a<=16;a+=2.2)for(let z=Z-17;z<Z+17;z+=6){const zc=z+3,y=groundAt(X+a,zc);put(geo("lavRow",()=>{const L=[];for(let k=0;k<6;k++){const s=new THREE.IcosahedronGeometry(0.55,0);s.scale(1,0.7,1.2);s.translate(0,0.3,-2.5+k);L.push(noIdx(s));}const m=mergeGeometries(L);L.forEach(q=>q.dispose());return m;}),BM.lav,X+a,y,zc,mid);}
     if(r()<0.4)for(let k=0;k<4;k++)beehive(X+18.5,Z-12+k*2,detail);if(r()<0.25){const o=lifted(c.base,X,Z);walls(X+8,Z-17.5,X+16,Z-11,0,3,KM.stone,o,3,3);gableRoof(X+7.6,Z-17.9,X+16.4,Z-10.6,3,1.8,KM.roofTile,o);addObstacle({type:"box",x:X+12,z:Z-14.2,hx:4,hz:3.3,tall:true,bld:true});}},
   serres(c){const {X,Z,r,mid,detail,ok,flat}=c;if(!flat||onAnyRoad(X,Z,24))return;fieldPlane(X,Z,CMP.dirt,c.base);
     for(let k=0;k<3;k++)greenhouse(X-12+k*12,Z,8,26,mid);addAmb("fermier",X+r()*4,Z+15,0);},

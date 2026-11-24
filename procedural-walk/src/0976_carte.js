@@ -205,6 +205,7 @@ function drawBigMap(){
   {const mk=(x,z,col,txt)=>{const [sx,sy]=m2s(x,z);c.fillStyle=col;c.beginPath();c.arc(sx,sy,8*dpr,0,7);c.fill();c.strokeStyle="#111";c.lineWidth=2*dpr;c.stroke();if(txt){c.fillStyle="#fff";c.font=`bold ${11*dpr}px system-ui`;c.textAlign="left";c.strokeStyle="rgba(0,0,0,.7)";c.lineWidth=3*dpr;c.strokeText(txt,sx+11*dpr,sy+4*dpr);c.fillText(txt,sx+11*dpr,sy+4*dpr);}};
     const A=MIS.active;
     if(!A||(A.id==="sac"&&A.step==="back"))mk(CONTACT.x,CONTACT.z,"#4ad66d",A?"Nino (rapporter le sac)":MIS.stage<STORY.length?"Nino : mission "+(MIS.stage+1):"Nino : petits boulots");
+    if(MP.st==="on"&&MP.last)mk(MP.last.x,MP.last.z,"#38d6ff","🌐 "+MP.fname);
     if(A&&A.id==="colis")mk(A.dest.x,A.dest.z,"#4ad66d","Livraison");
     if(A&&A.id==="sac"&&A.step==="go")mk(A.bag.x,A.bag.z,"#4ad66d","Le sac");
     if(A&&A.id==="filature"&&A.target)mk(A.target.root.x,A.target.root.z,"#ff4a4a","Cible");}

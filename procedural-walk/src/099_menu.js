@@ -75,7 +75,7 @@ function tog(key,label){return `<label class="opt"><span>${label}</span><button 
 function renderMenu(){
   let h=`<div class="pbox"><h1>${{main:"Pause",opt:"Options",save:"Sauvegarder",load:"Charger",keys:"Commandes"}[menuTab]}</h1>`;
   if(menuTab==="main"){
-    h+=`<div class="col">${T("resume","Reprendre")}${T("opt","Options")}${T("save","Sauvegarder")}${T("load","Charger une partie")}${T("keys","Commandes")}${T("crea",CREA.on?"Quitter le mode créatif":"Mode créatif (G)")}${T("gallery","Galerie des persos")}${T("new",confirmK==="new"?"Confirmer : tout effacer ?":"Nouvelle partie")}</div>`;
+    h+=`<div class="col">${T("resume","Reprendre")}${T("opt","Options")}${T("save","Sauvegarder")}${T("load","Charger une partie")}${T("keys","Commandes")}${T("online",MP.st==="on"?"🌐 En ligne avec "+MP.fname:"🌐 Jouer en ligne (O)")}${T("crea",CREA.on?"Quitter le mode créatif":"Mode créatif (G)")}${T("gallery","Galerie des persos")}${T("new",confirmK==="new"?"Confirmer : tout effacer ?":"Nouvelle partie")}</div>`;
   }else if(menuTab==="opt"){
     h+=`<div class="sec">Graphismes</div>`+sel("quality","Préréglage",[["basse","Basse (téléphone ancien)"],["moyenne","Moyenne"],["haute","Haute"],["ultra","Ultra"],["perso","Personnalisé"]])
       +sel("shadows","Ombres",[["off","Aucune"],["basse","Basses"],["haute","Hautes"],["ultra","Ultra"]])
@@ -124,6 +124,7 @@ menuEl.addEventListener("click",e=>{
   else if(a==="back"){menuTab="main";renderMenu();}
   else if(a==="reset"){SET={...SET_DEFAULT};storeSettings();applySettings();renderMenu();}
   else if(a==="gallery"){closeMenu();toggleGallery();}
+  else if(a==="online"){closeMenu();mpOpen();}
   else if(a==="crea"){closeMenu();toggleCreative();}
   else if(a==="new"){if(confirmK==="new")renderMenu();else{newGame();closeMenu();}}
 });

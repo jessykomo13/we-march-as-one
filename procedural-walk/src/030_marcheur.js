@@ -331,14 +331,14 @@ class Walker{
     else m.visible=false;
   }
   resolveStrike(){
-    const a=this.atk;a.hit=true;
+    const a=this.atk;a.hit=true;if(this.isRemote)return;
     const b=this.rig.b,isK=a.type==="kick";
     const P2=a.side<0?"Left":"Right";
     const e1=wp(b[isK?P2+"ToeBase":P2+"Hand"]),e0=wp(b[isK?P2+"Foot":P2+"ForeArm"]);
     const strike=e1.clone().addScaledVector(new V3().subVectors(e1,e0).normalize(),isK?0.05:0.08);
     let best=null;
     for(const v of walkers){
-      if(v===this||v.ko||hdist(v.root,this.root)>2)continue;
+      if(v===this||v.ko||v.inCar||hdist(v.root,this.root)>2)continue;
       const vb=v.rig.b,S=v.LEG/0.91;
       const zones=[["head",wp(vb.Head).add(new V3(0,0.085*S,0)),0.12*S],["chest",wp(vb.Spine2),0.19*S],["belly",wp(vb.Spine),0.18*S],
         ["legs",wp(vb.LeftLeg).add(new V3(0,0.1,0)),0.11*S],["legs",wp(vb.RightLeg).add(new V3(0,0.1,0)),0.11*S]];
@@ -358,6 +358,7 @@ class Walker{
   }
   takeHit(att,zone,dmg,isKick,blocked){
     if(this.ko)return;
+    if(this.isRemote){mpSendHit(att,zone,dmg,isKick,blocked);floatText(this,blocked?`-${dmg} bloqué`:`-${dmg}`,blocked?"#9fd0ff":"#ffb347");if(zone==="head")this.flinchHead-=rand(18,26);else this.flinchLean+=rand(8,16);return;}
     if(this===player&&CREA.on&&CREA.god)dmg=0;
     if(this.sit.state!=="none"){this.sit.state==="approach"?this.standUp():this.finishStand();}
     this.hp=Math.max(0,this.hp-dmg);this.lastHurt=clockT;
@@ -380,6 +381,7 @@ class Walker{
     if(this.brain.onHit)this.brain.onHit(this,att,dmg,zone);
   }
   startKO(dir,att,opt={}){
+    if(this.isRemote&&!this._syncKO){mpSendKO(this,dir);return;}
     if(this===player&&CREA.on&&CREA.god){this.hp=this.maxHp;return;}
     clearReaction(this);this.atk=null;this.guardT=0;this.faceYaw=null;
     if(this.sit.state!=="none"){if(this.sit.spot)this.sit.spot.taken=null;this.sit={state:"none",t:0};}
@@ -502,7 +504,7 @@ class Walker{
   }
   // mode créatif : vol libre (Espace monter, Ctrl descendre)
   flyStep(dt){
-    const up=(keys.has("Space")?1:0)-(keys.has("ControlLeft")||keys.has("ControlRight")?1:0)+(typeof flyTouch!=="undefined"?flyTouch:0)+(pad.on?(pad.flyV||0):0);
+    const up=this.isRemote?(this.flyUp||0):((keys.has("Space")?1:0)-(keys.has("ControlLeft")||keys.has("ControlRight")?1:0)+(typeof flyTouch!=="undefined"?flyTouch:0)+(pad.on?(pad.flyV||0):0));
     const vt=clamp(up,-1,1)*(this.run?16:7);this.flyVy=lerp(this.flyVy||0,vt,1-Math.exp(-5*dt));
     let floor=groundAt(this.root.x,this.root.z);if(waterDepth(this.root.x,this.root.z)>0)floor=Math.max(floor,WATER_Y+0.15);
     this.root.y=clamp(this.root.y+this.flyVy*dt,floor,420);if(this.root.y<=floor&&this.flyVy<0)this.flyVy=0;

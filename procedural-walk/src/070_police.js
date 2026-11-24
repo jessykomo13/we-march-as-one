@@ -443,6 +443,7 @@ function drawMinimap(){
   for(const cm of cams){const [x,z]=T(cm.x,cm.z);c.fillStyle=cm.alert>0?"#ff4040":"#e8e8e8";c.fillRect(x-2,z-2,4,4);}
   for(const w of walkers){if(w===player)continue;const [x,z]=T(w.root.x,w.root.z);
     c.fillStyle=w.isCop?(Math.floor(clockT*4)%2?"#ff3030":"#3070ff"):w.ko?"#ff9090":"rgba(255,255,255,.55)";c.beginPath();c.arc(x,z,w.isCop?3.5:2,0,7);c.fill();}
+  mpMini(c,T,W,H);
   for(const V of vans){const [x,z]=T(V.v.g.position.x,V.v.g.position.z);c.fillStyle="#fff";c.fillRect(x-3,z-3,6,6);}
   for(const C of policeCars){const [x,z]=T(C.g.position.x,C.g.position.z);c.fillStyle="#3070ff";c.fillRect(x-3.5,z-3.5,7,7);}
   if(wanted.hot){const [x,z]=T(wanted.hot.pos.x,wanted.hot.pos.z);c.strokeStyle="rgba(255,140,40,.7)";c.lineWidth=2;c.beginPath();c.arc(x,z,8*sc,0,7);c.stroke();}

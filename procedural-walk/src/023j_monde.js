@@ -449,7 +449,7 @@ function farSample(x,z,c){
 }
 const FARTREE_N=11000,FT_DENS={foret:5,pinede:5,jungle:5,bambou:3,orangeraie:1.4,verger:1.4,palmeraie:1.6,bayou:2,montagne:0.6,lande:0.7,prairie:0.7,fleurs:0.5,savane:0.5,mangrove:1.6,riviere:0.8,ferme:0.5,ranch:0.25,vigne:0.3,champ:0.2,mais:0.1,lavande:0.15,tournesol:0.15,mesa:0.35,dunes:0.15,cayo:1,ilot:1};
 const FT_KIND={pinede:1,montagne:1,lande:1,foret:2,mesa:3,palmeraie:4,savane:4,cayo:4,ilot:4,dunes:4,mangrove:2,jungle:2};
-function ftGeo(k){const parts=[],col=(g,c)=>{g=g.toNonIndexed();const n=g.attributes.position.count,a=new Float32Array(n*3);_tc.set(c);_tc.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_tc.r;a[i*3+1]=_tc.g;a[i*3+2]=_tc.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);};
+function ftGeo(k){const parts=[],col=(g,c)=>{g=noIdx(g);const n=g.attributes.position.count,a=new Float32Array(n*3);_tc.set(c);_tc.convertSRGBToLinear();for(let i=0;i<n;i++){a[i*3]=_tc.r;a[i*3+1]=_tc.g;a[i*3+2]=_tc.b;}g.setAttribute("color",new THREE.BufferAttribute(a,3));g.deleteAttribute("uv");parts.push(g);};
   if(k===0){col(new THREE.CylinderGeometry(0.3,0.45,4,5).translate(0,2,0),"#5b4030");col(new THREE.ConeGeometry(2.6,8,6).translate(0,7,0),"#2f5532");}
   else if(k===1){col(new THREE.CylinderGeometry(0.3,0.45,4,5).translate(0,2,0),"#5b4030");col(new THREE.IcosahedronGeometry(3.2,0).scale(1,1.1,1).translate(0,6.4,0),"#4f6e34");}
   else if(k===2){col(new THREE.CylinderGeometry(0.45,0.55,4.5,6).translate(0,2.25,0),"#4f7a3a");}

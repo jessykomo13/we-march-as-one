@@ -85,7 +85,7 @@ function hotdogCart(x,z,g){
 // chaque tour du centre a une silhouette simple, ramenée à 230 m de la caméra (même taille apparente)
 const skyMat=new THREE.MeshBasicMaterial({color:0xa9b6c6,fog:false,vertexColors:true}),skyMatD=new THREE.MeshBasicMaterial({color:0x96a4b6,fog:false,vertexColors:true});
 // ombrage simple selon l'orientation des faces (soleil à l'ouest-sud-ouest), sans éclairage
-function shadeGeo(g){g=g.index?g.toNonIndexed():g;const n=g.attributes.normal,c=new Float32Array(n.count*3);for(let i=0;i<n.count;i++){const k=0.86+0.1*n.getX(i)+0.06*n.getZ(i)+0.08*n.getY(i);c[i*3]=c[i*3+1]=c[i*3+2]=k;}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;}
+function shadeGeo(g){g=noIdx(g);const n=g.attributes.normal,c=new Float32Array(n.count*3);for(let i=0;i<n.count;i++){const k=0.86+0.1*n.getX(i)+0.06*n.getZ(i)+0.08*n.getY(i);c[i*3]=c[i*3+1]=c[i*3+2]=k;}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;}
 const skyline=[];
 {
   const add=(T,cx,cz,special)=>{const g=new THREE.Group();const top=T.h;
@@ -98,7 +98,7 @@ const skyline=[];
     g.userData={base:new V3(T.cx,0,T.cz),key:ckey(cx,cz)};g.visible=false;scene.add(g);skyline.push(g);};
   for(let i=-CBD_R;i<=CBD_R;i++)for(let j=-CBD_R;j<=CBD_R;j++){const t=chunkType(i,j);if(t==="tours")for(const T of towerPlan(i,j))add(T,i,j);else if(t==="zenith")add(ZENITH,i,j,true);}
 }
-function mergeGeos(list){const pos=[],nor=[];for(const g of list){const n=g.toNonIndexed();pos.push(...n.attributes.position.array);nor.push(...n.attributes.normal.array);}
+function mergeGeos(list){const pos=[],nor=[];for(const g of list){const n=noIdx(g);pos.push(...n.attributes.position.array);nor.push(...n.attributes.normal.array);}
   const out=new THREE.BufferGeometry();out.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));out.setAttribute("normal",new THREE.Float32BufferAttribute(nor,3));return out;}
 function updateSkyline(){
   const c=camera.position,FAR=camera.far-14;
