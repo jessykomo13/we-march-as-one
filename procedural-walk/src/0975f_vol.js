@@ -71,19 +71,22 @@ function thButtonsClear(){thBtns.innerHTML="";}
 function takeParkedSilently(n){if(n.V)return n.V;try{const V=takeParked(n);V.locked=true;V.stolen=false;return V;}catch(e){return null;}}
 function finishTheft(msg){const C=TH.cur;if(!C)return;cancelTheft();const V=takeParked(C.n);V.quiet=true;V.owned=true;hudMsg(`${msg} ${C.sec.name}`,2.2);enterVehicle(V);if(C.mode==="vitre"&&C.sec.alarm)startAlarm(V);}
 // délit bruyant : tout le monde autour entend (pas besoin de voir), les caméras qui regardent filment
-function noisyCrime(pos,R,why){
-  if(CREA.on&&CREA.noCops)return;const victim={isCop:false,_crime:null,brain:{},root:pos.clone?pos.clone():new V3(pos.x,0,pos.z)};
+// un même vol (vitre + alarme) = un seul délit, compté une fois
+const TH_VICT=new Map();
+function noisyCrime(pos,R,why,key){
+  if(CREA.on&&CREA.noCops)return;const k=key||carKey(Math.round(pos.x/6)*6,Math.round(pos.z/6)*6);let victim=TH_VICT.get(k);
+  if(!victim||clockT-victim.t>30){victim={isCop:false,_crime:null,brain:{},root:pos.clone?pos.clone():new V3(pos.x,0,pos.z),t:clockT};TH_VICT.set(k,victim);if(TH_VICT.size>40)TH_VICT.delete(TH_VICT.keys().next().value);}
   registerCrime(victim,false);const c=victim._crime;if(!c)return;c.pts=Math.max(c.pts,2);c.sev=Math.max(c.sev,2);
   for(const w of walkers){if(w===player||w.isCop||w.ko||w.resident)continue;if(hdist(w.root,pos)<R&&w.brain.witness){w.brain.witness(w,c);if(Math.random()<0.35)bark(w,["Hé ! Au voleur !","Il vole une voiture !","J'appelle la police !"]);}}
   for(const w of walkers)if(w.isCop&&!w.ko&&hdist(w.root,pos)<R*1.4){reportCrime(c,why||"Vol de voiture signalé !","cop");break;}
 }
 // alarme : klaxon par à-coups + clignotants, 12 s
-function startAlarm(V){TH.stats.alarm++;V.alarmT=12;V.alarmK=0;noisyCrime(new V3(V.x,0,V.z),34,"Alarme de voiture !");if(!TH.alarms.includes(V))TH.alarms.push(V);}
+function startAlarm(V){TH.stats.alarm++;V.alarmT=12;V.alarmK=0;V.alarmKey="vol"+carKey(V.x,V.z);noisyCrime(new V3(V.x,0,V.z),34,"Alarme de voiture !",V.alarmKey);if(!TH.alarms.includes(V))TH.alarms.push(V);}
 function updateAlarms(dt){
   for(const V of TH.alarms.slice()){if(!VEH.includes(V)||V.dead){TH.alarms.splice(TH.alarms.indexOf(V),1);continue;}
     V.alarmT-=dt;V.alarmK-=dt;const on=V.alarmT>0;
     if(on&&V.alarmK<=0){V.alarmK=0.55;const d=hdist(V.m.position,player.root);if(d<70)hornSound(clamp01(1-d/70)*0.9);V._blink=!V._blink;V.m.traverse(o=>{if(o.isMesh&&(o.material===HEADL||o.material===KM.white||o.material===ALARM_L))o.material=V._blink?ALARM_L:HEADL;});
-      if(Math.random()<0.25)noisyCrime(new V3(V.x,0,V.z),22);}
+      if(Math.random()<0.25)noisyCrime(new V3(V.x,0,V.z),22,null,V.alarmKey);}
     if(!on){V.m.traverse(o=>{if(o.isMesh&&o.material===ALARM_L)o.material=HEADL;});TH.alarms.splice(TH.alarms.indexOf(V),1);}}
 }
 const ALARM_L=mat({color:0xffd060,emissive:0xffb020,emissiveIntensity:2.2});
@@ -108,7 +111,7 @@ function updateTheft(dt){
   C.t+=dt;
   // face à la voiture
   {const p=thSpot(C.n),to=new V3(p.x-player.root.x,0,p.z-player.root.z);if(to.lengthSq()>0.01){player.targetYaw=Math.atan2(to.x,-to.z)/D2R;}}
-  if(C.mode==="vitre"){if(C.t>0.45&&!C.broke){C.broke=true;glassSound();cam.shake=Math.min(1,cam.shake+0.3);TH.stats.vitre++;noisyCrime(player.root,26,"Vitre cassée : on t'a entendu !");}if(C.t>1.0)finishTheft("Vitre cassée !");return;}
+  if(C.mode==="vitre"){if(C.t>0.45&&!C.broke){C.broke=true;glassSound();cam.shake=Math.min(1,cam.shake+0.3);TH.stats.vitre++;noisyCrime(player.root,26,"Vitre cassée : on t'a entendu !","vol"+carKey(C.n.pc?C.n.pc.x:C.n.V.x,C.n.pc?C.n.pc.z:C.n.V.z));}if(C.t>1.0)finishTheft("Vitre cassée !");return;}
   if(C.mode==="crochet"||C.mode==="prog2"){C.nd=0.5+0.5*Math.sin(C.t*C.spd*Math.PI/1.6);thNd.style.left=(C.nd*100)+"%";thZone.style.left=((C.zc-C.zw/2)*100)+"%";thZone.style.width=(C.zw*100)+"%";thPg.style.width="0";
     // crochetage : un témoin tout proche ou une caméra peut te voir
     if(C.mode==="crochet"){C.ck-=dt;if(C.ck<=0&&!C.seen){C.ck=1;let seen=false;

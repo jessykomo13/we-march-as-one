@@ -50,7 +50,7 @@ function pchRoute(P,tx,tz){
 function pchStep(P,dt){
   P.t+=dt;const V=drive,tgtCar=V&&!V.boat;
   // voit-il le joueur ?
-  const dP=Math.hypot(player.root.x-P.x,player.root.z-P.z),seeR=heli?100:55;
+  const dP=Math.hypot(player.root.x-P.x,player.root.z-P.z),seeR=heli?100:wanted.level<=2?45:55;
   const sees=dP<seeR&&(dP<20||los(new V3(P.x,P.y+1.2,P.z),new V3(player.root.x,player.root.y+1.2,player.root.z)));
   if(sees){P.seeT=clockT;wanted.lastSeenPos.copy(player.root);wanted.lastSeenT=clockT;wanted.copSeenT=clockT;}
   // cible : le joueur (anticipé) s'il est vu, sinon le dernier endroit connu
@@ -64,7 +64,7 @@ function pchStep(P,dt){
   const dy=deltaAngle(P.yaw,want),rate=lerp(150,55,clamp01(Math.abs(P.v)/50));
   if(P.v>=0)P.yaw+=clamp(dy,-rate*dt,rate*dt);else P.yaw-=clamp(dy,-rate*dt,rate*dt)*0.6;
   // vitesse visée
-  const lvl=wanted.level,vmax=Math.min(city?32:62,38+lvl*5)*(P.hp<35?0.6:1)*(dP>60?1.3:1);
+  const lvl=wanted.level,vmax=Math.min(city?32:62,32+lvl*6)*(P.hp<35?0.6:1)*(dP>60&&clockT-P.seeT<1.5?1.15:1);
   let vt=vmax;if(Math.abs(dy)>60)vt=Math.min(vt,14);if(c0<look)vt=Math.min(vt,Math.max(6,c0*1.4));
   // virage au prochain carrefour : on ralentit avant (sinon on le dépasse et on fait demi-tour)
   if(city){const wd=Math.hypot(tx-P.x,tz-P.z);if(wd<26&&Math.hypot(fx0-tx,fz0-tz)>6){const nxt=Math.atan2(fx0-tx,-(fz0-tz))/D2R;if(Math.abs(deltaAngle(P.yaw,nxt))>40)vt=Math.min(vt,7+wd*0.55);}}
@@ -86,7 +86,9 @@ function pchStep(P,dt){
   // coincé → marche arrière, puis réapparition derrière
   if(Math.abs(P.v)<2&&vt>5&&!P.rev){P.stuck+=dt;if(P.stuck>1.2){P.rev=1.1;P.stuck=0;P.stuckN=(P.stuckN||0)+1;}}else if(Math.abs(P.v)>6)P.stuck=0;
   {const [HP,hdp]=nearestHwy(player.root.x,player.root.z);if(HP&&hdp<hwyHalf(HP)+1&&!inGridArea(player.root.x,player.root.z)&&hwyDist(P.x,P.z,HP)>hwyHalf(HP)+1.5&&dP>45){P.offT=(P.offT||0)+dt;if(P.offT>2){P.offT=0;P.stuckN=9;}}else P.offT=0;}
-  if((P.stuckN||0)>3||dP>260){const p=pchSpawnPoint();if(p){P.x=p.x;P.z=p.z;P.stuckN=0;P.yaw=Math.atan2(player.root.x-p.x,-(player.root.z-p.z))/D2R;P.v=16;}}
+  const knows=clockT-wanted.lastSeenT<3;
+  if(!knows&&dP>320){P.gone=true;return;}
+  if(knows&&((P.stuckN||0)>3||dP>260)){const p=pchSpawnPoint();if(p){P.x=p.x;P.z=p.z;P.stuckN=0;P.yaw=Math.atan2(player.root.x-p.x,-(player.root.z-p.z))/D2R;P.v=16;}}
   // sol, assiette, roues, gyrophares
   const g=groundAt(P.x,P.z);P.y=lerp(P.y,g,1-Math.exp(-12*dt));P.g.position.set(P.x,P.y,P.z);P.g.rotation.set(0,Math.PI-P.yaw*D2R,0);
   P.wheel+=P.v*dt/0.35;P.m.wheels.forEach(w=>w.rotation.x=P.wheel);
@@ -127,12 +129,13 @@ function pchRemoveBlock(B){for(const o of B.obs)if(o)removeObstacle(o);if(B.spik
 function updatePursuit(dt){
   const act=pchActive();
   // apparitions
-  PCH.spawnCk-=dt;if(act&&PCH.spawnCk<=0){PCH.spawnCk=PCH.list.length?3:1.2;if(PCH.list.filter(P=>!P.dead).length<pchMax())pchSpawn();}
+  const known=clockT-wanted.lastSeenT<2.5;
+  PCH.spawnCk-=dt;if(act&&known&&PCH.spawnCk<=0){PCH.spawnCk=PCH.list.length?3:1.2;const parked=policeCars.filter(C=>C.state!=="leave"&&!C.roadblock&&hdist(C.g.position,player.root)<150).length;if(PCH.list.filter(P=>!P.dead).length+parked<pchMax())pchSpawn();}
   for(const P of PCH.list.slice()){
     if(P.dead){P.v*=Math.exp(-2*dt);P.g.position.x+=fwdOf(P.yaw).x*P.v*dt;P.g.position.z+=fwdOf(P.yaw).z*P.v*dt;P.x=P.g.position.x;P.z=P.g.position.z;if(Math.random()<dt*5)puff(P.x,P.y+1.1,P.z,1,1);
       P.m.lr.material.emissiveIntensity=P.m.lb.material.emissiveIntensity=0.2;if(hdist(P.g.position,player.root)>120)pchRemove(P);continue;}
     if(wanted.level===0){P.v*=Math.exp(-1.5*dt);P.giveUp=(P.giveUp||0)+dt;if(P.giveUp>4||hdist(P.g.position,player.root)>90){pchRemove(P);}continue;}
-    pchStep(P,dt);
+    pchStep(P,dt);if(P.gone){pchRemove(P);continue;}
     // joueur à pied, ou arrêté tout près : les agents descendent
     const d=Math.hypot(player.root.x-P.x,player.root.z-P.z);
     if((!drive&&d<16)||(drive&&Math.abs(drive.v)<1.5&&d<10&&PCH.stopT>1.5)){pchDeploy(P);continue;}
