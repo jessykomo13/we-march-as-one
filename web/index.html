@@ -119,6 +119,11 @@ svg.tree{width:100%;height:auto;display:block}
 .byrow svg{width:16px;height:16px;flex:none}.byrow span{width:72px}.byrow b{width:70px;text-align:right}
 .lv.cur{border-color:#2c64cf;box-shadow:0 3px 0 #2c64cf;background:#e8f0ff}
 #result .panel{max-height:92vh;overflow-y:auto}
+#padcur{position:fixed;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;border:3px solid #23262d;box-shadow:0 0 0 2px #fffdf7,inset 0 0 0 2px #fffdf7;pointer-events:none;z-index:6;will-change:transform}
+#padcur::before,#padcur::after{content:'';position:absolute;background:#23262d;left:50%;top:50%;transform:translate(-50%,-50%)}
+#padcur::before{width:3px;height:12px}#padcur::after{width:12px;height:3px}
+#padcur.erase{border-color:#d8343a}#padcur.erase::before,#padcur.erase::after{background:#d8343a}
+.padfocus{outline:4px solid #ffb800 !important;outline-offset:2px;box-shadow:0 0 0 8px #ffb80044 !important;position:relative;z-index:2}
 #skip{inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#cfe2ee 0%,#9fbad0 100%)}
 #skip .panel{padding:18px;width:min(90vw,380px);text-align:center}
 #skip .hpb{display:flex}#skip .hpb i{display:inline-block}
@@ -138,6 +143,6 @@ svg.tree{width:100%;height:auto;display:block}
 <div id="levels" class="scr" hidden></div>
 <div id="upgrades" class="scr" hidden></div>
 <div id="toast" class="ui"></div>
-<script type="module" src="js/game.js?v=10"></script>
+<script type="module" src="js/game.js?v=11"></script>
 </body>
 </html>

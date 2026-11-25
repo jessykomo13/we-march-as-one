@@ -3,11 +3,11 @@
 // ============================================================================
 import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
-  campaignLevel, tacticsLevel, musterLevel, emptyTerrain, NS, ITEMS, ITEM_IDX, ITEM_FOR_SHAPE, eliteStats, LEVEL_COUNT } from './data.js?v=10';
-import { Sim } from './sim.js?v=10';
-import { sfx } from './audio.js?v=10';
+  campaignLevel, tacticsLevel, musterLevel, emptyTerrain, NS, ITEMS, ITEM_IDX, ITEM_FOR_SHAPE, eliteStats, LEVEL_COUNT } from './data.js?v=11';
+import { Sim } from './sim.js?v=11';
+import { sfx } from './audio.js?v=11';
 
-const GAME_VERSION = '10';
+const GAME_VERSION = '11';
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
@@ -603,7 +603,7 @@ function show(id) {
   if (id === 'menu') { renderMenu(); startDemo(); }
   if (id === 'levels') renderLevels();
   if (id === 'upgrades') renderUpgrades();
-  if (id === 'setup' || id === 'battle') { renderTop(); renderBottom(); }
+  if (id === 'setup' || id === 'battle') { renderTop(); renderBottom(); if (id === 'setup' && PAD.on) requestAnimationFrame(padHome); }
   if (id === 'result') renderResult();
   zoneB.visible = zoneR.visible = frontLine.visible = gridLines.visible = id === 'setup';
 }
@@ -655,6 +655,14 @@ function renderHelp() {
     <b>Notes :</b> ✔ victoire · ◆ DÉCISIVE (moins de 35% de pertes) · ★ HÉROÏQUE (moins de 10%). Chaque nouvelle note rapporte de l'or.<br>
     <b>Le Roi :</b> avec l'amélioration « La Couronne », touche deux fois un Cercle : ×10 PV et dégâts, et les alliés autour vont 30% plus vite.<br>
     <b>Caméra :</b> 2D pour peindre, 3D et FLY pour admirer. Deux doigts : déplacer et zoomer (et tourner en 3D).
+    </div><div class="tierlbl">🎮 Manette</div><div class="panel" style="padding:12px;line-height:1.5">
+    Xbox, PlayStation, Switch Pro… : branche-la ou connecte-la en Bluetooth, puis appuie sur un bouton.<br>
+    <b>Menus :</b> croix ou stick gauche pour choisir, A (✕) valider, B (○) retour, LB/RB changer d'onglet, stick droit faire défiler.<br>
+    <b>Placement :</b> stick gauche = curseur, stick droit = caméra, croix ↑↓ = zoom, R3 = 2D/3D/FLY.<br>
+    A (✕) maintenu = peindre · B (○) maintenu = gommer · X (□) = mettre/retirer un objet (Couronne, Char…) · Y (△) = MARCHE/TENIR<br>
+    LB/RB = forme · LT/RT = taille du pinceau · ← annuler · → AUTO · Start = COMBATTRE · Select = Améliorations<br>
+    <b>Bataille :</b> Start = pause · LB/RB = vitesse · Y (△) = Résultat direct · LT/RT = tourner (3D)<br>
+    <b>Commandement :</b> X (□) = Pluie de flèches sur le curseur · B (○) = Ralliement · ← MARCHE · → TENIR
     </div><div class="tierlbl">Les ${NS} formes</div><div class="cards">${shapes}</div>
     <div class="tierlbl">Les objets</div><div class="small" style="margin-bottom:6px">Achète-les dans Améliorations &gt; Objets, puis touche deux fois une unité de la bonne forme pour la transformer.</div>
     <div class="cards">${ITEMS.map(it => `<div class="ncard"><div class="nic" style="font-size:22px">${it.icon}</div><div class="ntx"><b>${it.name}</b> <span class="small">sur un ${SHAPES[SHAPE_IDX[it.base]].name}</span><div class="small">${it.desc}</div></div></div>`).join('')}</div></div>`;
@@ -977,7 +985,7 @@ const ptrs = new Map(); let gesture = null, painting = false, stroke = null, pan
 let mouseIn = false, mouseP = { x: 0, y: 0 };
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointerdown', e => {
-  canvas.setPointerCapture(e.pointerId);
+  canvas.setPointerCapture(e.pointerId); padOff();
   if (screen === 'battle') autoCam = false;
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
   mouseP = { x: e.clientX, y: e.clientY }; mouseIn = true;
@@ -1017,11 +1025,7 @@ canvas.addEventListener('pointermove', e => {
     gesture = { mx, my, d, ang };
   } else if (painting) {
     const g = groundAt(e.clientX, e.clientY); if (!g) return;
-    // interpole pour un trait continu
-    const dx = g.x - lastStamp.x, dz = g.z - lastStamp.z, dist = Math.hypot(dx, dz), step = Math.max(CELL, brush.size * CELL * .5);
-    const n = Math.ceil(dist / step);
-    for (let i = 1; i <= n; i++) stamp(lastStamp.x + dx * i / n, lastStamp.z + dz * i / n, stroke);
-    lastStamp = g; formDirty = true;
+    strokeTo(g);
   } else if (panning) {
     if (view.mode === 'fly') { view.fyaw += (p.x - prev.x) * .005; view.fpitch = clamp(view.fpitch - (p.y - prev.y) * .005, -1.4, 1.2); updateCam(); }
     else panBy(prev, p);
@@ -1048,6 +1052,13 @@ function toggleElite(k) {
     toast(it.icon + ' ' + it.unit + ' ! ' + it.desc);
   }
   formDirty = true; renderBottom(); renderTop();
+}
+// interpole pour un trait continu
+function strokeTo(g) {
+  const dx = g.x - lastStamp.x, dz = g.z - lastStamp.z, dist = Math.hypot(dx, dz), step = Math.max(CELL, brush.size * CELL * .5);
+  const n = Math.ceil(dist / step);
+  for (let i = 1; i <= n; i++) stamp(lastStamp.x + dx * i / n, lastStamp.z + dz * i / n, stroke);
+  lastStamp = g; formDirty = true;
 }
 function endStroke() {
   if (stroke && stroke.length) undoStack.push(stroke);
@@ -1233,10 +1244,181 @@ function startDemo() {
   P.n = 0; setUnitShadows(true);
 }
 
+
+// ============================================================================ manette (Xbox, PlayStation, Switch Pro… via l'API Gamepad)
+// Boutons standard : 0 A/✕  1 B/○  2 X/□  3 Y/△  4 LB  5 RB  6 LT  7 RT  8 Select  9 Start  10 L3  11 R3  12-15 croix
+const PAD = { on: false, prev: [], cx: 0, cy: 0, focus: null, fkey: null, frect: null, rep: 0, repDir: '', paint: 0, ax: [0, 0, 0, 0] };
+const padCur = document.createElement('div'); padCur.id = 'padcur'; padCur.hidden = true; document.body.appendChild(padCur);
+const SPEEDS = [0, .5, 1, 2, 4], SIZES = [1, 3, 7, 8];
+addEventListener('gamepadconnected', e => { toast('🎮 Manette connectée' + (e.gamepad && e.gamepad.id ? ' : ' + e.gamepad.id.replace(/\(.*\)/, '').trim().slice(0, 32) : '')); });
+addEventListener('gamepaddisconnected', () => { toast('🎮 Manette déconnectée'); padOff(); });
+function padOff() { if (!PAD.on) return; PAD.on = false; padCur.hidden = true; setFocus(null); if (PAD.paint) { endStroke(); painting = false; PAD.paint = 0; } }
+// curseur au centre de la zone de déploiement bleue
+function padHome() {
+  PAD.cx = VW / 2; PAD.cy = VH / 2;
+  const v = new THREE.Vector3(0, 0, DEPLOY_MIN_Z + 6).project(activeCam());
+  if (Math.abs(v.x) < 1 && Math.abs(v.y) < 1) { PAD.cx = (v.x + 1) / 2 * VW; PAD.cy = (1 - v.y) / 2 * VH; }
+}
+function getPad() { const l = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l) if (g && g.connected !== false) return g; return null; }
+const dz = v => Math.abs(v) < .2 ? 0 : (v - Math.sign(v) * .2) / .8;
+// ---- navigation dans les menus (focus spatial)
+function focusables() {
+  const root = { menu: '#menu', levels: '#levels', upgrades: '#upgrades', result: '#result' }[screen];
+  const sk = $('#skip'); if (screen === 'battle' && skipping && sk) return [...sk.querySelectorAll('[data-act]')].filter(b => !b.disabled);
+  if (!root) return [];
+  return [...document.querySelectorAll(root + ' [data-act]')].filter(b => !b.disabled && b.offsetParent !== null);
+}
+const keyOf = b => b ? [b.dataset.act, b.dataset.v, b.dataset.t, b.dataset.n].join('|') : null;
+function setFocus(b) {
+  if (PAD.focus && PAD.focus !== b) PAD.focus.classList.remove('padfocus');
+  PAD.focus = b; PAD.fkey = keyOf(b);
+  if (b) { b.classList.add('padfocus'); PAD.frect = b.getBoundingClientRect(); b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}
+function ensureFocus(list) {
+  if (PAD.focus && PAD.focus.isConnected && list.includes(PAD.focus)) { if (!PAD.focus.classList.contains('padfocus')) PAD.focus.classList.add('padfocus'); return; }
+  // l'écran a été redessiné : on retrouve le même bouton, sinon le plus proche de l'ancien
+  let b = PAD.fkey && list.find(x => keyOf(x) === PAD.fkey);
+  if (!b && PAD.frect && PAD.focus && !PAD.focus.isConnected) {
+    const cx = PAD.frect.left + PAD.frect.width / 2, cy = PAD.frect.top + PAD.frect.height / 2; let bd = 1e9;
+    for (const x of list) { const r = x.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy); if (d < bd) { bd = d; b = x; } }
+  }
+  if (!b) b = list.find(x => x.classList.contains('cur')) || list.find(x => x.classList.contains('go')) || list.find(x => !['menu', 'tocampaign', 'mute'].includes(x.dataset.act)) || list[0];
+  setFocus(b || null);
+}
+function moveFocus(list, dir) {
+  const cur = PAD.focus; if (!cur) return ensureFocus(list);
+  const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+  let best = null, bs = 1e9;
+  for (const b of list) {
+    if (b === cur) continue;
+    const r = b.getBoundingClientRect(), bx = r.left + r.width / 2, by = r.top + r.height / 2;
+    const dx = bx - ax, dy = by - ay;
+    const p = dir === 'r' ? dx : dir === 'l' ? -dx : dir === 'd' ? dy : -dy, q = dir === 'r' || dir === 'l' ? Math.abs(dy) : Math.abs(dx);
+    // il faut vraiment être dans la direction (pas de recouvrement)
+    const ok = dir === 'r' ? r.left >= a.right - 4 : dir === 'l' ? r.right <= a.left + 4 : dir === 'd' ? r.top >= a.bottom - 4 : r.bottom <= a.top + 4;
+    if (!ok || p <= 0) continue;
+    const sc = p + q * 2.5; if (sc < bs) { bs = sc; best = b; }
+  }
+  if (best) { setFocus(best); sfx.click(); }
+}
+function padBack(list) {
+  for (const act of ['skipwatch', 'backlevel', 'menu', 'tocampaign', 'levelsbtn']) { const b = list.find(x => x.dataset.act === act); if (b) { b.click(); return; } }
+}
+// ---- boucle
+function pollPad(dt) {
+  const gp = getPad(); if (!gp) { if (PAD.on) padOff(); return; }
+  const B = gp.buttons.map(b => b.pressed || b.value > .5), prev = PAD.prev;
+  const ax = [dz(gp.axes[0] || 0), dz(gp.axes[1] || 0), dz(gp.axes[2] || 0), dz(gp.axes[3] || 0)];
+  const down = i => B[i] && !prev[i], held = i => !!B[i], up = i => !B[i] && prev[i];
+  PAD.prev = B;
+  const any = B.some(Boolean) || ax.some(v => v);
+  if (!PAD.on) {
+    if (!any) return;
+    // première action : elle sert juste à réveiller la manette (affiche le curseur / la sélection)
+    PAD.on = true; padHome(); PAD.paint = 0; PAD.rep = .38;
+    PAD.repDir = held(12) || ax[1] < -.6 ? 'u' : held(13) || ax[1] > .6 ? 'd' : held(14) || ax[0] < -.6 ? 'l' : held(15) || ax[0] > .6 ? 'r' : '';
+    const list = focusables(); if (list.length) ensureFocus(list);
+    return;
+  }
+  // directions avec répétition (croix ou stick gauche)
+  const dirNow = held(12) || ax[1] < -.6 ? 'u' : held(13) || ax[1] > .6 ? 'd' : held(14) || ax[0] < -.6 ? 'l' : held(15) || ax[0] > .6 ? 'r' : '';
+  let dirFire = '';
+  if (dirNow !== PAD.repDir) { PAD.repDir = dirNow; PAD.rep = .38; dirFire = dirNow; }
+  else if (dirNow) { PAD.rep -= dt; if (PAD.rep <= 0) { PAD.rep = .11; dirFire = dirNow; } }
+
+  const inGame = (screen === 'setup' || screen === 'battle') && !skipping;
+  if (!inGame) {
+    padCur.hidden = true; mouseIn = false;
+    if (screen === 'ending') return;
+    const list = focusables(); if (!list.length) { setFocus(null); return; }
+    ensureFocus(list);
+    if (dirFire) moveFocus(list, dirFire);
+    if (down(0) && PAD.focus) { const f = PAD.focus; PAD.fkey = keyOf(f); PAD.frect = f.getBoundingClientRect(); f.click(); }
+    else if (down(1)) padBack(list);
+    else if (down(9)) { const g = list.find(x => x.classList.contains('go')); if (g) g.click(); }
+    else if (screen === 'upgrades' && (down(4) || down(5))) { upTab = (upTab + (down(5) ? 1 : 2)) % 3; renderUpgrades(); sfx.click(); }
+    else if (screen === 'battle' && skipping && down(3)) stopSkip();
+    // stick droit : défilement de la page
+    const sc = { menu: '#menu', levels: '#levels', upgrades: '#upgrades', result: '#result' }[screen];
+    if (sc && ax[3]) $(sc).scrollTop += ax[3] * 900 * dt;
+    return;
+  }
+  setFocus(null);
+  // ---- caméra
+  const fly = view.mode === 'fly';
+  if (fly) {
+    const sp = 30 * dt * (held(10) ? 3 : 1);
+    if (ax[0] || ax[1]) { view.fx += (Math.sin(view.fyaw) * -ax[1] + Math.cos(view.fyaw) * ax[0]) * sp; view.fz += (-Math.cos(view.fyaw) * -ax[1] + Math.sin(view.fyaw) * ax[0]) * sp; }
+    if (ax[2] || ax[3]) { view.fyaw += ax[2] * 1.8 * dt; view.fpitch = clamp(view.fpitch - ax[3] * 1.4 * dt, -1.4, 1.2); }
+    if (ax.some(v => v)) updateCam();
+  } else {
+    if (ax[2] || ax[3]) { if (screen === 'battle') autoCam = false; const cx = VW / 2, cy = VH / 2, sp = 650 * dt; panBy({ x: cx, y: cy }, { x: cx - ax[2] * sp, y: cy - ax[3] * sp }); }
+    // stick gauche : curseur ; au bord de l'écran, il pousse la caméra
+    if (ax[0] || ax[1]) {
+      const sp = 620 * dt * (held(10) ? 2 : 1);
+      let nx = PAD.cx + ax[0] * sp, ny = PAD.cy + ax[1] * sp; const m = 14;
+      const ox = nx < m ? nx - m : nx > VW - m ? nx - (VW - m) : 0, oy = ny < m ? ny - m : ny > VH - m ? ny - (VH - m) : 0;
+      PAD.cx = clamp(nx, m, VW - m); PAD.cy = clamp(ny, m, VH - m);
+      if (ox || oy) { if (screen === 'battle') autoCam = false; panBy({ x: VW / 2, y: VH / 2 }, { x: VW / 2 - ox, y: VH / 2 - oy }); }
+    }
+  }
+  if (held(12) || held(13)) { autoCam = false; zoomBy(Math.pow(held(12) ? 2.2 : 1 / 2.2, dt)); }
+  if (down(11)) setCamMode({ '2d': '3d', '3d': 'fly', 'fly': '2d' }[view.mode]);
+  padCur.hidden = fly; padCur.style.transform = `translate(${PAD.cx}px,${PAD.cy}px)`;
+  mouseP = { x: PAD.cx, y: PAD.cy }; mouseIn = !fly;
+  const g = fly ? null : groundAt(PAD.cx, PAD.cy);
+
+  if (screen === 'setup') {
+    padCur.classList.toggle('erase', brush.erase || held(1));
+    if (view.mode === '3d' && (held(6) && held(7))) { /* rien */ }
+    // A : peindre / B : gommer (maintenus)
+    for (const [bt, er] of [[0, false], [1, true]]) {
+      if (down(bt) && !PAD.paint && g && !fly) {
+        if (brush.terrain) { if (!er) editTerrain(g.x, g.z); continue; }
+        const was = brush.erase; if (er) { brush.erase = true; brush._restore = !was; }
+        painting = true; stroke = []; stamp(g.x, g.z, stroke); lastStamp = g; formDirty = true; PAD.paint = bt + 1;
+      }
+    }
+    if (PAD.paint) {
+      if (up(PAD.paint - 1) || !held(PAD.paint - 1)) { endStroke(); painting = false; PAD.paint = 0; }
+      else if (g) strokeTo(g);
+    }
+    // X : objet (couronne, char…) sur l'unité sous le curseur
+    if (down(2) && g) {
+      if (mode === 'campaign' || mode === 'command') { const k = nearestEliteCandidate(g.x, g.z); if (k >= 0) toggleElite(k); else toast('Pas d\'unité qui peut porter un objet ici.'); }
+      else if (mode === 'sandbox') { brush.team = 1 - brush.team; renderBottom(); toast(brush.team ? 'Pinceau : Rouges' : 'Pinceau : Bleus'); }
+    }
+    if (down(3)) { order = 1 - order; renderBottom(); toast(order ? 'Ordre : TENIR' : 'Ordre : MARCHE'); sfx.click(); }
+    if (down(4) || down(5)) {
+      const av = []; for (let t = 0; t < NS; t++) if (shapeAvailable(t)) av.push(t);
+      if (av.length) { let i = av.indexOf(brush.t); i = i < 0 ? 0 : (i + (down(5) ? 1 : av.length - 1)) % av.length; brush.t = av[i]; brush.erase = false; brush.terrain = null; renderBottom(); sfx.click(); toast(SHAPES[brush.t].name); }
+    }
+    if (down(6) || down(7)) { let i = SIZES.indexOf(brush.size); i = clamp((i < 0 ? 1 : i) + (down(7) ? 1 : -1), 0, SIZES.length - 1); brush.size = SIZES[i]; renderBottom(); sfx.click(); }
+    if (down(14)) { undo(); sfx.click(); }
+    if (down(15)) { if (mode === 'sandbox') sandboxAuto(); else autoFill(); renderBottom(); renderTop(); sfx.click(); }
+    if (down(9)) { if (PAD.paint) { endStroke(); painting = false; PAD.paint = 0; } fight(); }
+    else if (down(8)) { storeFormation(); if (mode === 'campaign' || mode === 'command') { upgradesFrom = 'setup'; upTab = 0; show('upgrades'); } else if (mode === 'sandbox') show('menu'); else show('levels'); sfx.click(); }
+  } else if (screen === 'battle' && sim) {
+    padCur.classList.remove('erase');
+    if (view.mode === '3d' && (held(6) || held(7))) { view.yaw += (held(7) ? 1 : -1) * 1.4 * dt; updateCam(); }
+    if (down(9)) { speed = speed ? 0 : (S.speed || 1); renderBottom(); sfx.click(); }
+    if (down(4) || down(5)) { let i = SPEEDS.indexOf(speed); i = clamp((i < 0 ? 2 : i) + (down(5) ? 1 : -1), 0, SPEEDS.length - 1); speed = SPEEDS[i]; if (speed > 0) { S.speed = speed; save(); } renderBottom(); sfx.click(); }
+    if (down(3)) { startSkip(); return; }
+    if (mode === 'command' || mode === 'sandbox') {
+      const vr = sim.time >= volleyReady;
+      if (vr && g) { targetRingPad = g; }
+      if (down(2)) { if (vr && g) castVolley(g.x, g.z); else toast('Pluie de flèches pas encore prête.'); }
+      if (down(1)) { if (sim.time >= rallyReady) { sim.rally(5); rallyReady = sim.time + 22; toast('Ralliement ! +60% vitesse.'); sfx.rally(); updateBattleHud(); } else toast('Ralliement pas encore prêt.'); }
+      if (down(14) || down(15)) { const v = down(15) ? 1 : 0; sim.setOrder(0, v); toast(v ? 'Toute l\'armée TIENT sa position.' : 'Toute l\'armée MARCHE !'); sfx.click(); }
+    }
+  }
+}
+let targetRingPad = null;
 let last = performance.now(), hudT = 0;
 function frame(now) {
   const frameMs = now - last; const dt = Math.min(.1, frameMs / 1000); last = now;
   if (screen === 'battle' || screen === 'setup' || screen === 'menu') trackQuality(Math.min(frameMs, 100));
+  targetRingPad = null; pollPad(dt);
   // clavier : déplacement caméra
   let kx = 0, kz = 0;
   if (keys.has('w') || keys.has('z') || keys.has('arrowup')) kz -= 1;
@@ -1291,7 +1473,7 @@ function frame(now) {
       brushMesh.scale.set(n * CELL, 1, n * CELL); brushMesh.position.set(x0 + n * CELL / 2, .06, z0 + n * CELL / 2);
       brushMesh.material.color.set(brush.erase ? '#d8343a' : '#23262d'); brushMesh.visible = true;
     }
-    if (g && screen === 'battle' && power === 'volley') { targetRing.position.set(g.x, .07, g.z); targetRing.visible = true; }
+    if (g && screen === 'battle' && (power === 'volley' || targetRingPad)) { targetRing.position.set(g.x, .07, g.z); targetRing.visible = true; }
   }
   waterTex.offset.x += dt * .03; waterTex.offset.y = Math.sin(now / 1400) * .05;
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('#toast').style.opacity = 0; }
