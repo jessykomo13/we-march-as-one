@@ -29,9 +29,9 @@ document.getElementById("punchBtn").addEventListener("pointerdown",()=>{if(pwArm
 for(const ev of ["pointerup","pointercancel","pointerleave"])document.getElementById("punchBtn").addEventListener(ev,()=>{PW.trigger=false;});
 const gunBtn=document.createElement("button");gunBtn.id="gunBtn";gunBtn.textContent="✊";document.body.appendChild(gunBtn);
 gunBtn.addEventListener("pointerdown",e=>{e.stopPropagation();e.preventDefault();pwCycle();});
-function pwSelect(k){if(k!=="poings"&&!PW.owned[k]){hudMsg(`Tu n'as pas le ${WEAPONS[k].name} — ${ARMORY.name}`,2);return;}if(PW.cur===k)return;PW.cur=k;PW.reload=0;PW.cd=0.2;PW.trigger=false;
+function pwSelect(k){if(k!=="poings"&&!PW.owned[k]){hudMsg(`Tu n'as pas le ${WEAPONS[k].name} — va dans une armurerie (🎯 sur la carte)`,2.5);return;}if(PW.cur===k)return;PW.cur=k;PW.reload=0;PW.cd=0.2;PW.trigger=false;
   if(k!=="poings"&&PW.clip[k]<=0&&PW.ammo[k]>0)pwStartReload();hudMsg(k==="poings"?"Mains nues":`${WEAPONS[k].name} en main`,1.4);playSound("slap",0.04);pwHud();}
-function pwCycle(){const list=WEAPON_ORDER.filter(k=>k==="poings"||PW.owned[k]);const i=list.indexOf(PW.cur);if(list.length<2){hudMsg(`Achète une arme à l'${ARMORY.name} (🎯 sur la carte)`,2.5);return;}pwSelect(list[(i+1)%list.length]);}
+function pwCycle(){const list=WEAPON_ORDER.filter(k=>k==="poings"||PW.owned[k]);const i=list.indexOf(PW.cur);if(list.length<2){hudMsg(`Achète une arme dans une armurerie (🎯 sur la carte)`,2.5);return;}pwSelect(list[(i+1)%list.length]);}
 // ---------------------------------------------------------------- HUD
 {const st=document.createElement("style");st.textContent=`
 #gunHud{position:fixed;right:16px;bottom:150px;display:none;color:#fff;font:800 15px system-ui;text-shadow:0 2px 5px #000;text-align:right;pointer-events:none}
@@ -158,19 +158,27 @@ function copShoot(w,dt){
   return true;}
 // ---------------------------------------------------------------- armurerie
 const armEl=document.createElement("div");armEl.id="armory";document.body.appendChild(armEl);let armOpen=false;
+const ARMS=[];
+const ARM_NAMES={ps:"Le Chasseur du Nord",jardins:"Calibre des Jardins",marina:"Marina Tir",playa:"Plomb & Sable",bellef:"Bellefontaine Défense",pins:"La Cartouche des Pins",marais:"Marais Munitions",capnord:"Cap-Nord Chasse & Pêche",sierra:"Poudre Rouge",selva:"Selva Caza",brisa:"Brisa Défense",punta:"Esperanza Tir",ambre:"Armurerie d'Ambre"};
 function armoryInit(){
-  // un îlot commerçant près du centre
+  // Azuria : un îlot commerçant près du centre + quatre quartiers
   let spot=null;for(let r=0;r<6&&!spot;r++)for(let cx=-r;cx<=r&&!spot;cx++)for(let cz=-r;cz<=r&&!spot;cz++){if(Math.max(Math.abs(cx),Math.abs(cz))!==r)continue;if(chunkType(cx,cz)==="commerces")spot=[cx,cz];}
-  if(!spot)spot=[2,2];ARMORY.x=spot[0]*40+12;ARMORY.z=spot[1]*40-12+1.4;ARMORY.ok=true;
-  try{POI_ICON.armurerie=["🎯","#ff8a5a"];POIS.push({type:"armurerie",x:ARMORY.x,z:ARMORY.z,name:ARMORY.name});}catch(e){}
-  const g=new THREE.Group(),y=groundAt(ARMORY.x,ARMORY.z),X=ARMORY.x,Z=ARMORY.z+0.9;
-  put(BX(1.8,0.95,0.6),KM.dark||GUNM.body,X,y+0.47,Z,g);put(BX(1.7,0.04,0.5),mat({color:0x6a2a1e,roughness:0.8}),X,y+0.97,Z,g);
-  for(let i=0;i<3;i++){const gm=gunMesh(WEAPON_ORDER[i+1],false);scene.remove(gm);gm.position.set(X-0.55+i*0.55,y+1.02,Z);gm.rotation.set(-Math.PI/2,0,Math.PI/2);g.add(gm);}
-  put(BX(1.9,0.45,0.06),signMat("🎯 "+ARMORY.name,"#2a1410","#ffb07a",{w:512,h:120}),X,y+2.4,Z+0.32,g);put(BX(0.06,1.5,0.06),OM.metal,X-0.9,y+1.6,Z+0.3,g);put(BX(0.06,1.5,0.06),OM.metal,X+0.9,y+1.6,Z+0.3,g);
-  scene.add(g);addObstacle({type:"box",x:X,z:Z,hx:0.9,hz:0.3});
-  try{addAmb("vendeur",X,Z+0.75,0);}catch(e){}
+  const list=[[spot||[2,2],"Armurerie Calibre Sud"],[[-6,8],"Tir Coral"],[[10,-9],"Armurerie du Port"],[[-11,-4],"Acier & Poudre"],[[11,6],"Calibre Plage"]];
+  for(const T of TOWNS)list.push([[Math.round((T.i0+T.i1)/2),Math.round((T.j0+T.j1)/2)],ARM_NAMES[T.id]||("Armurerie de "+T.name)]);
+  try{POI_ICON.armurerie=["🎯","#ff8a5a"];}catch(e){}
+  for(const [[cx,cz],name] of list){const A={x:cx*40+12,z:cz*40-12+1.4,name,g:null,o:null};ARMS.push(A);try{POIS.push({type:"armurerie",x:A.x,z:A.z,name});}catch(e){}}
+  ARMORY.ok=true;Object.assign(ARMORY,{x:ARMS[0].x,z:ARMS[0].z,name:ARMS[0].name});
 }
-function nearArmory(){return ARMORY.ok&&Math.hypot(player.root.x-ARMORY.x,player.root.z-ARMORY.z)<2.4&&!drive;}
+// le comptoir n'est construit qu'à l'approche (le sol est alors connu)
+function armoryBuild(A){const g=new THREE.Group(),y=groundAt(A.x,A.z),X=A.x,Z=A.z+0.9;
+  put(BX(1.8,0.95,0.6),KM.dark||GUNM.body,X,y+0.47,Z,g);put(BX(1.7,0.04,0.5),mat({color:0x6a2a1e,roughness:0.8}),X,y+0.97,Z,g);
+  for(let i=0;i<3;i++){const gm=gunMesh(WEAPON_ORDER[i+1],false);scene.remove(gm);gm.position.set(X-0.55+i*0.55,y+1.02,Z);gm.rotation.set(0,Math.PI/2+(i-1)*0.25,Math.PI/2);g.add(gm);}
+  put(BX(1.9,0.45,0.06),signMat("🎯 "+A.name,"#2a1410","#ffb07a",{w:512,h:120}),X,y+2.4,Z+0.32,g);put(BX(0.06,1.5,0.06),OM.metal,X-0.9,y+1.6,Z+0.3,g);put(BX(0.06,1.5,0.06),OM.metal,X+0.9,y+1.6,Z+0.3,g);
+  scene.add(g);A.g=g;A.o=addObstacle({type:"box",x:X,z:Z,hx:0.9,hz:0.3});
+  try{addAmb("vendeur",X,Z+0.75,0);}catch(e){}}
+function armoryStream(){for(const A of ARMS){const d=Math.hypot(player.root.x-A.x,player.root.z-A.z);
+  if(!A.g&&d<150)armoryBuild(A);else if(A.g&&d>260){scene.remove(A.g);A.g=null;if(A.o){removeObstacle(A.o);A.o=null;}}}}
+function nearArmory(){if(drive)return false;for(const A of ARMS)if(A.g&&Math.hypot(player.root.x-A.x,player.root.z-A.z)<2.4){Object.assign(ARMORY,{x:A.x,z:A.z,name:A.name});return true;}return false;}
 function armButton(html,fn,off){const b=document.createElement("button");b.innerHTML=html;if(off)b.className="off";b.onclick=e=>{e.stopPropagation();fn();};armEl.querySelector(".btns").appendChild(b);}
 function armoryUI(){if(!armOpen){armEl.style.display="none";return;}armEl.style.display="block";armEl.innerHTML=`<h3>🎯 ${ARMORY.name} · ${money} €</h3><div class="btns"></div>`;
   for(const k of WEAPON_ORDER.slice(1)){const W=WEAPONS[k];
@@ -186,7 +194,7 @@ function tryArmory(){if(!nearArmory())return false;armOpen=!armOpen;armoryUI();r
 // ---------------------------------------------------------------- boucle
 function updateWeapons(dt){
   if(!PW.init){PW.init=true;armoryInit();pwHud();}
-  fxUpdate(dt);PW.cd-=dt;PW.hipT-=dt;
+  fxUpdate(dt);PW.cd-=dt;PW.armCk=(PW.armCk||0)-dt;if(PW.armCk<=0){PW.armCk=1;armoryStream();}PW.hipT-=dt;
   if(armOpen&&!nearArmory()){armOpen=false;armoryUI();}
   // rechargement
   if(PW.reload>0){PW.reload-=dt;if(PW.reload<=0){const k=PW.cur,n=Math.min(WEAPONS[k].mag-PW.clip[k],PW.ammo[k]);PW.clip[k]+=n;PW.ammo[k]-=n;playSound("slap",0.06);}pwHud();}
