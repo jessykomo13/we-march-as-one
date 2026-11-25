@@ -2,7 +2,7 @@
 // Simulation : chaque soldat et chaque projectile est simulé individuellement.
 // Collisions dures (les formes ne se traversent pas), obstacles, rivières lentes.
 // ============================================================================
-import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=9';
+import { SHAPES, MAP_W, MAP_H, HW, HH } from './data.js?v=10';
 
 const G = 1.0;                                   // cellule de la grille spatiale
 const GW = Math.ceil(MAP_W / G) + 1, GH = Math.ceil(MAP_H / G) + 1;
@@ -19,6 +19,9 @@ export class Sim {
     this.alive = new Uint8Array(this.cap); this.ranged = new Uint8Array(this.cap); this.king = new Uint8Array(this.cap);
     this.target = new Int32Array(this.cap); this.wait = new Int32Array(this.cap); this.next = new Int32Array(this.cap);
     this.al = new Int32Array(this.cap); this.an = 0; this.thead = [new Int32Array(GW * GH), new Int32Array(GW * GH)]; this.dens = new Float32Array(GW * GH); this.tnext = new Int32Array(this.cap); this.cell = new Int32Array(this.cap); this.mass = new Float32Array(this.cap);
+    this.elite = new Int8Array(this.cap).fill(-1); this.splash = new Float32Array(this.cap); this.cleave = new Float32Array(this.cap);
+    this.bSpd = new Float32Array(this.cap).fill(1); this.bDmg = new Float32Array(this.cap).fill(1); this.bArm = new Float32Array(this.cap).fill(1);
+    this.auras = []; this.auraT = 0;
     this.head = new Int32Array(GW * GH);
     this.aliveC = [0, 0]; this.startC = [0, 0]; this.gold = 0; this.time = 0;
     this.buff = [1, 1]; this.rallyT = 0; this.kings = [];
@@ -60,18 +63,49 @@ export class Sim {
   }
 
   // ------------------------------------------------------------ unités
-  add(x, z, t, order, team, st, reward, king = false) {
+  // st = stats déjà ajustées (améliorations, objet). opts : { elite: index d'objet, bar: afficher une barre de vie }
+  add(x, z, t, order, team, st, reward, opts = {}) {
     if (this.n >= this.cap) return -1; const i = this.n++;
-    const mul = king ? 10 : 1;
+    const elite = opts.elite >= 0 ? opts.elite : -1;
     this.x[i] = x; this.z[i] = z; this.hx[i] = 0; this.hz[i] = team === 0 ? -1 : 1;
-    this.hp[i] = this.maxHp[i] = st.hp * mul; this.dmg[i] = st.dmg * mul; this.range[i] = st.range;
+    this.hp[i] = this.maxHp[i] = st.hp; this.dmg[i] = st.dmg; this.range[i] = st.range;
     this.speed[i] = st.speed * (.94 + .12 * Math.random()); this.cool[i] = st.cd; this.cd[i] = Math.random() * st.cd;
-    this.r[i] = st.r * (king ? 2.2 : 1); this.ranged[i] = st.ranged ? 1 : 0; this.ps[i] = st.pspeed || 0;
-    this.reward[i] = reward * mul; this.team[i] = team; this.type[i] = t; this.order[i] = order;
-    this.alive[i] = 1; this.king[i] = king ? 1 : 0; this.mass[i] = this.r[i] * this.r[i] * (king ? .1 : 1); this.target[i] = -1; this.wait[i] = i % 8; this.hitT[i] = -9;
+    this.r[i] = st.r; this.ranged[i] = st.ranged ? 1 : 0; this.ps[i] = st.pspeed || 0;
+    this.splash[i] = st.splash || 0; this.cleave[i] = st.cleave || 0;
+    this.reward[i] = reward; this.team[i] = team; this.type[i] = t; this.order[i] = order;
+    this.alive[i] = 1; this.elite[i] = elite; this.king[i] = opts.bar ? 1 : 0;
+    this.mass[i] = this.r[i] * this.r[i] * (elite >= 0 ? .25 : 1);
+    this.target[i] = -1; this.wait[i] = i % 8; this.hitT[i] = -9;
     this.aliveC[team]++; this.startC[team]++;
-    if (king) this.kings.push(i);
+    if (opts.bar) this.kings.push(i);
+    // auras (objets) et soigneurs (Croix)
+    if (st.aura) this.auras.push({ i, type: st.aura.type, v: st.aura.v, r: st.aura.r });
+    if (st.heal) this.auras.push({ i, type: 'heal', v: st.heal, r: st.healR });
     return i;
+  }
+
+  // auras : recalculées toutes les 6 étapes via la grille (coût proportionnel aux unités proches seulement)
+  updateAuras(dt) {
+    this.auraT += dt;
+    if (this.stepN % 6 !== 0 || !this.auras.length) return;
+    const el = this.auraT; this.auraT = 0;
+    const al = this.al, an = this.an, BS = this.bSpd, BD = this.bDmg, BA = this.bArm;
+    for (let k = 0; k < an; k++) { const i = al[k]; BS[i] = 1; BD[i] = 1; BA[i] = 1; }
+    const X = this.x, Z = this.z, TM = this.team, AL = this.alive, head = this.head, next = this.next;
+    for (const a of this.auras) {
+      const s = a.i; if (!AL[s]) continue;
+      const tm = TM[s], r2 = a.r * a.r, sx = X[s], sz = Z[s];
+      const x0 = this.cx(sx - a.r), x1 = this.cx(sx + a.r), z0 = this.cz(sz - a.r), z1 = this.cz(sz + a.r);
+      for (let gz = z0; gz <= z1; gz++) for (let gx = x0; gx <= x1; gx++)
+        for (let j = head[gz * GW + gx]; j !== -1; j = next[j]) {
+          if (TM[j] !== tm || !AL[j]) continue;
+          const dx = X[j] - sx, dz = Z[j] - sz; if (dx * dx + dz * dz > r2) continue;
+          if (a.type === 'speed') { if (j !== s && a.v > BS[j]) BS[j] = a.v; }
+          else if (a.type === 'dmg') { if (a.v > BD[j]) BD[j] = a.v; }
+          else if (a.type === 'armor') { if (a.v < BA[j]) BA[j] = a.v; }
+          else if (a.type === 'heal') { if (this.hp[j] < this.maxHp[j]) this.hp[j] = Math.min(this.maxHp[j], this.hp[j] + a.v * el); }
+        }
+    }
   }
   cx(x) { const c = ((x + HW) / G) | 0; return c < 0 ? 0 : c >= GW ? GW - 1 : c; }
   cz(z) { const c = ((z + HH) / G) | 0; return c < 0 ? 0 : c >= GH ? GH - 1 : c; }
@@ -113,8 +147,8 @@ export class Sim {
     // anti-blocage : si plus personne ne se bat depuis 5 s, tout le monde marche
     if (!this.forceMarch && this.time - this.lastHit > 5 && this.pn === 0 && this.time > 3) this.forceMarch = true;
     // aura des rois : +30% vitesse aux alliés proches (calculée par unité via kings[])
-    const K = this.kings.filter(k => this.alive[k]);
-    for (let k = 0, an = this.an, al = this.al; k < an; k++) { const i = al[k]; if (this.alive[i]) this.unit(i, dt, K); }
+    this.updateAuras(dt);
+    for (let k = 0, an = this.an, al = this.al; k < an; k++) { const i = al[k]; if (this.alive[i]) this.unit(i, dt); }
     this.collide(); if (this.an < 8000) this.collide();
     this.projectiles(dt);
     if (this.aliveC[0] <= 0 || this.aliveC[1] <= 0) { this.finished = true; this.winner = this.aliveC[0] > 0 ? 0 : 1; }
@@ -147,7 +181,7 @@ export class Sim {
     return best;
   }
 
-  unit(i, dt, K) {
+  unit(i, dt) {
     this.cd[i] -= dt;
     let t = this.target[i];
     const lost = t >= 0 && !this.alive[t]; if (lost) t = -1;
@@ -158,7 +192,7 @@ export class Sim {
     }
     this.target[i] = t;
     let spd = this.speed[i] * this.buff[this.team[i]];
-    if (K.length) for (const k of K) if (k !== i && this.team[k] === this.team[i]) { const a = this.x[k] - this.x[i], b = this.z[k] - this.z[i]; if (a * a + b * b < 49) { spd *= 1.3; break; } }
+    spd *= this.bSpd[i];
     if (this.slow[this.cz(this.z[i]) * GW + this.cx(this.x[i])]) spd *= .4;
     let mx = 0, mz = 0;
     const hold = this.order[i] === 1 && !this.forceMarch;
@@ -169,7 +203,11 @@ export class Sim {
       if (d <= reach) {
         if (this.cd[i] <= 0) {
           this.cd[i] = this.cool[i];
-          if (this.ranged[i]) this.fire(i, t); else this.damage(t, this.dmg[i], this.team[i]);
+          const dm = this.dmg[i] * this.bDmg[i];
+          if (dm <= 0) { /* soigneur : reste à distance, ne frappe pas */ }
+          else if (this.ranged[i]) this.fire(i, t, dm);
+          else if (this.cleave[i] > 0) this.area(this.x[t], this.z[t], this.cleave[i], dm, this.team[i]);
+          else this.damage(t, dm, this.team[i]);
         }
       } else if (d < 2.5) { mx = this.hx[i]; mz = this.hz[i]; }
       else { const f = this.flow(i); if (f) { mx = f[0]; mz = f[1]; } else { mx = this.hx[i]; mz = this.hz[i]; } }
@@ -306,9 +344,9 @@ export class Sim {
     if (m === l) this.x[i] = o.x0 - r; else if (m === rr) this.x[i] = o.x1 + r; else if (m === t) this.z[i] = o.z0 - r; else this.z[i] = o.z1 + r;
   }
 
-  fire(i, t) {
-    if (this.pn >= this.PC) { this.damage(t, this.dmg[i], this.team[i]); return; }
-    this.spawnP(this.x[i], this.z[i], this.x[t], this.z[t], t, this.dmg[i], this.ps[i], 0, this.team[i], .16);
+  fire(i, t, dm) {
+    if (this.pn >= this.PC) { this.damage(t, dm, this.team[i]); return; }
+    this.spawnP(this.x[i], this.z[i], this.x[t], this.z[t], t, dm, this.ps[i], this.splash[i], this.team[i], this.splash[i] > 0 ? .3 : .16);
   }
   spawnP(sx, sz, tx, tz, tgt, d, spd, area, tm, arc) {
     if (this.pn >= this.PC) return; const p = this.pn++;
@@ -343,7 +381,7 @@ export class Sim {
   }
   damage(t, d, att) {
     if (!this.alive[t]) return;
-    this.hp[t] -= d; this.hitT[t] = this.time; this.lastHit = this.time; this.forceMarch = false;
+    this.hp[t] -= d * this.bArm[t]; this.hitT[t] = this.time; this.lastHit = this.time; this.forceMarch = false;
     if (this.hp[t] <= 0) {
       this.alive[t] = 0; this.deathT[t] = this.time; this.aliveC[this.team[t]]--; this.deaths++; if (this.events.length < 4000) this.events.push(t);
       if (this.team[t] === 1) this.gold += this.reward[t];

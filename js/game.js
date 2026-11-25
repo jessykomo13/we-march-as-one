@@ -3,11 +3,11 @@
 // ============================================================================
 import * as THREE from 'three';
 import { SHAPES, SHAPE_IDX, NODES, NODE_BY_ID, CELL, MAP_W, MAP_H, HW, HH, MAX_TROOPS, DEPLOY_MIN_Z, ENEMY_MAX_Z,
-  campaignLevel, tacticsLevel, musterLevel, emptyTerrain } from './data.js?v=9';
-import { Sim } from './sim.js?v=9';
-import { sfx } from './audio.js?v=9';
+  campaignLevel, tacticsLevel, musterLevel, emptyTerrain, NS, ITEMS, ITEM_IDX, ITEM_FOR_SHAPE, eliteStats, LEVEL_COUNT } from './data.js?v=10';
+import { Sim } from './sim.js?v=10';
+import { sfx } from './audio.js?v=10';
 
-const GAME_VERSION = '9';
+const GAME_VERSION = '10';
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const kfmt = n => n >= 1e5 ? Math.round(n / 1e3) + 'k' : n >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace('.0', '') + 'k' : String(Math.round(n));
@@ -19,9 +19,12 @@ const KEY = 'wmao3d_v1';
 const S = loadSave();
 function loadSave() {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  s = Object.assign({ gold: 0, owned: [30, 0, 0, 0, 0, 0, 0], nodes: {}, ratings: { campaign: {}, command: {}, tactics: {}, muster: {} },
-    formations: {}, seen: [0], sandbox: null, firstWin: {} }, s || {});
+  s = Object.assign({ gold: 0, owned: [30], nodes: {}, ratings: { campaign: {}, command: {}, tactics: {}, muster: {} },
+    formations: {}, seen: [0], sandbox: null, firstWin: {}, items: {} }, s || {});
   for (const k of ['campaign', 'command', 'tactics', 'muster']) s.ratings[k] = s.ratings[k] || {};
+  // anciennes sauvegardes : on agrandit les tableaux pour les nouvelles formes
+  const pad = a => { a = a || []; while (a.length < NS) a.push(0); return a; };
+  s.owned = pad(s.owned); s.train = pad(s.train); s.items = s.items || {};
   return s;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -36,6 +39,8 @@ const ACH = [
   ['leaf', 'Jusqu\'à la dernière feuille', 'Acheter tout l\'arbre'],
   ['boss', 'Régicide', 'Vaincre un roi ennemi'],
   ['end', 'We March as One', 'Gagner le niveau 50'],
+  ['end100', 'Nous marchons comme un', 'Gagner le niveau 100'],
+  ['elite', 'Arsenal', 'Gagner avec 5 objets différents sur le terrain'],
 ];
 function unlockAch(id) {
   S.ach = S.ach || {}; if (S.ach[id]) return;
@@ -49,6 +54,16 @@ const trainLvl = t => (S.train || [])[t] | 0;
 const trainCost = t => Math.round(SHAPES[t].cost * 20 * Math.pow(1.6, trainLvl(t)) / 10) * 10;
 const recruitMul = () => 1 - (has('recruit1') ? .15 : 0) - (has('recruit2') ? .25 : 0);
 const recruitCost = t => Math.max(1, Math.round(SHAPES[t].cost * recruitMul()));
+const zeros = () => new Array(NS).fill(0);
+// objets : stock possédé (la Couronne vient de l'amélioration « La Couronne »)
+const itemStock = id => id === 'crown' ? (has('king') ? 1 : 0) : (S.items[id] | 0);
+const itemCost = it => Math.round(it.cost * (has('cheap') ? .7 : 1));
+const itemAvailable = it => unlockedShape(SHAPE_IDX[it.base]) && (!it.needs || has(it.needs));
+function playerElite(st, it) {
+  const e = eliteStats(st, it);
+  if (has('forge')) { e.hp *= 1.3; e.dmg *= 1.3; }
+  return e;
+}
 const campaignProgress = () => { let m = 0; for (const k in S.ratings.campaign) if (S.ratings.campaign[k] >= 1) m = Math.max(m, +k); return m; };
 
 function playerStats(t, upgraded) {
@@ -62,6 +77,9 @@ function playerStats(t, upgraded) {
   if (has('spear')) s.dmg *= 1.2;
   if (has('armor')) s.hp *= 1.15;
   if (has('drill')) s.cd /= 1.15;
+  if (has('vigor')) s.hp *= 1.3;
+  if (has('frenzy')) s.cd /= 1.15;
+  if (has('heroes')) { s.hp *= 1.25; s.dmg *= 1.25; }
   const tl = trainLvl(t); s.hp *= 1 + .1 * tl; s.dmg *= 1 + .1 * tl;
   return s;
 }
@@ -165,12 +183,31 @@ function shapeGeo(t) {
     case 'pentagon': g = new THREE.CylinderGeometry(1.12, 1.12, 1, 5); break;
     case 'hexagon':  g = new THREE.CylinderGeometry(1.1, 1.1, 1, 6); break;
     case 'rhombus':  g = new THREE.CylinderGeometry(1.25, 1.25, 1, 4); g.scale(.62, 1, 1.3); break;
+    case 'octagon':  g = new THREE.CylinderGeometry(1.1, 1.1, 1, 8); break;
+    case 'star': {
+      const sh = new THREE.Shape();
+      for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? .55 : 1.3; k ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+      return extrude(sh);
+    }
+    case 'cross': {
+      const w = .4, L = 1.15, sh = new THREE.Shape();
+      sh.moveTo(-w, L); sh.lineTo(w, L); sh.lineTo(w, w); sh.lineTo(L, w); sh.lineTo(L, -w); sh.lineTo(w, -w); sh.lineTo(w, -L); sh.lineTo(-w, -L); sh.lineTo(-w, -w); sh.lineTo(-L, -w); sh.lineTo(-L, w); sh.lineTo(-w, w);
+      return extrude(sh);
+    }
+    case 'crescent': {
+      const sh = new THREE.Shape(), d = Math.PI / 180;
+      sh.absarc(0, 0, 1.15, 47.9 * d, 312.1 * d, false);
+      sh.absarc(.5, 0, .88, 286.2 * d, 73.8 * d, true);
+      return extrude(sh).rotateY(-Math.PI / 2);
+    }
   }
   g.translate(0, .5, 0); return g;
 }
+// forme 2D extrudée vers le haut (hauteur 1, posée au sol)
+function extrude(sh) { const g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: 10 }); g.rotateX(-Math.PI / 2); return g; }
 const GEOS = SHAPES.map((s, t) => shapeGeo(t));
-const TEAMCOL = [['#3b78e7', '#2b5fc0', '#5d95ff', '#4aa3f0', '#1f4aa3', '#6cb7ff', '#3d86d6'],
-                 ['#e5484d', '#b8323a', '#ff6a5a', '#f07a3c', '#8f1f2a', '#ff8f73', '#d9415f']];
+const TEAMCOL = [['#3b78e7', '#2b5fc0', '#5d95ff', '#4aa3f0', '#1f4aa3', '#6cb7ff', '#3d86d6', '#8fb3ff', '#173a85', '#b9d3ff', '#2f9bd9'],
+                 ['#e5484d', '#b8323a', '#ff6a5a', '#f07a3c', '#8f1f2a', '#ff8f73', '#d9415f', '#ffaa80', '#6e1520', '#ffc9c2', '#e0606f']];
 
 const _c = new THREE.Color();
 class Group {
@@ -228,7 +265,44 @@ const crownGeo = new THREE.ConeGeometry(.9, 1.1, 5).translate(0, .55, 0);
 const crownGroup = new Group(crownGeo, '#ffd84a', 4, { mat: new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: '#7a5a00' }) });
 // particules (éclats à la mort d'une unité)
 const partGroup = new Group(new THREE.BoxGeometry(1, 1, 1), '#ffffff', 1024, { cast: false });
-const allGroups = [...groups[0], ...groups[1], ...kingGroup, ...corpseGroup, projGroup, crownGroup, partGroup];
+// accessoires des objets (posés sur le corps de l'unité ; dimensions pour un rayon d'unité = 1)
+const medicGeo = (() => { const w = .32, L = .9, sh = new THREE.Shape(); sh.moveTo(-w, L); sh.lineTo(w, L); sh.lineTo(w, w); sh.lineTo(L, w); sh.lineTo(L, -w); sh.lineTo(w, -w); sh.lineTo(w, -L); sh.lineTo(-w, -L); sh.lineTo(-w, -w); sh.lineTo(-L, -w); sh.lineTo(-L, w); sh.lineTo(-w, w); const g = extrude(sh); g.scale(1, .25, 1); return g; })();
+const ACC = {
+  turret: new Group(new THREE.CylinderGeometry(.55, .65, .5, 10).translate(0, .25, 0), '#5d6470', 16),
+  barrel: new Group(new THREE.BoxGeometry(.2, .2, 1.4).translate(0, .28, .85), '#3a3e46', 16),
+  bigBarrel: new Group(new THREE.CylinderGeometry(.3, .36, 1.7, 10).rotateX(Math.PI / 2 - .35).translate(0, .45, .55), '#2d3036', 16),
+  wheel: new Group(new THREE.CylinderGeometry(.5, .5, .16, 12).rotateZ(Math.PI / 2).translate(0, .5, 0), '#6b4a2b', 32),
+  pole: new Group(new THREE.BoxGeometry(.09, 2.6, .09).translate(0, 1.3, 0), '#7a5a3a', 16),
+  flag: [new Group(new THREE.BoxGeometry(.05, .6, .9).translate(0, 2.25, .45), '#3b78e7', 16), new Group(new THREE.BoxGeometry(.05, .6, .9).translate(0, 2.25, .45), '#e5484d', 16)],
+  helmet: new Group(new THREE.ConeGeometry(.5, 1.3, 8).translate(0, .65, 0), '#c9d0da', 16),
+  lance: new Group(new THREE.BoxGeometry(.07, .07, 2.4).translate(.5, .35, 1), '#e1c98d', 16),
+  tower: new Group(new THREE.CylinderGeometry(.72, .72, .75, 8).translate(0, .37, 0), '#a3a8b0', 16),
+  medic: new Group(medicGeo, '#ffffff', 16),
+  shadow: new Group(new THREE.ConeGeometry(.38, 1.1, 4).translate(0, .55, 0), '#2a1f3d', 16),
+  rock: new Group(new THREE.DodecahedronGeometry(.62).translate(0, .62, 0), '#7d7f86', 16),
+};
+const accGroups = [ACC.turret, ACC.barrel, ACC.bigBarrel, ACC.wheel, ACC.pole, ...ACC.flag, ACC.helmet, ACC.lance, ACC.tower, ACC.medic, ACC.shadow, ACC.rock];
+const allGroups = [...groups[0], ...groups[1], ...kingGroup, ...corpseGroup, projGroup, crownGroup, partGroup, ...accGroups];
+// dessine une unité d'élite : corps (doré pour le Roi) + accessoires de son objet
+function drawElite(itemIdx, tm, t, x, y, z, hx, hz, r, sy, light) {
+  const it = ITEMS[itemIdx], top = y + sy * (SHAPES[t].id === 'diamond' ? 2.2 : 1);   // le losange est plus haut
+  if (it.id === 'crown') kingGroup[0].push(x, y, z, hx, hz, r, sy, light);
+  else groups[tm][t].push(x, y, z, hx, hz, r, sy, light);
+  const sx = hz, sz = -hx;   // axe « côté » de l'unité
+  switch (it.id) {
+    case 'crown': crownGroup.push(x, top, z, hx, hz, r * .6, r * .75); break;
+    case 'tank': ACC.turret.push(x, top, z, hx, hz, r * .8, r * .8); ACC.barrel.push(x, top, z, hx, hz, r * .8, r * .8); break;
+    case 'cannon':
+      ACC.bigBarrel.push(x, top - sy * .4, z, hx, hz, r * .9, r * .9);
+      ACC.wheel.push(x + sx * r * 1.05, y, z + sz * r * 1.05, hx, hz, r * .9, r * .9); ACC.wheel.push(x - sx * r * 1.05, y, z - sz * r * 1.05, hx, hz, r * .9, r * .9); break;
+    case 'banner': ACC.pole.push(x, top - sy * .5, z, hx, hz, r * .8, r * .8); ACC.flag[tm].push(x, top - sy * .5, z, hx, hz, r * .8, r * .8); break;
+    case 'knight': ACC.helmet.push(x, top, z, hx, hz, r * .7, r * .7); ACC.lance.push(x, top - sy * .4, z, hx, hz, r * .8, r * .8); break;
+    case 'bastion': ACC.tower.push(x, top, z, hx, hz, r * .85, r * .85); break;
+    case 'medic': ACC.medic.push(x, top + .01, z, hx, hz, r * .8, r * .8); break;
+    case 'shadow': ACC.shadow.push(x, top, z, hx, hz, r * .8, r * .8); break;
+    case 'titan': ACC.rock.push(x, top, z, hx, hz, r * .8, r * .8); ACC.helmet.push(x, top + r * .9, z, hx, hz, r * .5, r * .5); break;
+  }
+}
 // ombres des unités seulement quand l'armée n'est pas trop grande (perfs mobile)
 function setUnitShadows(on) { for (const tm of [0, 1]) for (const g of groups[tm]) g.mesh.castShadow = on; }
 
@@ -405,7 +479,8 @@ let screen = 'menu';
 let mode = 'campaign';      // campaign | command | tactics | muster | sandbox
 let level = null;           // niveau courant
 const form = [new Map(), new Map()];   // cellule -> forme (équipe bleue, rouge en bac à sable)
-let kingKey = -1;
+const elites = new Map();   // case -> index d'objet (Couronne, Char, Canon...)
+const eliteCount = id => { let n = 0; const ix = ITEM_IDX[id]; for (const v of elites.values()) if (v === ix) n++; return n; };
 let undoStack = [];
 let brush = { t: 0, size: 7, erase: false, team: 0, terrain: null };
 let order = 0;              // 0 = MARCHE, 1 = TENIR
@@ -427,8 +502,8 @@ function shapeAvailable(t) {
   if (mode === 'tactics') return (level.army[t] || 0) > 0;
   return unlockedShape(t) || S.seen.includes(t);
 }
-function counts(team = 0) { const c = [0, 0, 0, 0, 0, 0, 0]; for (const t of form[team].values()) c[t]++; return c; }
-function formationCost(team = 0) { let v = 0; for (const t of form[team].values()) v += SHAPES[t].cost; if (kingKey >= 0 && team === 0) v += SHAPES[0].cost * 9; return v; }
+function counts(team = 0) { const c = zeros(); for (const t of form[team].values()) c[t]++; return c; }
+function formationCost(team = 0) { let v = 0; for (const t of form[team].values()) v += SHAPES[t].cost; return v; }
 function costCap() { return 0; } // plus aucune limite de coût
 
 function zoneOk(team, x, z) {
@@ -444,7 +519,7 @@ function stamp(px, pz, stroke) {
   for (let dz = -h; dz < n - h; dz++) for (let dx = -h; dx < n - h; dx++) {
     const gx = cx + dx, gz = cz + dz; if (gx < 0 || gz < 0 || gx >= CW || gz >= CH) continue;
     const k = cellKey(gx, gz);
-    if (brush.erase) { if (F.has(k)) { stroke.push([team, k, F.get(k)]); F.delete(k); if (k === kingKey) kingKey = -1; } continue; }
+    if (brush.erase) { if (F.has(k)) { stroke.push([team, k, F.get(k)]); F.delete(k); if (team === 0) elites.delete(k); } continue; }
     if (F.has(k)) continue;                       // case déjà occupée : rien à faire
     const x = cellX(k), z = cellZ(k);
     if (!zoneOk(team, x, z)) continue;
@@ -455,29 +530,36 @@ function stamp(px, pz, stroke) {
 }
 function undo() {
   const s = undoStack.pop(); if (!s) return;
-  for (let i = s.length - 1; i >= 0; i--) { const [tm, k, prev] = s[i]; if (prev < 0) { form[tm].delete(k); if (k === kingKey) kingKey = -1; } else form[tm].set(k, prev); }
+  for (let i = s.length - 1; i >= 0; i--) { const [tm, k, prev] = s[i]; if (prev < 0) { form[tm].delete(k); if (tm === 0) elites.delete(k); } else form[tm].set(k, prev); }
   formDirty = true; renderBottom(); renderTop();
 }
-function clearForm() { const s = []; const tm = mode === 'sandbox' ? brush.team : 0; for (const [k, t] of form[tm]) s.push([tm, k, t]); form[tm].clear(); if (tm === 0) kingKey = -1; if (s.length) undoStack.push(s); formDirty = true; renderBottom(); renderTop(); }
+function clearForm() { const s = []; const tm = mode === 'sandbox' ? brush.team : 0; for (const [k, t] of form[tm]) s.push([tm, k, t]); form[tm].clear(); if (tm === 0) elites.clear(); if (s.length) undoStack.push(s); formDirty = true; renderBottom(); renderTop(); }
 
 function formKey() { return mode + ':' + (level ? level.id : 0); }
 function storeFormation() {
   if (mode === 'sandbox') return;
-  S.formations[formKey()] = { k: [...form[0].keys()], t: [...form[0].values()], king: kingKey, order };
+  S.formations[formKey()] = { k: [...form[0].keys()], t: [...form[0].values()], el: [...elites], order };
   // garde aussi la dernière formation de campagne (l'armée suit d'un niveau à l'autre)
   if (mode === 'campaign' || mode === 'command') S.formations.last = S.formations[formKey()];
   save();
 }
 function restoreFormation() {
-  form[0].clear(); form[1].clear(); kingKey = -1;
+  form[0].clear(); form[1].clear(); elites.clear();
   const f = S.formations[formKey()] || ((mode === 'campaign' || mode === 'command') ? S.formations.last : null);
   if (f) {
-    const c = [0, 0, 0, 0, 0, 0, 0];
+    const c = zeros();
     f.k.forEach((k, i) => { const t = f.t[i]; if (!shapeAvailable(t) || c[t] >= armyLimit(t)) return; const x = cellX(k), z = cellZ(k); if (!zoneOk(0, x, z)) return; form[0].set(k, t); c[t]++; });
-    if (f.king >= 0 && form[0].get(f.king) === 0 && has('king')) kingKey = f.king;
+    // objets : seulement si on en possède encore assez
+    const used = {};
+    const want = f.el || (f.king >= 0 ? [[f.king, ITEM_IDX.crown]] : []);
+    if (mode === 'campaign' || mode === 'command') for (const [k, ix] of want) {
+      const it = ITEMS[ix]; if (!it || form[0].get(k) !== SHAPE_IDX[it.base]) continue;
+      used[ix] = (used[ix] || 0) + 1; if (used[ix] > itemStock(it.id)) continue;
+      elites.set(k, ix);
+    }
     order = f.order || 0;
     const cap = costCap();
-    if (cap && formationCost(0) > cap) { form[0].clear(); kingKey = -1; autoFill(); setTimeout(() => toast('Ton armée dépassait le plafond de coût : formation refaite automatiquement.'), 50); }
+    if (cap && formationCost(0) > cap) { form[0].clear(); elites.clear(); autoFill(); setTimeout(() => toast('Ton armée dépassait le plafond de coût : formation refaite automatiquement.'), 50); }
   }
   if (!form[0].size && mode !== 'muster') autoFill();
 }
@@ -486,7 +568,7 @@ function autoFill() {
   const before = new Set(form[0].keys());
   const c = counts(0); let z0 = DEPLOY_MIN_Z + .25;
   const cap = costCap(); let budget = cap ? cap - formationCost(0) : Infinity;
-  const orderShapes = [1, 4, 0, 6, 2, 3, 5]; // ancres devant, tireurs derrière
+  const orderShapes = [8, 1, 4, 0, 6, 2, 7, 3, 9, 5, 10]; // lourds devant, soigneurs puis tireurs derrière
   for (const t of orderShapes) {
     if (!shapeAvailable(t)) continue;
     let n = Math.min(armyLimit(t) - c[t], 4000, Math.floor(budget / SHAPES[t].cost)); if (!isFinite(n) || n <= 0) continue;
@@ -531,7 +613,11 @@ function shapeSVG(t, fill = '#23262d') {
     circle: '<circle cx="12" cy="12" r="9"/>', square: '<rect x="4" y="4" width="16" height="16"/>',
     triangle: '<polygon points="12,3 21,20 3,20"/>', diamond: '<polygon points="12,2 20,12 12,22 4,12"/>',
     pentagon: '<polygon points="12,2.5 21.5,9.5 18,21 6,21 2.5,9.5"/>', hexagon: '<polygon points="7,3 17,3 22,12 17,21 7,21 2,12"/>',
-    rhombus: '<polygon points="9,4 22,4 15,20 2,20"/>', erase: '<path d="M4 16l8-11 8 6-8 11H8z" fill="none" stroke-width="2.4" stroke="' + fill + '"/>'
+    rhombus: '<polygon points="9,4 22,4 15,20 2,20"/>',
+    star: '<polygon points="12,1.5 14.9,8.6 22.5,9.2 16.7,14.1 18.5,21.6 12,17.6 5.5,21.6 7.3,14.1 1.5,9.2 9.1,8.6"/>',
+    octagon: '<polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8"/>',
+    cross: '<polygon points="9,2 15,2 15,9 22,9 22,15 15,15 15,22 9,22 9,15 2,15 2,9 9,9"/>',
+    crescent: '<path d="M15.5 2.6A10 10 0 1 0 15.5 21.4A8 8 0 1 1 15.5 2.6Z"/>', erase: '<path d="M4 16l8-11 8 6-8 11H8z" fill="none" stroke-width="2.4" stroke="' + fill + '"/>'
   };
   return `<svg viewBox="0 0 24 24" fill="${fill}">${P[t < 0 ? 'erase' : SHAPES[t].id]}</svg>`;
 }
@@ -545,7 +631,7 @@ function renderMenu() {
     <div class="row" style="margin-top:6px"><button data-act="mute" style="padding:5px 9px">${sfx.muted ? '🔇' : '🔊'}</button><span class="chip gold">${fmt(S.gold)} or</span><span class="chip">Campagne ${prog}/50</span><span class="chip">${fmt(S.owned.reduce((a, b) => a + b))} troupes</span></div>
     <div class="spacer"></div>
     <div class="modes">
-      <button class="mode panel" data-act="mode" data-v="campaign"><b>Campagne</b>Bâtis ton armée bataille après bataille. 50 niveaux.</button>
+      <button class="mode panel" data-act="mode" data-v="campaign"><b>Campagne</b>Bâtis ton armée bataille après bataille. ${LEVEL_COUNT} niveaux.</button>
       <button class="mode panel" data-act="mode" data-v="command"><b>Commandement</b>Ordres en temps réel et pouvoirs sur le champ de bataille.</button>
       <button class="mode panel" data-act="mode" data-v="tactics"><b>Tactique</b>Puzzles à armée fixe : seuls le placement et les ordres comptent.</button>
       <button class="mode panel" data-act="mode" data-v="muster"><b>Rassemblement</b>Compose librement ton armée avec toutes les formes que tu connais.</button>
@@ -569,7 +655,9 @@ function renderHelp() {
     <b>Notes :</b> ✔ victoire · ◆ DÉCISIVE (moins de 35% de pertes) · ★ HÉROÏQUE (moins de 10%). Chaque nouvelle note rapporte de l'or.<br>
     <b>Le Roi :</b> avec l'amélioration « La Couronne », touche deux fois un Cercle : ×10 PV et dégâts, et les alliés autour vont 30% plus vite.<br>
     <b>Caméra :</b> 2D pour peindre, 3D et FLY pour admirer. Deux doigts : déplacer et zoomer (et tourner en 3D).
-    </div><div class="tierlbl">Les 7 formes</div><div class="cards">${shapes}</div></div>`;
+    </div><div class="tierlbl">Les ${NS} formes</div><div class="cards">${shapes}</div>
+    <div class="tierlbl">Les objets</div><div class="small" style="margin-bottom:6px">Achète-les dans Améliorations &gt; Objets, puis touche deux fois une unité de la bonne forme pour la transformer.</div>
+    <div class="cards">${ITEMS.map(it => `<div class="ncard"><div class="nic" style="font-size:22px">${it.icon}</div><div class="ntx"><b>${it.name}</b> <span class="small">sur un ${SHAPES[SHAPE_IDX[it.base]].name}</span><div class="small">${it.desc}</div></div></div>`).join('')}</div></div>`;
   $('#menu').scrollTop = 0;
 }
 
@@ -577,7 +665,7 @@ function renderHelp() {
 function levelList() {
   if (mode === 'tactics') return [0, 1, 2, 3, 4, 5].map(i => ({ id: i + 1, mk: () => tacticsLevel(i), name: 'Tactique ' + (i + 1) }));
   if (mode === 'muster') return [0, 1, 2, 3, 4, 5].map(i => ({ id: i + 1, mk: () => musterLevel(i), name: 'Rassemblement ' + (i + 1) }));
-  const L = []; for (let n = 1; n <= 50; n++) L.push({ id: n, mk: () => campaignLevel(n), n }); return L;
+  const L = []; for (let n = 1; n <= LEVEL_COUNT; n++) L.push({ id: n, mk: () => campaignLevel(n), n }); return L;
 }
 function renderLevels() {
   const R = S.ratings[mode] || {};
@@ -596,7 +684,7 @@ function renderLevels() {
   h += `</div><p class="small" style="margin-top:12px">✔ Victoire · ◆ DÉCISIVE (moins de 35% de pertes) · ★ HÉROÏQUE (moins de 10% de pertes). Rejoue les niveaux pour de meilleures notes et plus d'or.</p></div>`;
   $('#levels').innerHTML = h;
   // place la vue sur le prochain niveau à jouer
-  const cur = $('#levels').querySelector(`[data-act=level][data-v="${Math.min(50, prog + 1)}"]`);
+  const cur = $('#levels').querySelector(`[data-act=level][data-v="${Math.min(LEVEL_COUNT, prog + 1)}"]`);
   if (cur && (mode === 'campaign' || mode === 'command')) { cur.classList.add('cur'); requestAnimationFrame(() => cur.scrollIntoView({ block: 'center' })); }
 }
 
@@ -604,18 +692,18 @@ function renderLevels() {
 let upTab = 0;
 function nodeIcon(n) {
   if (n.unlock) return shapeSVG(SHAPE_IDX[n.unlock]);
-  const g = { king: '♛', eco1: '¤', eco2: '¤', eco3: '¤', recruit1: '+', recruit2: '+', armor: '⛨', drill: '⟳', march: '»', spear: '➶', volley: '➶', circ1: '●', tri2: '▲', sq2: '■' }[n.id] || '▲';
+  const g = { king: '♛', eco1: '¤', eco2: '¤', eco3: '¤', eco4: '¤', recruit1: '+', recruit2: '+', armor: '⛨', drill: '⟳', march: '»', spear: '➶', volley: '➶', circ1: '●', tri2: '▲', sq2: '■', vigor: '♥', frenzy: '⚡', forge: '⚒', cheap: '%', heroes: '★' }[n.id] || '▲';
   return `<span style="font-size:20px;font-weight:900;line-height:24px">${g}</span>`;
 }
 function renderUpgrades() {
   const back = upgradesFrom === 'setup' || upgradesFrom === 'result';
   let h = `<div class="uphead"><button data-act="tocampaign">◀ Campagne</button><b style="font-size:18px">Améliorations</b><span class="sp"></span><span class="chip gold">${fmt(S.gold)} or</span>${back && level ? `<button class="go" data-act="backlevel" style="font-size:13px;padding:7px 10px">⚔ Retour au combat</button>` : ''}</div>`;
-  h += `<div class="wrap" style="padding-top:8px"><div class="seg" style="margin-bottom:10px"><button data-act="uptab" data-v="0" class="${upTab === 0 ? 'on' : ''}">Arbre de compétences</button><button data-act="uptab" data-v="1" class="${upTab === 1 ? 'on' : ''}">Recruter et entraîner</button></div>`;
+  h += `<div class="wrap" style="padding-top:8px"><div class="seg" style="margin-bottom:10px"><button data-act="uptab" data-v="0" class="${upTab === 0 ? 'on' : ''}">Arbre de compétences</button><button data-act="uptab" data-v="1" class="${upTab === 1 ? 'on' : ''}">Recruter</button><button data-act="uptab" data-v="2" class="${upTab === 2 ? 'on' : ''}">Objets</button></div>`;
   if (upTab === 0) {
     const owned = Object.keys(S.nodes).length;
     h += `<div class="small" style="margin-bottom:6px">${owned}/${NODES.length} acquis · les achats sont définitifs · chaque palier s'ouvre avec le précédent.</div>`;
-    for (let tier = 1; tier <= 3; tier++) {
-      h += `<div class="tierlbl">Palier ${'I'.repeat(tier)}</div><div class="cards">`;
+    for (let tier = 1; tier <= 4; tier++) {
+      h += `<div class="tierlbl">Palier ${['', 'I', 'II', 'III', 'IV'][tier]}</div><div class="cards">`;
       for (const n of NODES.filter(x => x.tier === tier).sort((a, b) => a.x - b.x)) {
         const own = has(n.id), avail = n.pre.every(has), afford = S.gold >= n.cost;
         const cls = own ? 'own' : avail ? (afford ? 'buy' : 'avail') : 'lock';
@@ -627,9 +715,21 @@ function renderUpgrades() {
       }
       h += `</div>`;
     }
+  } else if (upTab === 2) {
+    h += `<div class="small" style="margin-bottom:6px">Un objet transforme une unité en héros. Sur le terrain de préparation, <b>touche deux fois</b> une unité de la bonne forme pour la transformer (et encore deux fois pour annuler). Comme les troupes, les objets reviennent après chaque bataille.</div><div class="cards">`;
+    for (const it of ITEMS) {
+      const t = SHAPE_IDX[it.base], ok = itemAvailable(it), st = itemStock(it.id), c = itemCost(it);
+      const req = !unlockedShape(t) ? `Débloque d'abord les ${SHAPES[t].name}s` : it.needs && !has(it.needs) ? `Requiert : ${NODE_BY_ID[it.needs].name}` : '';
+      h += `<div class="ncard ${ok ? (st ? 'own2' : 'avail') : 'lock'}"><div class="nic" style="font-size:22px">${it.icon}</div><div class="ntx"><b>${it.name}</b> <span class="small">sur un ${SHAPES[t].name}</span> ${st ? `<b class="lvl">× ${st}</b>` : ''}<div class="small">${it.desc}</div>`;
+      if (req) h += `<div class="small req">🔒 ${req}</div>`;
+      else if (it.id === 'crown') h += `<div class="small gold">Unique : un seul Roi par armée.</div>`;
+      else h += `<div class="row" style="margin-top:6px"><span class="small gold">${fmt(c)} or</span>${[1, 5].map(a => `<button class="${S.gold >= a * c ? 'blue' : ''}" data-act="buyitem" data-v="${it.id}" data-n="${a}" ${S.gold < a * c ? 'disabled' : ''}>+${a}</button>`).join('')}</div>`;
+      h += `</div></div>`;
+    }
+    h += `</div>`;
   } else {
     h += `<div class="small" style="margin-bottom:6px">Les troupes tombées reviennent après chaque bataille. L'entraînement donne +10% de PV et de dégâts par niveau à une forme.</div>`;
-    for (let t = 0; t < 7; t++) {
+    for (let t = 0; t < NS; t++) {
       if (!unlockedShape(t)) { h += `<div class="ncard lock"><div class="nic">${shapeSVG(t, '#8a7a55')}</div><div class="ntx"><b>${SHAPES[t].name}</b><div class="small">À débloquer dans l'arbre de compétences</div></div></div>`; continue; }
       const c = recruitCost(t), tl = trainLvl(t), tc = trainCost(t);
       h += `<div class="ncard own2"><div class="nic">${shapeSVG(t, TEAMCOL[0][t])}</div><div class="ntx"><b>${SHAPES[t].name}</b> <b>× ${fmt(S.owned[t])}</b> <span class="lvl">Nv ${tl}</span><div class="small">${SHAPES[t].role}</div>
@@ -653,9 +753,9 @@ function renderTop() {
       // force estimée : valeur (coût) de ton armée améliorée vs celle de l'ennemi
       const up = mode === 'campaign' || mode === 'command', lm = 1 + .03 * ((level.id || 1) - 1);
       let mine = 0, foe = 0;
-      for (const t of form[0].values()) { const st = playerStats(t, up); mine += SHAPES[t].cost * Math.sqrt(st.hp * st.dmg / (SHAPES[t].hp * SHAPES[t].dmg)); }
-      if (kingKey >= 0) mine += SHAPES[0].cost * 9;
-      for (const e of level.enemy) foe += SHAPES[e.t].cost * lm * (e.king ? 10 : 1);
+      for (const t of form[0].values()) { const st = playerStats(t, up); mine += SHAPES[t].cost * Math.sqrt(st.hp * Math.max(st.dmg, .5) / (SHAPES[t].hp * Math.max(SHAPES[t].dmg, .5))); }
+      for (const [k, ix] of elites) { const m = ITEMS[ix].mul; mine += SHAPES[form[0].get(k)].cost * (Math.sqrt((m.hp || 1) * (m.dmg || 1)) - 1); }
+      for (const e of level.enemy) { let v = SHAPES[e.t].cost * lm; if (e.item) { const m = ITEMS[ITEM_IDX[e.item]].mul; v *= Math.sqrt((m.hp || 1) * (m.dmg || 1)); } foe += v; }
       const ratio = foe ? mine / foe : 1, col = ratio >= 1.3 ? '#1f9d55' : ratio >= .9 ? '#c98a00' : '#d8343a';
       h += `<span class="chip" style="color:${col}" title="Force estimée de ton armée par rapport à l'ennemi">⚔ ${Math.round(ratio * 100)}%</span>`;
       h += `<span class="chip red">👥 ${kfmt(level.enemy.length)}</span>`;
@@ -671,7 +771,7 @@ function renderBottom() {
   if (screen === 'setup') {
     const c0 = counts(0), c1 = counts(1);
     let pal = '';
-    for (let t = 0; t < 7; t++) {
+    for (let t = 0; t < NS; t++) {
       if (!shapeAvailable(t)) continue;
       const lim = armyLimit(t), team = mode === 'sandbox' ? brush.team : 0, used = (team ? c1 : c0)[t];
       const label = isFinite(lim) ? `${kfmt(used)}/${kfmt(lim)}` : kfmt(used);
@@ -688,7 +788,11 @@ function renderBottom() {
     if (mode === 'campaign' || mode === 'command') h += `<button class="blue" data-act="upgrades">AMÉLIORATIONS</button>`;
     const cap = costCap(), over = cap && formationCost(0) > cap;
     h += `<span style="flex:1"></span><button class="go" data-act="fight" ${over ? 'disabled' : ''}>COMBATTRE</button></div>`;
-    if (has('king') && (mode === 'campaign' || mode === 'command') && kingKey < 0) h += `<div class="small" style="background:#fffdf7cc;border-radius:6px;padding:2px 6px;align-self:flex-start">♛ Touche deux fois un Cercle pour le couronner.</div>`;
+    if (mode === 'campaign' || mode === 'command') {
+      // objets disponibles : stock restant, et rappel du double-tap
+      const chips = ITEMS.filter(it => itemStock(it.id) > 0).map(it => `<span class="ichip" title="${it.name} : touche 2× un ${SHAPES[SHAPE_IDX[it.base]].name}">${it.icon} ${itemStock(it.id) - eliteCount(it.id)}</span>`).join('');
+      if (chips) h += `<div class="ibar"><span class="small">Objets restants :</span>${chips}<span class="small">· touche 2× une unité</span></div>`;
+    }
     $('#bottom').innerHTML = h;
   } else if (screen === 'battle') {
     let h = `<div class="panel" style="padding:8px"><div class="row"><b class="blue-t" id="nB"></b><div id="bar"><i id="bB" style="background:#3b78e7"></i><i id="bR" style="background:#e5484d"></i></div><b class="red" id="nR"></b></div>`;
@@ -698,7 +802,7 @@ function renderBottom() {
       h += `<button data-act="power" data-v="volley" id="pV"></button><button data-act="power" data-v="rally" id="pR"></button>`;
     }
     h += `<span style="flex:1"></span><span class="small" id="tm"></span><button class="blue" data-act="skip">⏩ Résultat direct</button><button data-act="retreat">Retraite</button></div></div>`;
-    if (sim && sim.kings.length) h = sim.kings.map(k => `<div class="panel bossbar"><b>${sim.team[k] ? '♛ Roi ennemi' : '♛ Ton Roi'}</b><div class="hpb"><i id="kb${k}" style="background:${sim.team[k] ? '#e5484d' : '#f5c542'}"></i></div></div>`).join('') + h;
+    if (sim && sim.kings.length) h = sim.kings.map(k => `<div class="panel bossbar"><b>${ITEMS[sim.elite[k]] ? ITEMS[sim.elite[k]].icon + ' ' + ITEMS[sim.elite[k]].unit : '♛ Roi'}${sim.team[k] ? ' ennemi' : ''}</b><div class="hpb"><i id="kb${k}" style="background:${sim.team[k] ? '#e5484d' : '#f5c542'}"></i></div></div>`).join('') + h;
     $('#bottom').innerHTML = h; updateBattleHud();
   }
 }
@@ -774,7 +878,7 @@ function openLevel(L) {
   quality.big = false; applyQuality();
   level = L; undoStack = []; result = null; sim = null; power = null;
   if (mode === 'sandbox') {
-    form[0].clear(); form[1].clear(); kingKey = -1;
+    form[0].clear(); form[1].clear(); elites.clear();
   } else {
     restoreFormation();
     form[1].clear();
@@ -806,12 +910,20 @@ function fight() {
   sim = new Sim(form[0].size + enemyCount, level.terrain);
   const upgraded = mode === 'campaign' || mode === 'command';
   const ps = SHAPES.map((s, t) => playerStats(t, upgraded));
-  for (const [k, t] of form[0]) sim.add(cellX(k), cellZ(k), t, order, 0, ps[t], 0, k === kingKey);
+  const upg = mode === 'campaign' || mode === 'command';
+  for (const [k, t] of form[0]) {
+    const ix = upg ? elites.get(k) : undefined;
+    if (ix !== undefined) { const it = ITEMS[ix]; sim.add(cellX(k), cellZ(k), t, order, 0, playerElite(ps[t], it), 0, { elite: ix, bar: it.id === 'crown' }); }
+    else sim.add(cellX(k), cellZ(k), t, order, 0, ps[t], 0);
+  }
   const lm = mode === 'sandbox' ? 1 : 1 + .03 * ((level.id || 1) - 1);
   const es = SHAPES.map(s => Object.assign({}, s, { hp: s.hp * lm, dmg: s.dmg * lm }));
   const eo = level.enemyOrder === 'hold' ? 1 : 0;
   if (mode === 'sandbox') for (const [k, t] of form[1]) sim.add(cellX(k), cellZ(k), t, eo, 1, es[t], 0, false);
-  else for (const e of level.enemy) sim.add(e.x, e.z, e.t, eo, 1, es[e.t], SHAPES[e.t].reward, !!e.king);
+  else for (const e of level.enemy) {
+    if (e.item) { const ix = ITEM_IDX[e.item], it = ITEMS[ix]; sim.add(e.x, e.z, e.t, eo, 1, eliteStats(es[e.t], it), SHAPES[e.t].reward * (it.mul.hp || 1), { elite: ix, bar: !!e.king }); }
+    else sim.add(e.x, e.z, e.t, eo, 1, es[e.t], SHAPES[e.t].reward);
+  }
   // formes rencontrées (débloquées dans le bac à sable)
   if (mode !== 'sandbox') for (const e of level.enemy) if (!S.seen.includes(e.t)) S.seen.push(e.t);
   speed = S.speed || 1; power = null; volleyReady = 0; rallyReady = 0; P.n = 0; stopSkip(true);
@@ -827,7 +939,7 @@ function endBattle() {
   const army = sim.startC[0], lost = sim.startC[0] - sim.aliveC[0];
   const r = { win, army, lost, enemies: sim.startC[1], killed: sim.startC[1] - sim.aliveC[1], time: sim.time, rating: 0, gKills: 0, gWin: 0, gRate: 0, first: false, by: [] };
   // pertes par forme (camp bleu)
-  for (let t = 0; t < 7; t++) r.by[t] = [0, 0];
+  for (let t = 0; t < NS; t++) r.by[t] = [0, 0];
   for (let i = 0; i < sim.n; i++) if (sim.team[i] === 0) { r.by[sim.type[i]][0]++; if (!sim.alive[i]) r.by[sim.type[i]][1]++; }
   if (win) r.rating = lost / army < .1 ? 3 : lost / army < .35 ? 2 : 1;
   if (mode !== 'sandbox') {
@@ -848,6 +960,8 @@ function endBattle() {
       if (r.rating === 3) unlockAch('heroic');
       if (level.boss) unlockAch('boss');
       if ((mode === 'campaign' || mode === 'command') && level.id === 50) unlockAch('end');
+      if ((mode === 'campaign' || mode === 'command') && level.id === 100) unlockAch('end100');
+      if (new Set(elites.values()).size >= 5) unlockAch('elite');
     }
   }
   result = r;
@@ -872,10 +986,10 @@ canvas.addEventListener('pointerdown', e => {
     if (e.button === 1 || (view.mode === 'fly' && screen !== 'setup')) { panning = true; return; }
     if (screen === 'setup' && view.mode !== 'fly' && g) {
       if (brush.terrain) { editTerrain(g.x, g.z); return; }
-      // double tap sur un cercle -> couronne
-      const now = performance.now(), k = nearestCircle(g.x, g.z);
-      if (has('king') && (mode === 'campaign' || mode === 'command') && k >= 0) {
-        if (lastTap.k === k && now - lastTap.t < 500) { kingKey = kingKey === k ? -1 : k; formDirty = true; if (kingKey === k) sfx.crown(); toast(kingKey === k ? '♛ Le Roi est couronné : x10 PV et dégâts, alliés proches +30% vitesse.' : 'Couronne retirée.'); renderBottom(); renderTop(); lastTap = { t: 0, k: -1 }; return; }
+      // double tap sur une unité -> la transforme avec l'objet de sa forme (Couronne, Char, Canon...)
+      const now = performance.now(), k = (mode === 'campaign' || mode === 'command') ? nearestEliteCandidate(g.x, g.z) : -1;
+      if (k >= 0) {
+        if (lastTap.k === k && now - lastTap.t < 500) { toggleElite(k); lastTap = { t: 0, k: -1 }; return; }
         lastTap = { t: now, k };
       }
       painting = true; stroke = []; const wasErase = brush.erase; if (e.button === 2) brush.erase = true;
@@ -913,14 +1027,27 @@ canvas.addEventListener('pointermove', e => {
     else panBy(prev, p);
   }
 });
-// cercle bleu le plus proche du doigt (tolérance d'un peu plus d'une case)
-function nearestCircle(x, z) {
+// unité bleue la plus proche du doigt qui peut porter un objet (ou qui en porte déjà un)
+function nearestEliteCandidate(x, z) {
   const [cx, cz] = toCell(x, z); let best = -1, bd = 1e9;
   for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
-    const k = cellKey(cx + dx, cz + dz); if (form[0].get(k) !== 0) continue;
+    const k = cellKey(cx + dx, cz + dz), t = form[0].get(k); if (t === undefined) continue;
+    const ix = ITEM_FOR_SHAPE[t]; if (ix === undefined) continue;
+    if (!elites.has(k) && itemStock(ITEMS[ix].id) - eliteCount(ITEMS[ix].id) <= 0) continue;
     const d = (cellX(k) - x) ** 2 + (cellZ(k) - z) ** 2; if (d < bd) { bd = d; best = k; }
   }
   return best;
+}
+function toggleElite(k) {
+  const t = form[0].get(k), ix = ITEM_FOR_SHAPE[t]; if (ix === undefined) return;
+  const it = ITEMS[ix];
+  if (elites.has(k)) { elites.delete(k); toast(it.icon + ' ' + it.name + ' retiré.'); }
+  else {
+    if (itemStock(it.id) - eliteCount(it.id) <= 0) { toast('Plus de ' + it.name + ' : achète-en dans Améliorations > Objets.'); return; }
+    elites.set(k, ix); if (it.id === 'crown') sfx.crown(); else sfx.buy();
+    toast(it.icon + ' ' + it.unit + ' ! ' + it.desc);
+  }
+  formDirty = true; renderBottom(); renderTop();
 }
 function endStroke() {
   if (stroke && stroke.length) undoStack.push(stroke);
@@ -983,7 +1110,8 @@ document.addEventListener('click', e => {
     case 'tocampaign': if (mode !== 'campaign' && mode !== 'command') mode = 'campaign'; show('levels'); return;
     case 'backlevel': if (level && mode !== 'sandbox') { openLevel(level); return; } show('levels'); return;
     case 'uptab': upTab = +v; renderUpgrades(); return;
-    case 'train': { const t = +b.dataset.t, c = trainCost(t); if (S.gold >= c) { S.gold -= c; S.train = S.train || [0, 0, 0, 0, 0, 0, 0]; S.train[t] = trainLvl(t) + 1; save(); sfx.buy(); toast(SHAPES[t].name + ' : niveau ' + S.train[t] + ' !'); } renderUpgrades(); return; }
+    case 'buyitem': { const it = ITEMS[ITEM_IDX[v]], n = +b.dataset.n, c = itemCost(it) * n; if (itemAvailable(it) && S.gold >= c) { S.gold -= c; S.items[v] = itemStock(v) + n; save(); sfx.buy(); toast(it.icon + ' ' + it.name + ' × ' + S.items[v] + ' — touche 2× un ' + SHAPES[SHAPE_IDX[it.base]].name + ' pour l\'utiliser.'); } renderUpgrades(); return; }
+    case 'train': { const t = +b.dataset.t, c = trainCost(t); if (S.gold >= c) { S.gold -= c; S.train = S.train || zeros(); S.train[t] = trainLvl(t) + 1; save(); sfx.buy(); toast(SHAPES[t].name + ' : niveau ' + S.train[t] + ' !'); } renderUpgrades(); return; }
     case 'level': startLevel(+v); return;
     case 'levelsbtn': if (screen === 'setup') storeFormation(); if (mode === 'sandbox') { show('menu'); return; } show('levels'); return;
     case 'buynode': { const n = NODE_BY_ID[v]; if (!has(v) && n.pre.every(has) && S.gold >= n.cost) { S.gold -= n.cost; S.nodes[v] = 1; save(); checkTreeAch(); sfx.buy(); if (n.unlock) toast('Nouvelle forme : ' + SHAPES[SHAPE_IDX[n.unlock]].name + ' ! Recrute-en à droite.'); } renderUpgrades(); return; }
@@ -1042,13 +1170,14 @@ function drawFormation() {
   for (const tm of [0, 1]) {
     for (const [k, t] of form[tm]) {
       const r = SHAPES[t].r, x = cellX(k), z = cellZ(k), hz = tm === 0 ? -1 : 1;
-      if (tm === 0 && k === kingKey) { kingGroup[0].push(x, 0, z, 0, hz, r * 2.2, r * 3.2); crownGroup.push(x, r * 3.2, z, 0, -1, r * 1.3, r * 1.6); continue; }
+      const ix = tm === 0 ? elites.get(k) : undefined;
+      if (ix !== undefined) { const rr = r * ITEMS[ix].size; drawElite(ix, 0, t, x, 0, z, 0, hz, rr, rr * 1.45, 0); continue; }
       groups[tm][t].push(x, 0, z, 0, hz, r, r * 1.6);
     }
   }
   if (mode !== 'sandbox' && level) for (const e of level.enemy) {
     const r = SHAPES[e.t].r;
-    if (e.king) { kingGroup[1].push(e.x, 0, e.z, 0, 1, r * 2.2, r * 3.2); crownGroup.push(e.x, r * 3.2, e.z, 0, 1, r * 1.3, r * 1.6); }
+    if (e.item) { const ix = ITEM_IDX[e.item], rr = r * ITEMS[ix].size; drawElite(ix, 1, e.t, e.x, 0, e.z, 0, 1, rr, rr * 1.45, 0); }
     else groups[1][e.t].push(e.x, 0, e.z, 0, 1, r, r * 1.6);
   }
   for (const g of allGroups) g.end();
@@ -1060,9 +1189,9 @@ function drawSim(dt) {
   // éclats des unités tombées
   if (s !== demo) { sfx.clash(s.events.length); sfx.arrows(Math.max(0, s.pn - (s._pn || 0))); s._pn = s.pn; }
   if (s.events.length) {
-    if (s !== demo) for (const i of s.events) if (s.king[i]) sfx.kingDown();
+    if (s !== demo) for (const i of s.events) if (s.elite[i] >= 0) sfx.kingDown();
     const per = s.events.length > 300 ? 1 : s.events.length > 60 ? 2 : 4;
-    for (const i of s.events) burst(s.x[i], s.z[i], s.king[i] ? 0xffd84a : TEAMHEX[s.team[i]], s.king[i] ? 40 : per, s.king[i] ? .18 : .08 + s.r[i] * .15);
+    for (const i of s.events) { const el = s.elite[i] >= 0; burst(s.x[i], s.z[i], s.king[i] ? 0xffd84a : TEAMHEX[s.team[i]], el ? 30 : per, el ? .16 : .08 + s.r[i] * .15); }
     s.events.length = 0;
   }
   if (s.impacts.length) { for (let j = 0; j < s.impacts.length; j += 2) burst(s.impacts[j], s.impacts[j + 1], 0xcbb88a, 3, .07, 2); s.impacts.length = 0; }
@@ -1075,7 +1204,7 @@ function drawSim(dt) {
       const sq = ht < .12 ? 1.2 : 1;   // petit écrasement quand l'unité est touchée
       const v = Math.abs(s.vx[i]) + Math.abs(s.vz[i]);
       const bob = v > .4 ? Math.abs(Math.sin(now * 13 + i * 1.7)) * r * .35 : 0;
-      if (s.king[i]) { kingGroup[tm].push(s.x[i], bob, s.z[i], s.hx[i], s.hz[i], r, r * 1.45 / sq, light); crownGroup.push(s.x[i], r * 1.45 / sq + bob, s.z[i], s.hx[i], s.hz[i], r * .6, r * .75); }
+      if (s.elite[i] >= 0) drawElite(s.elite[i], tm, s.type[i], s.x[i], bob, s.z[i], s.hx[i], s.hz[i], r, r * 1.45 / sq, light);
       else groups[tm][s.type[i]].push(s.x[i], bob, s.z[i], s.hx[i], s.hz[i], r * (sq > 1 ? 1.08 : 1), r * 1.6 / sq, light);
     } else {
       const age = now - s.deathT[i];
@@ -1184,4 +1313,4 @@ if ('serviceWorker' in navigator) {
   if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
   navigator.serviceWorker.register('sw.js?v=' + GAME_VERSION, { updateViaCache: 'none' }).then(r => r.update()).catch(() => {});
 }
-window.__wmao = { stampAt: (x, z) => { const st = []; stamp(x, z, st); }, drawSimOnly: () => drawSim(0), get kingKey() { return kingKey; }, proj: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(activeCam()); return [Math.round((v.x + 1) / 2 * VW), Math.round((1 - v.y) / 2 * VH)]; }, groups, S, get sim() { return sim; }, get screen() { return screen; }, form, startLevel, setMode: m => mode = m, fight, view };
+window.__wmao = { stampAt: (x, z) => { const st = []; stamp(x, z, st); }, drawSimOnly: () => drawSim(0), elites, toggleElite, proj: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(activeCam()); return [Math.round((v.x + 1) / 2 * VW), Math.round((1 - v.y) / 2 * VH)]; }, groups, S, get sim() { return sim; }, get screen() { return screen; }, form, startLevel, setMode: m => mode = m, fight, view };
