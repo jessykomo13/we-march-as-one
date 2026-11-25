@@ -2,9 +2,10 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
 <title>Procedural Walk</title>
 <style>
+  button,input,select,label{touch-action:manipulation}
   html,body{margin:0;height:100%;overflow:hidden;background:#c7d0db;font-family:system-ui,-apple-system,Segoe UI,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
   canvas{display:block}
   #hud{position:fixed;left:12px;top:12px;background:rgba(16,18,24,.72);color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;max-width:calc(100vw - 260px);pointer-events:none;backdrop-filter:blur(6px)}
@@ -31,6 +32,7 @@
   #stamBar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);width:280px;height:5px;background:rgba(16,18,24,.6);border-radius:3px;overflow:hidden;pointer-events:none}
   #stamFill{height:100%;width:100%;background:#4db8ff}
   .touch #stamBar{bottom:auto;top:145px}
+  .touch #msg{font-size:14px;top:18%;white-space:normal;text-align:center;max-width:70vw}
   #msg{position:fixed;left:50%;top:22%;transform:translateX(-50%);color:#fff;font-size:20px;font-weight:800;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
   #minimap{position:fixed;left:16px;bottom:16px;width:170px;height:170px;pointer-events:none}
   .touch #minimap{left:auto;right:12px;bottom:auto;top:170px;width:120px;height:120px}
@@ -114,7 +116,9 @@
   .noHelp #hud .keys{display:none}
   #mission{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:rgba(16,18,24,.84);color:#fff;padding:8px 16px;border-radius:12px;font-size:14px;display:none;pointer-events:none;text-align:center;border-top:3px solid #4ad66d;min-width:240px;max-width:80vw}
   #mission .mt{font-weight:800;color:#bff5c9;font-size:13px;letter-spacing:.3px}#mission .mo{font-weight:600;margin-top:2px}#mission .mx{font-size:12px;opacity:.85;margin-top:2px}#mission .hot{color:#ff8a6a}
-  .touch #mission{top:84px;font-size:12px;min-width:0;max-width:50vw;padding:6px 10px}
+  .touch #mission{top:6px;font-size:11px;min-width:0;max-width:44vw;padding:4px 9px;border-top-width:2px}
+  .touch #mission .mt{font-size:11px}.touch #mission .mx{font-size:10.5px}
+  @media (orientation:portrait){.touch #mission{left:auto;right:56px;transform:none;max-width:150px}.touch #mission .mo{display:none}}
   #shopPrompt{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(60,40,10,.88);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;display:none;pointer-events:none}#shopPrompt b{color:#ffd25a}
   #crea{position:fixed;left:12px;top:12px;z-index:30;background:rgba(12,24,36,.88);color:#fff;border:2px solid #7fd8ff;border-radius:12px;padding:8px;width:300px;display:none;font:13px system-ui}
   #crea button,#crea select{background:#24384a;color:#fff;border:1px solid #4d6b85;border-radius:8px;padding:6px 8px;margin:2px;font:600 12px system-ui;cursor:pointer}
@@ -131,7 +135,7 @@
   #misPrompt{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(20,90,40,.88);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:700;display:none;pointer-events:none}
   .misBanner{position:fixed;left:50%;top:30%;transform:translateX(-50%);text-align:center;font:900 38px system-ui;text-shadow:0 3px 10px #000;pointer-events:none;transition:opacity .7s;opacity:1;white-space:nowrap}
   .misBanner small{display:block;font-size:18px;color:#fff;font-weight:700}.misBanner.out{opacity:0}
-  .touch .misBanner{font-size:26px}
+  .touch .misBanner{font-size:18px;top:24%}.touch .misBanner small{font-size:12px}
   #prompt{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:rgba(16,18,24,.8);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;display:none;pointer-events:none}
   #lootBtn{display:none;position:fixed;right:24px;bottom:276px;width:150px;height:52px;border-radius:14px;background:rgba(240,150,40,.85);color:#fff;border:2px solid rgba(255,255,255,.7);font-size:14px;font-weight:700}
   /* module 13 : carte, GPS */
@@ -6546,6 +6550,14 @@ function updateCamera(dt){
   const sc=galleryOn?GAL_C:player.root;sun.position.copy(sc).add(DAYSUN);sun.target.position.copy(sc);
 }
 
+// ---- empêcher le zoom du navigateur (pincement à deux doigts, double-tap, Ctrl+molette)
+// Safari et Chrome sur iPhone ignorent « user-scalable=no » : on bloque les gestes nous-mêmes.
+for(const ev of ["gesturestart","gesturechange","gestureend"])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener("touchmove",e=>{if(e.touches.length>1||(e.scale!==undefined&&e.scale!==1))e.preventDefault();},{passive:false});
+{let lastEnd=0;document.addEventListener("touchend",e=>{const now=Date.now(),t=e.target;if(now-lastEnd<350&&!(t.closest&&t.closest("button,input,textarea,select,a,label")))e.preventDefault();lastEnd=now;},{passive:false});}
+document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
+addEventListener("wheel",e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&["+","-","=","0"].includes(e.key))e.preventDefault();});
 // ================================================================ module 11 : manette, caméra à l'épaule, contrôles tactiles
 // --- manette (API Gamepad, disposition « standard » Xbox / PlayStation)
 const pad={on:false,move:{x:0,y:0},look:{x:0,y:0},run:false,guard:false,aim:false,prev:[],id:""};
@@ -8584,7 +8596,7 @@ function tryBuy(){
 }
 // ================================================================ événements de rue aléatoires
 // Pour que la balade ne soit jamais vide : un voleur à rattraper, un joggeur qui te défie à la course.
-const EV={next:45,cur:null,stats:{voleur:0,voleurOk:0,course:0,courseOk:0},canAccept:false};
+const EV={next:150,cur:null,stats:{voleur:0,voleurOk:0,course:0,courseOk:0},canAccept:false};
 const evMark=new THREE.Mesh(markerGeo,new THREE.MeshBasicMaterial({color:0xffa23a,fog:false}));evMark.visible=false;scene.add(evMark);
 const evBeam=makeBeam(0xffa23a);
 // suit un itinéraire (trottoirs + passages piétons) en courant, sans s'arrêter aux feux
@@ -8630,7 +8642,7 @@ class ThiefBrain extends RunnerBrain{
   }
 }
 function evEnd(msg,ok,col){
-  const C=EV.cur;if(!C)return;EV.cur=null;EV.next=rand(70,130);evMark.visible=false;evBeam.visible=false;EV.canAccept=false;
+  const C=EV.cur;if(!C)return;EV.cur=null;EV.next=rand(180,300);evMark.visible=false;evBeam.visible=false;EV.canAccept=false;
   for(const w of [C.thief,C.racer])if(w&&walkers.includes(w)){w.isMission=false;const W=w;later(10,()=>{if(walkers.includes(W)&&hdist(W.root,player.root)>25)removeWalker(W,true);});}
   if(waypoint&&waypoint.name==="Arrivée")setWaypoint(null);
   if(msg)misBanner(msg[0],msg[1],col||(ok?"#7dffa1":"#ff9a6a"));misHud();
@@ -8672,7 +8684,7 @@ function updateEvents(dt){
   EV.canAccept=false;
   const C=EV.cur;
   if(!C){
-    if(MIS.active||wanted.level>0||player.ko||player.swim||!blockOf(player.root.x,player.root.z)||galleryOn){EV.next=Math.max(EV.next,15);return;}
+    if(SET.events===false||drive||CREA.on||MIS.active||wanted.level>0||player.ko||player.swim||!blockOf(player.root.x,player.root.z)||galleryOn){EV.next=Math.max(EV.next,15);return;}
     EV.next-=dt;if(EV.next>0)return;
     const ok=Math.random()<0.55?startVoleur()||startCourse():startCourse()||startVoleur();
     if(!ok)EV.next=10;return;
@@ -9278,7 +9290,7 @@ const SET_DEFAULT={
   quality:"haute",shadows:"haute",dist:"normale",res:100,fov:40,fpsShow:false,
   master:80,sfx:90,siren:70,voice:true,voiceVol:90,
   sens:100,invertY:false,vibrate:true,autoCam:true,
-  crowd:22,prints:true,help:true,cycle:"24",weather:true,farView:1
+  crowd:22,prints:true,help:false,events:true,cycle:"24",weather:true,farView:1
 };
 const QUALITY={
   basse:{shadows:"off",dist:"courte",res:70},
@@ -9356,7 +9368,7 @@ function renderMenu(){
     h+=`<div class="sec">Son</div>`+rng2("master","Volume général",0,100,5," %")+rng2("sfx","Effets (coups, chutes)",0,100,5," %")+rng2("siren","Sirènes",0,100,5," %")+tog("voice","Voix des passants")+rng2("voiceVol","Volume des voix",0,100,5," %");
     h+=`<div class="sec">Commandes</div>`+rng2("sens","Sensibilité caméra",30,250,10," %")+tog("invertY","Inverser l'axe vertical")+tog("vibrate","Vibrations")+tog("autoCam","Caméra qui se replace derrière");
     h+=`<div class="sec">Monde</div>`+sel("cycle","Durée d'une journée",[["12","12 minutes"],["24","24 minutes"],["48","48 minutes"],["jour","Toujours le jour"],["nuit","Toujours la nuit"]])+tog("weather","Météo (pluie, nuages)")+sel("farView","Vue au loin (campagne)",[["0.5","Courte (mobile)"],["1","Normale"],["1.5","Très loin"]]);
-    h+=`<div class="sec">Jeu</div>`+rng2("crowd","Nombre de passants",0,60,2,"")+tog("prints","Traces de pas")+tog("help","Aide des touches à l'écran");
+    h+=`<div class="sec">Jeu</div>`+rng2("crowd","Nombre de passants",0,60,2,"")+tog("prints","Traces de pas")+tog("help","Aide des touches à l'écran")+tog("events","Événements (voleurs, défis de course)");
     h+=`<div class="col">${T("reset","Réglages par défaut")}${T("back","Retour")}</div>`;
   }else if(menuTab==="save"||menuTab==="load"){
     const keys=menuTab==="save"?SLOT_KEYS.slice(1):SLOT_KEYS;
