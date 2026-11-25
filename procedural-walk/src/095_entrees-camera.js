@@ -88,3 +88,11 @@ function updateCamera(dt){
   const sc=galleryOn?GAL_C:player.root;sun.position.copy(sc).add(DAYSUN);sun.target.position.copy(sc);
 }
 
+// ---- empêcher le zoom du navigateur (pincement à deux doigts, double-tap, Ctrl+molette)
+// Safari et Chrome sur iPhone ignorent « user-scalable=no » : on bloque les gestes nous-mêmes.
+for(const ev of ["gesturestart","gesturechange","gestureend"])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener("touchmove",e=>{if(e.touches.length>1||(e.scale!==undefined&&e.scale!==1))e.preventDefault();},{passive:false});
+{let lastEnd=0;document.addEventListener("touchend",e=>{const now=Date.now(),t=e.target;if(now-lastEnd<350&&!(t.closest&&t.closest("button,input,textarea,select,a,label")))e.preventDefault();lastEnd=now;},{passive:false});}
+document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
+addEventListener("wheel",e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&["+","-","=","0"].includes(e.key))e.preventDefault();});

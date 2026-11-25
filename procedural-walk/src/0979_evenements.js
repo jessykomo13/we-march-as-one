@@ -1,6 +1,6 @@
 // ================================================================ événements de rue aléatoires
 // Pour que la balade ne soit jamais vide : un voleur à rattraper, un joggeur qui te défie à la course.
-const EV={next:45,cur:null,stats:{voleur:0,voleurOk:0,course:0,courseOk:0},canAccept:false};
+const EV={next:150,cur:null,stats:{voleur:0,voleurOk:0,course:0,courseOk:0},canAccept:false};
 const evMark=new THREE.Mesh(markerGeo,new THREE.MeshBasicMaterial({color:0xffa23a,fog:false}));evMark.visible=false;scene.add(evMark);
 const evBeam=makeBeam(0xffa23a);
 // suit un itinéraire (trottoirs + passages piétons) en courant, sans s'arrêter aux feux
@@ -46,7 +46,7 @@ class ThiefBrain extends RunnerBrain{
   }
 }
 function evEnd(msg,ok,col){
-  const C=EV.cur;if(!C)return;EV.cur=null;EV.next=rand(70,130);evMark.visible=false;evBeam.visible=false;EV.canAccept=false;
+  const C=EV.cur;if(!C)return;EV.cur=null;EV.next=rand(180,300);evMark.visible=false;evBeam.visible=false;EV.canAccept=false;
   for(const w of [C.thief,C.racer])if(w&&walkers.includes(w)){w.isMission=false;const W=w;later(10,()=>{if(walkers.includes(W)&&hdist(W.root,player.root)>25)removeWalker(W,true);});}
   if(waypoint&&waypoint.name==="Arrivée")setWaypoint(null);
   if(msg)misBanner(msg[0],msg[1],col||(ok?"#7dffa1":"#ff9a6a"));misHud();
@@ -88,7 +88,7 @@ function updateEvents(dt){
   EV.canAccept=false;
   const C=EV.cur;
   if(!C){
-    if(MIS.active||wanted.level>0||player.ko||player.swim||!blockOf(player.root.x,player.root.z)||galleryOn){EV.next=Math.max(EV.next,15);return;}
+    if(SET.events===false||drive||CREA.on||MIS.active||wanted.level>0||player.ko||player.swim||!blockOf(player.root.x,player.root.z)||galleryOn){EV.next=Math.max(EV.next,15);return;}
     EV.next-=dt;if(EV.next>0)return;
     const ok=Math.random()<0.55?startVoleur()||startCourse():startCourse()||startVoleur();
     if(!ok)EV.next=10;return;
