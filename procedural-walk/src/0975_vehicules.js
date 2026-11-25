@@ -109,7 +109,7 @@ function stepVehicle(V,dt,inp){
   let vf=V.vel.dot(f),vl=V.vel.dot(r);
   const road=inGridArea(V.x,V.z)?true:onAnyRoad(V.x,V.z,1)||rectDist(AIR_RECT,V.x,V.z)<1;
   const g0=groundAt(V.x,V.z),air=V.y>g0+0.12;
-  const maxV=M.vmax*(road?1:M.off)*(V.hp<30?0.6:1),acc=M.acc;
+  const maxV=M.vmax*(road?1:M.off)*(V.hp<30?0.6:1)*(V.flat?0.55:1),acc=M.acc*(V.flat?0.7:1);
   if(!air){
     if(inp.thr>0.05){if(vf<-0.5)vf+=22*M.brake*inp.thr*dt;else{const k=clamp01(vf/maxV);vf+=acc*inp.thr*(1-k*k)*(vf<6?1.15:1)*dt;}}
     else if(inp.thr<-0.05){if(vf>0.5)vf-=24*M.brake*(-inp.thr)*dt;else vf=Math.max(-10,vf-7*(-inp.thr)*dt);}
@@ -123,7 +123,8 @@ function stepVehicle(V,dt,inp){
   if(!air){const yawRate=vf/(M.wb*2)*Math.tan(V.steer)*(inp.hand?1.5:1);V.yaw+=yawRate/D2R*dt;}
   // adhérence latérale : frein à main → dérapage ; puissance + braquage → léger survirage (muscle, supercars)
   const want=inp.hand?0.14:1;V.gk=lerp(V.gk,want,1-Math.exp(-(want<V.gk?12:2.2)*dt));
-  const grip=air?0.3:M.grip*(road?1:0.6)*V.gk;
+  const grip=air?0.3:M.grip*(road?1:0.6)*V.gk*(V.flat?0.6:1);
+  if(V.flat&&!air&&Math.abs(vf)>8&&Math.random()<dt*10)puff(V.x-f.x*M.wb,V.y+0.15,V.z-f.z*M.wb,0,0.35);
   if(M.slide&&!air&&inp.thr>0.8&&Math.abs(inp.st)>0.5&&sp>8&&sp<30)vl+=Math.sign(V.steer)*-M.slide*2.2*dt*sp/10;
   vl*=Math.exp(-grip*dt);if(inp.hand&&!air)vf-=Math.sign(vf)*Math.min(Math.abs(vf),4*dt);
   const f2=fwdOf(V.yaw),r2=rightOf(V.yaw);V.vel.copy(f2).multiplyScalar(vf).addScaledVector(r2,vl);V.v=vf;
@@ -143,7 +144,7 @@ function stepVehicle(V,dt,inp){
   // autres véhicules (garés libres, circulation)
   for(const W of VEH){if(W===V)continue;const dx=V.x-W.x,dz=V.z-W.z,d=Math.hypot(dx,dz);if(d<2.6&&d>1e-3){const nx=dx/d,nz=dz/d,push=(2.6-d)/2;V.x+=nx*push;V.z+=nz*push;W.x-=nx*push;W.z-=nz*push;if(W.o){W.o.x=W.x;W.o.z=W.z;}const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp*0.8;V.vel.z+=nz*imp*0.8;hit=Math.max(hit,imp*0.6);}W.y=groundAt(W.x,W.z);placeVehicle(W);}}
   for(const c of cars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.4&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.4-d);V.z+=nz*(3.4-d);const imp=-(V.vel.x*nx+V.vel.z*nz)+c.v*0.3;if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.3;}}
-  for(const c of MP.cars.length?ccars.concat(MP.cars):ccars){const p=c.m.position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.2&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.2-d);V.z+=nz*(3.2-d);const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.2;}}
+  for(const c of (MP.cars.length||PCH.list.length)?ccars.concat(MP.cars,PCH.list):ccars){const p=(c.g||c.m).position,dx=V.x-p.x,dz=V.z-p.z,d=Math.hypot(dx,dz);if(d<3.2&&d>1e-3){const nx=dx/d,nz=dz/d;V.x+=nx*(3.2-d);V.z+=nz*(3.2-d);const imp=-(V.vel.x*nx+V.vel.z*nz);if(imp>0){V.vel.x+=nx*imp;V.vel.z+=nz*imp;hit=Math.max(hit,imp);}c.v*=0.2;}}
   if(hit>4.5){V.hp=Math.max(0,V.hp-(hit<7?hit*0.35:hit*(hit>16?1.6:0.85))*(M.wedge?1.1:M.box?0.8:1));cam.shake=Math.min(1,cam.shake+hit*0.04);playSound("thud",Math.min(1,hit/12));rumble(200,Math.min(1,hit/15));if(hit>9&&player.hp>5){player.hp=Math.max(5,player.hp-Math.round(hit*0.4));floatText(player,"Choc !","#ffb07a");}}
   // piétons
   for(const w of walkers){if(w===player||w.ko||w.inCar)continue;const dx=w.root.x-V.x,dz=w.root.z-V.z,a=dx*f2.x+dz*f2.z,b=dx*r2.x+dz*r2.z;
@@ -178,7 +179,7 @@ function updateVehicles(dt){
       const spd=Math.abs(V.v),cd=(V.boat?7.2:(V.spec&&V.spec.box?7.8:6.6))+Math.min(2.2,spd*0.045);if(Math.abs(cam.dist-cd)>0.05&&clockT-lastCamInput>0.6)cam.dist=lerp(cam.dist,cd,1-Math.exp(-2.5*dt));
       if(clockT-lastCamInput>1.0&&spd>2){const slip=V.vel.lengthSq()>4?Math.atan2(V.vel.x,-V.vel.z)/D2R:V.yaw;const want=V.v>0?(V.skid>0.4?V.yaw+deltaAngle(V.yaw,slip)*0.5:V.yaw):V.yaw+180;cam.yaw+=deltaAngle(cam.yaw,want)*(1-Math.exp(-3.2*dt));cam.pitch=lerp(cam.pitch,10,1-Math.exp(-1.5*dt));}
       if(DRV.fov0&&!V.boat){const fv=DRV.fov0+Math.min(14,spd*0.22);if(Math.abs(camera.fov-fv)>0.2){camera.fov=lerp(camera.fov,fv,1-Math.exp(-3*dt));camera.updateProjectionMatrix();}}
-      const kmh=Math.round(Math.abs(V.v)*3.6);speedoEl.style.display="block";speedoEl.innerHTML=`${kmh}<small>KM/H${V.hp<40?" · MOTEUR ABÎMÉ":""}</small>`;
+      const kmh=Math.round(Math.abs(V.v)*3.6);speedoEl.style.display="block";speedoEl.innerHTML=`${kmh}<small>KM/H${V.hp<40?" · MOTEUR ABÎMÉ":""}${V.flat?" · PNEUS CREVÉS":""}</small>`;
       if(DRV.eng){const t=actx.currentTime,vm=V.spec?V.spec.vmax:40,sp=Math.abs(V.v),seg=vm/5,gear=Math.min(4,Math.floor(sp/seg)),rpm=V.boat?0.25+sp/40:0.3+clamp01((sp-gear*seg)/seg)*0.75+gear*0.06,hi=V.spec&&V.spec.wedge?1.5:V.spec&&V.spec.slide?0.8:1;
         DRV.eng.o1.frequency.setTargetAtTime(((V.boat?60:38)+rpm*(V.boat?160:110))*hi,t,0.04);DRV.eng.o2.frequency.setTargetAtTime((19+rpm*55)*hi,t,0.04);if(DRV.skid)DRV.skid.g.gain.setTargetAtTime(menuOpen||V.boat?0:(V.skid||0)*0.09,t,0.05);DRV.eng.f.frequency.setTargetAtTime(300+rpm*900,t,0.05);DRV.eng.g.gain.setTargetAtTime(menuOpen?0:0.05+Math.min(0.06,Math.abs(inp.thr)*0.05),t,0.08);}
       if(DRV.horn>0){if(!DRV.hornOn){DRV.hornOn=true;hornSound(1);for(const w of walkers)if(w!==player&&!w.ko&&hdist(w.root,player.root)<12&&w.brain&&Math.random()<0.5)bark(w,["Hé, doucement !","Ça va pas ?!","Oh là !"]);}DRV.horn-=dt;}else DRV.hornOn=false;

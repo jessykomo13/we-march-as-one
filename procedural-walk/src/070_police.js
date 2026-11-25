@@ -127,7 +127,7 @@ function updateWanted(dt){
     // renforts : 2 agents par étoile (max 12)
     const needCops=Math.min(12,wanted.level*2);
     const crew=policeCars.filter(c=>c.state!=="leave").reduce((a,c)=>a+c.planned,0);
-    if(crew<needCops&&(!updateWanted.cd||clockT>updateWanted.cd)){updateWanted.cd=clockT+(wanted.level>=3?2:3.5);spawnPoliceCar();}
+    if(crew<needCops&&!pchActive()&&(!updateWanted.cd||clockT>updateWanted.cd)){updateWanted.cd=clockT+(wanted.level>=3?2:3.5);spawnPoliceCar();}
     if(wanted.level>=4&&!heli)spawnHeli();
   }else{
     // après une fuite : la police garde ta description, les caméras peuvent te reconnaître
@@ -216,7 +216,7 @@ let siren=null;
 function updateSiren(){
   const c=actx;if(!c)return;
   if(!siren){try{const o=c.createOscillator(),lfo=c.createOscillator(),lg=c.createGain(),g=c.createGain();o.type="sawtooth";o.frequency.value=900;lfo.frequency.value=0.7;lg.gain.value=320;lfo.connect(lg).connect(o.frequency);const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=1600;o.connect(f).connect(g).connect(sirenOut());g.gain.value=0;o.start();lfo.start();siren={g};}catch(e){return;}}
-  let near=99;for(const p of policeCars)if(p.state==="arrive"||p.state==="leave")near=Math.min(near,hdist(p.g.position,player.root));
+  let near=pchSirenNear();for(const p of policeCars)if(p.state==="arrive"||p.state==="leave")near=Math.min(near,hdist(p.g.position,player.root));
   const vol=voiceOn&&near<60?clamp(0.06*(1-near/60),0,0.06):0;
   siren.g.gain.setTargetAtTime(vol,c.currentTime,0.2);
 }
@@ -446,6 +446,8 @@ function drawMinimap(){
   mpMini(c,T,W,H);
   for(const V of vans){const [x,z]=T(V.v.g.position.x,V.v.g.position.z);c.fillStyle="#fff";c.fillRect(x-3,z-3,6,6);}
   for(const C of policeCars){const [x,z]=T(C.g.position.x,C.g.position.z);c.fillStyle="#3070ff";c.fillRect(x-3.5,z-3.5,7,7);}
+  for(const P of PCH.list){const [x,z]=T(P.x,P.z);c.fillStyle=P.dead?"#555":Math.floor(clockT*4)%2?"#ff3030":"#3070ff";c.fillRect(x-4,z-4,8,8);}
+  for(const B of PCH.blocks){const [x,z]=T(B.x,B.z);c.strokeStyle="#ff3030";c.lineWidth=3;c.beginPath();c.moveTo(x-6,z-6);c.lineTo(x+6,z+6);c.moveTo(x+6,z-6);c.lineTo(x-6,z+6);c.stroke();}
   if(wanted.hot){const [x,z]=T(wanted.hot.pos.x,wanted.hot.pos.z);c.strokeStyle="rgba(255,140,40,.7)";c.lineWidth=2;c.beginPath();c.arc(x,z,8*sc,0,7);c.stroke();}
   if(route){c.strokeStyle="#b56cff";c.lineWidth=4;c.lineJoin="round";c.beginPath();route.forEach((q,i)=>{const [x,z]=T(q.x,q.z);i?c.lineTo(x,z):c.moveTo(x,z);});c.stroke();}
   for(const P of POIS){if(Math.abs(P.x-px)>mmZoom*1.4||Math.abs(P.z-pz)>mmZoom*1.4)continue;const [x,z]=T(P.x,P.z);c.save();c.translate(x,z);c.rotate(cam.yaw*D2R);c.font="11px system-ui";c.textAlign="center";c.fillText(POI_ICON[P.type][0],0,4);c.restore();}
