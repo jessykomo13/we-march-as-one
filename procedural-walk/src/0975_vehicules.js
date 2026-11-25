@@ -195,7 +195,7 @@ function updateVehicles(dt){
 function driveCtx(sit){
   if(TH.cur){sit.style.display="none";return true;}
   if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
-  document.getElementById("punchBtn").textContent="Poing";document.getElementById("guardBtn").textContent="Garde";
+  document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";
   {const ih=!player.swim&&player.sit.state==="none"?interiorHint():null;if(ih&&ih[1]&&!nearStoppedCar()&&!nearestCar(player.root,3.2)){sit.style.display="block";sit.textContent=ih[1];return true;}}
   if(player.sit.state==="none"&&!player.ko&&!player.swim&&nearStoppedCar()){sit.style.display="block";sit.textContent="Braquer";return true;}
   if(player.sit.state==="none"&&!player.ko){const n=nearestCar(player.root,3.2);if(n&&(!player.swim||n.V&&n.V.boat)){sit.style.display="block";sit.textContent=n.V&&n.V.boat?"Piloter":n.V&&!n.V.locked?"Conduire":"Voler";return true;}}

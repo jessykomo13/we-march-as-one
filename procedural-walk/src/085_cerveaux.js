@@ -24,6 +24,7 @@ class PlayerBrain{
   update(w){
     if(atkRequest&&clockT-atkReqT>0.45)atkRequest=null;
     if(atkRequest&&w.ball){shoot(w);atkRequest=null;}
+    if(atkRequest==="punch"&&pwArmed())atkRequest=null;   // arme en main : le bouton Poing tire (géré par updateWeapons)
     if(atkRequest&&!w.atk&&!(w.stunT>0)){
       const t=findTarget(w);
       const gd=t&&isGuarding(t);
@@ -38,6 +39,7 @@ class PlayerBrain{
     if(sitRequest&&MIS.canTalk&&missionTalk()){sitRequest=false;return;}
     if(sitRequest&&EV.canAccept&&acceptEvent()){sitRequest=false;return;}
     if(sitRequest&&theftAction()){sitRequest=false;return;}
+    if(sitRequest&&tryArmory()){sitRequest=false;return;}
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
@@ -59,7 +61,7 @@ class PlayerBrain{
     w.run=keys.has("ShiftLeft")||keys.has("ShiftRight")||touchRun||pad.run;w.jog=jogOn;
     w.speedMul=1;
     w.faceYaw=null;
-    if((pad.aim||touchAim)&&!w.ko&&w.sit.state==="none")w.faceYaw=cam.yaw; // à l'épaule : on se déplace face à la caméra
+    if((pad.aim||touchAim||(pwArmed()&&PW.mouseAim))&&!w.ko&&w.sit.state==="none")w.faceYaw=cam.yaw; // à l'épaule : on se déplace face à la caméra
     const crouch=(keys.has("ControlLeft")||keys.has("ControlRight")||touchCrouch)&&!w.handsUp&&!w.fly;
     w.crouchK=lerp(w.crouchK||0,crouch?1:0,1-Math.exp(-6*(1/60)));
     if(crouch){w.speedMul=0.45;w.run=false;w.jog=false;}
