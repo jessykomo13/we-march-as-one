@@ -41,6 +41,9 @@
   #bench{position:fixed;left:12px;top:130px;background:rgba(16,18,24,.8);color:#fff;font-size:13px;line-height:1.55;padding:10px 14px;border-radius:10px;pointer-events:none;font-variant-numeric:tabular-nums}
   #bench b{color:#ffb070}
   #gallery{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);display:none;gap:8px;align-items:center;background:rgba(16,18,24,.8);color:#fff;padding:8px 12px;border-radius:12px;font-size:14px;white-space:nowrap}
+  body.galOn #joy,body.galOn #runBtn,body.galOn #guardBtn,body.galOn #aimBtn,body.galOn #punchBtn,body.galOn #kickBtn,body.galOn #sitBtn,body.galOn #crouchBtn,body.galOn #handsBtn,body.galOn #gunBtn,body.galOn #ctxHint,body.galOn #flyUp,body.galOn #flyDn{display:none!important}
+  #gallery #galQuit{background:#ff6b6b;color:#fff}
+  @media (max-width:700px),(pointer:coarse){#gallery{flex-wrap:wrap;justify-content:center;white-space:normal;width:calc(100vw - 32px);box-sizing:border-box;bottom:24px;font-size:13px;z-index:60}#gallery span{flex-basis:100%;text-align:center;order:-1}}
   #gallery button{background:#ffb070;color:#111;border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer}
   #ko{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#fff;font-size:72px;font-weight:900;letter-spacing:4px;text-shadow:0 4px 18px #000;pointer-events:none}
   .dmg{position:absolute;font-weight:900;font-size:17px;transform:translate(-50%,-100%);white-space:nowrap;text-shadow:0 2px 4px rgba(0,0,0,.6)}
@@ -178,7 +181,7 @@
 <div id="evidence"></div>
 <div id="stamBar"><div id="stamFill"></div></div>
 <div id="msg"></div>
-<div id="gallery"><button id="galPrev">←</button><span></span><button id="galNext">→</button><button id="galNew">Nouveaux persos (R)</button></div>
+<div id="gallery"><button id="galPrev">←</button><span></span><button id="galNext">→</button><button id="galNew">Nouveaux persos (R)</button><button id="galQuit">✕ Quitter</button></div>
 <div id="bench" style="display:none"></div>
 <canvas id="minimap" width="170" height="170"></canvas>
 <div id="arrest"><div>ARRÊTÉ</div><small></small></div>
@@ -4813,7 +4816,7 @@ function galLabel(){
   galEl.querySelector("span").textContent=`${galFocus+1}/8 · ${l.sex==="f"?"Femme":"Homme"} ${AGE[l.age]} · ${l.height.toFixed(2)} m · cheveux ${HAIR[l.hair]}${l.beard?" · barbe":""}${l.glasses?" · lunettes":""}${l.muscle>0.5?" · musclé":""}`;
 }
 function toggleGallery(){
-  galleryOn=!galleryOn;galEl.style.display=galleryOn?"flex":"none";
+  galleryOn=!galleryOn;galEl.style.display=galleryOn?"flex":"none";document.body.classList.toggle("galOn",galleryOn);
   if(galleryOn){if(!gallery.length)buildGallery();galFocus=-1;galLabel();cam.yaw=0;cam.pitch=6;cam.dist=9;}
   else{cam.dist=3.6;cam.pitch=10;}
   for(const w of gallery)w.rig.model.visible=galleryOn;
@@ -6519,6 +6522,7 @@ const benchEl=document.getElementById("bench"),evEl=document.getElementById("evi
 document.getElementById("galNew").addEventListener("click",()=>{buildGallery();galFocus=-1;galStep(0);});
 document.getElementById("galPrev").addEventListener("click",()=>galStep(-1));
 document.getElementById("galNext").addEventListener("click",()=>galStep(1));
+document.getElementById("galQuit").addEventListener("click",()=>{if(galleryOn)toggleGallery();});
 document.getElementById("galBtn").addEventListener("click",()=>toggleGallery());
 document.getElementById("punchBtn").addEventListener("pointerdown",e=>{atkRequest="punch";atkReqT=clockT;e.stopPropagation();});
 document.getElementById("kickBtn").addEventListener("pointerdown",e=>{atkRequest="kick";atkReqT=clockT;e.stopPropagation();});
@@ -9610,7 +9614,7 @@ function renderMenu(){
   menuEl.innerHTML=h+`</div>`;
   navFocus(0,true);
 }
-function openMenu(tab="main"){if(galleryOn)return;menuOpen=true;menuTab=tab;confirmK=null;menuEl.style.display="flex";renderMenu();keys.clear();touchMove={x:0,y:0};applyAudio();try{speechSynthesis.cancel();}catch(e){}}
+function openMenu(tab="main"){if(galleryOn){toggleGallery();return;}menuOpen=true;menuTab=tab;confirmK=null;menuEl.style.display="flex";renderMenu();keys.clear();touchMove={x:0,y:0};applyAudio();try{speechSynthesis.cancel();}catch(e){}}
 function closeMenu(){keys.clear();menuOpen=false;menuEl.style.display="none";applyAudio();}
 function setVal(key,v){
   SET[key]=v;
