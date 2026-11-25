@@ -26,7 +26,7 @@ function galLabel(){
   galEl.querySelector("span").textContent=`${galFocus+1}/8 · ${l.sex==="f"?"Femme":"Homme"} ${AGE[l.age]} · ${l.height.toFixed(2)} m · cheveux ${HAIR[l.hair]}${l.beard?" · barbe":""}${l.glasses?" · lunettes":""}${l.muscle>0.5?" · musclé":""}`;
 }
 function toggleGallery(){
-  galleryOn=!galleryOn;galEl.style.display=galleryOn?"flex":"none";
+  galleryOn=!galleryOn;galEl.style.display=galleryOn?"flex":"none";document.body.classList.toggle("galOn",galleryOn);
   if(galleryOn){if(!gallery.length)buildGallery();galFocus=-1;galLabel();cam.yaw=0;cam.pitch=6;cam.dist=9;}
   else{cam.dist=3.6;cam.pitch=10;}
   for(const w of gallery)w.rig.model.visible=galleryOn;

@@ -55,6 +55,7 @@ const benchEl=document.getElementById("bench"),evEl=document.getElementById("evi
 document.getElementById("galNew").addEventListener("click",()=>{buildGallery();galFocus=-1;galStep(0);});
 document.getElementById("galPrev").addEventListener("click",()=>galStep(-1));
 document.getElementById("galNext").addEventListener("click",()=>galStep(1));
+document.getElementById("galQuit").addEventListener("click",()=>{if(galleryOn)toggleGallery();});
 document.getElementById("galBtn").addEventListener("click",()=>toggleGallery());
 document.getElementById("punchBtn").addEventListener("pointerdown",e=>{atkRequest="punch";atkReqT=clockT;e.stopPropagation();});
 document.getElementById("kickBtn").addEventListener("pointerdown",e=>{atkRequest="kick";atkReqT=clockT;e.stopPropagation();});

@@ -99,7 +99,7 @@ function renderMenu(){
   menuEl.innerHTML=h+`</div>`;
   navFocus(0,true);
 }
-function openMenu(tab="main"){if(galleryOn)return;menuOpen=true;menuTab=tab;confirmK=null;menuEl.style.display="flex";renderMenu();keys.clear();touchMove={x:0,y:0};applyAudio();try{speechSynthesis.cancel();}catch(e){}}
+function openMenu(tab="main"){if(galleryOn){toggleGallery();return;}menuOpen=true;menuTab=tab;confirmK=null;menuEl.style.display="flex";renderMenu();keys.clear();touchMove={x:0,y:0};applyAudio();try{speechSynthesis.cancel();}catch(e){}}
 function closeMenu(){keys.clear();menuOpen=false;menuEl.style.display="none";applyAudio();}
 function setVal(key,v){
   SET[key]=v;
