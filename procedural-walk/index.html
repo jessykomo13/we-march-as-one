@@ -1803,6 +1803,7 @@ function district(cx,cz){
   return "residentiel";
 }
 function chunkType(cx,cz){
+  if(bankChunkAt(cx,cz))return "banque";
   if(!cityAt(cx,cz)){const T=townAt(cx,cz);return T?townTypeFor(T,cx,cz):countryTypeAt(cx,cz);}
   if(cx===0&&cz===0)return "place";
   if(inPort(cx,cz))return portType(cx,cz);
@@ -1817,7 +1818,7 @@ function chunkType(cx,cz){
   if(d==="industrie")return pickT([["entrepots",0.5],["conteneurs",0.22],["parking",0.1],["terrain_vague",0.12],["parc",0.06]]);
   return pickT([["maisons",0.44],["parc",0.14],["terrain_vague",0.08],["jardin",0.07],["immeubles",0.07],["place",0.05],["commerces",0.06],["parking",0.03],["terrain",0.04],["skatepark",0.02]]);
 }
-const PRIVATE=new Set(["pop_rue","zenith","hotels","maisons","entrepots","conteneurs","commissariat","hopital","ecole","tours","commerces","supermarche"]);
+const PRIVATE=new Set(["banque","pop_rue","zenith","hotels","maisons","entrepots","conteneurs","commissariat","hopital","ecole","tours","commerces","supermarche"]);
 // rectangles accessibles aux passants (sinon ils restent sur le trottoir périphérique)
 function publicRects(type,bx0,bz0){const ring=[[bx0,bz0,bx0+32,bz0+2.6],[bx0,bz0+29.4,bx0+32,bz0+32],[bx0,bz0,bx0+2.6,bz0+32],[bx0+29.4,bz0,bx0+32,bz0+32]];
   return PRIVATE.has(type)?ring:null;}
@@ -2180,11 +2181,162 @@ const BUILDERS={
     edgeTrees(X,Z,mid,r,"palm");
   }
 };
-const QUARTIER_NOMS={pop_rue:"Barrio Coral",pop_marche:"Mercado Coral",pop_place:"Place des Dominos",zenith:"Quartier des affaires",foire:"Fête foraine",etang_urbain:"Étang",terrain_vague:"Terrain vague",jardin:"Jardins partagés",skatepark:"Skatepark",foodtrucks:"Food trucks",hotels:"Front de mer",place:"Place",parc:"Parc",immeubles:"Quartier résidentiel",tours:"Quartier des affaires",commerces:"Rue commerçante",maisons:"Quartier pavillonnaire",parking:"Parking",terrain:"Terrain de sport",entrepots:"Zone industrielle",conteneurs:"Dépôt de conteneurs",plage:"Plage",commissariat:"Commissariat",hopital:"Hôpital",ecole:"École",station:"Station-service",eglise:"Chapelle",supermarche:"Supermarché",marche:"Marché"};
-const TYPE_COLOR={pop_rue:"#e8927c",pop_marche:"#e0b04a",pop_place:"#2a9d8f",zenith:"#2b3f57",foire:"#d86ab0",etang_urbain:"#4f8a9a",terrain_vague:"#8a7356",jardin:"#6f9a46",skatepark:"#a3a39d",foodtrucks:"#d8a04a",hotels:"#e8a6b8",place:"#a3a39d",parc:"#5c7d4c",immeubles:"#8f8d86",tours:"#7f8fa8",commerces:"#a89580",maisons:"#9aa58a",parking:"#5a5e66",terrain:"#b35a37",entrepots:"#7b7f86",conteneurs:"#6f6a5f",plage:"#d8c49a",commissariat:"#3a5a9a",hopital:"#d8d8d8",ecole:"#c9a650",station:"#2f7a52",eglise:"#b8ad98",supermarche:"#c06a5a",marche:"#c99a5a"};
+const QUARTIER_NOMS={banque:"Banque Azur",pop_rue:"Barrio Coral",pop_marche:"Mercado Coral",pop_place:"Place des Dominos",zenith:"Quartier des affaires",foire:"Fête foraine",etang_urbain:"Étang",terrain_vague:"Terrain vague",jardin:"Jardins partagés",skatepark:"Skatepark",foodtrucks:"Food trucks",hotels:"Front de mer",place:"Place",parc:"Parc",immeubles:"Quartier résidentiel",tours:"Quartier des affaires",commerces:"Rue commerçante",maisons:"Quartier pavillonnaire",parking:"Parking",terrain:"Terrain de sport",entrepots:"Zone industrielle",conteneurs:"Dépôt de conteneurs",plage:"Plage",commissariat:"Commissariat",hopital:"Hôpital",ecole:"École",station:"Station-service",eglise:"Chapelle",supermarche:"Supermarché",marche:"Marché"};
+const TYPE_COLOR={banque:"#2f6f9a",pop_rue:"#e8927c",pop_marche:"#e0b04a",pop_place:"#2a9d8f",zenith:"#2b3f57",foire:"#d86ab0",etang_urbain:"#4f8a9a",terrain_vague:"#8a7356",jardin:"#6f9a46",skatepark:"#a3a39d",foodtrucks:"#d8a04a",hotels:"#e8a6b8",place:"#a3a39d",parc:"#5c7d4c",immeubles:"#8f8d86",tours:"#7f8fa8",commerces:"#a89580",maisons:"#9aa58a",parking:"#5a5e66",terrain:"#b35a37",entrepots:"#7b7f86",conteneurs:"#6f6a5f",plage:"#d8c49a",commissariat:"#3a5a9a",hopital:"#d8d8d8",ecole:"#c9a650",station:"#2f7a52",eglise:"#b8ad98",supermarche:"#c06a5a",marche:"#c99a5a"};
 // la mer à l'est (on ne peut pas encore y entrer : la nage arrive au module 16)
 const seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(1400,2600).rotateX(-Math.PI/2),KM.water);seaMesh.position.set(588+700,0.07,0);scene.add(seaMesh);
 function updateSea(dt){KM.water.map.offset.x=(clockT*0.004)%1;KM.water.map.offset.y=Math.sin(clockT*0.2)*0.01;}
+// ================================================================ MODULE 32 (1/2) : modèles de la banque + agences
+// Modèles d'après les plans fournis (distributeur, guichet, coffre, casiers, file d'attente, caméra, liasse, sac,
+// fourgon blindé, carte), refaits avec des géométries et des matériaux PARTAGÉS (un seul de chaque) pour rester léger.
+// Toutes les marques sont inventées : « Banque Azur », « Azur Pay », « Azur Transfert ».
+var BANK_LIST=null,BANK_MAP=null;
+const BKMC=new Map();
+function bkm(k,o){let m=BKMC.get(k);if(!m){m=new THREE.MeshStandardMaterial(Object.assign({roughness:0.7,metalness:0},o));BKMC.set(k,m);}return m;}
+function bkb(w,h,d,m,x,y,z,p,ry=0){const o=new THREE.Mesh(BX(+w.toFixed(3),+h.toFixed(3),+d.toFixed(3)),m);o.position.set(x,y,z);o.rotation.y=ry;p.add(o);return o;}
+function bkc(r1,r2,h,n,m,x,y,z,p,rx=0,rz=0){const o=new THREE.Mesh(CY(r1,r2,h,n),m);o.position.set(x,y,z);o.rotation.set(rx,0,rz);p.add(o);return o;}
+function bkSign(txt,bg,fg,w,h){return signMat(txt,bg,fg,{w,h});}
+const BKM={
+  get body(){return bkm("body",{color:0x536879,roughness:0.62,metalness:0.12});},get dark(){return bkm("dark",{color:0x17232c,roughness:0.42,metalness:0.18});},
+  get trim(){return bkm("trim",{color:0x9aaab3,roughness:0.38,metalness:0.55});},get key(){return bkm("key",{color:0x263944,roughness:0.45,metalness:0.12});},
+  get canopy(){return bkm("canopy",{color:0x174a67,roughness:0.52,metalness:0.2});},get glow(){return bkm("glow",{color:0x128dff,emissive:0x087cff,emissiveIntensity:1.2,roughness:0.32});},
+  get glowOff(){return bkm("glowOff",{color:0x1a1f24,roughness:0.4});},get bill(){return bkm("bill",{color:0x8bc9dd,roughness:0.75});},
+  get stone(){return bkm("stone",{color:0xb0a28c,roughness:0.82});},get glass(){return bkm("glass",{color:0x9bd7e6,roughness:0.22,metalness:0.08,transparent:true,opacity:0.38});},
+  get glassD(){return bkm("glassD",{color:0x2b4a62,roughness:0.1,metalness:0.6});},get metal(){return bkm("metal",{color:0x34444d,roughness:0.42,metalness:0.55});},
+  get wood(){return bkm("wood",{color:0x6d4933,roughness:0.78});},get screen(){return bkm("screen",{color:0x142a38,emissive:0x092c48,emissiveIntensity:0.7,roughness:0.3});},
+  get seat(){return bkm("seat",{color:0x25313a,roughness:0.76});},get steel(){return bkm("steel",{color:0x59646a,roughness:0.32,metalness:0.82});},
+  get steelD(){return bkm("steelD",{color:0x26343b,roughness:0.38,metalness:0.7});},get brass(){return bkm("brass",{color:0xb58c47,roughness:0.32,metalness:0.76});},
+  get locker(){return bkm("locker",{color:0x52636d,roughness:0.46,metalness:0.72});},get chrome(){return bkm("chrome",{color:0xc7d0d4,roughness:0.24,metalness:0.88});},
+  get cord(){return bkm("cord",{color:0x1265b0,roughness:0.72,metalness:0.04});},get housing(){return bkm("housing",{color:0xd8dedf,roughness:0.56,metalness:0.28});},
+  get led(){return bkm("led",{color:0xff2222,emissive:0xff0808,emissiveIntensity:1.4,roughness:0.3});},get paper(){return bkm("paper",{color:0x91b69a,roughness:0.9});},
+  get band(){return bkm("band",{color:0xe3d3a9,roughness:0.9});},get cloth(){return bkm("cloth",{color:0x9a805a,roughness:0.96});},get tie(){return bkm("tie",{color:0x68543b,roughness:0.9});},
+  get van(){return bkm("van",{color:0xe5e5dd,roughness:0.58,metalness:0.18});},get rubber(){return bkm("rubber",{color:0x171a1b,roughness:0.92});},
+  get hub(){return bkm("hub",{color:0x7b8588,roughness:0.4,metalness:0.72});},get orange(){return bkm("orange",{color:0xff8a1e,emissive:0xff5c00,emissiveIntensity:0.55,roughness:0.3});},
+  get card(){return bkm("card",{color:0x183f62,roughness:0.4,metalness:0.22});},get gold(){return bkm("gold",{color:0xd4ad55,roughness:0.34,metalness:0.78});},
+  get euro(){let m=BKMC.get("euro");if(!m){m=new THREE.MeshStandardMaterial({map:cTex("bkEuro",128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle="#f0df9e";g.font="bold 100px sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText("€",w/2,h/2+4);},false),transparent:true,roughness:0.8});BKMC.set("euro",m);}return m;},
+};
+// ---------------------------------------------------------------- distributeur (variante "mur" ou "borne"), devant vers +Z
+function model_distributeur(opts={}){
+  const g=new THREE.Group(),borne=opts.variant==="borne",bH=borne?1.65:1.9,bY=borne?1.075:0.95,bD=borne?0.48:0.38,f=bD/2;
+  if(borne){bkb(0.88,0.25,0.58,BKM.dark,0,0.125,0,g);bkb(0.72,0.13,0.52,BKM.trim,0,0.315,0,g);}
+  bkb(0.9,bH,bD,BKM.body,0,bY,0,g);bkb(0.84,0.035,bD+0.025,BKM.trim,0,1.88,0,g);
+  const scr=new THREE.Group();scr.name="ecran";scr.position.set(0,1.42,f+0.012);bkb(0.49,0.31,0.025,BKM.dark,0,0,0,scr);const s=bkb(0.44,0.25,0.009,BKM.glow,0,0,0.018,scr);s.name="dalle";g.add(scr);
+  bkb(0.2,0.025,0.025,BKM.dark,0,1.13,f+0.02,g);
+  for(let r=0;r<4;r++)for(let c=0;c<3;c++)bkb(0.09,0.055,0.025,BKM.key,-0.13+c*0.13,0.98-r*0.08,f+0.025,g);
+  bkb(0.19,0.027,0.035,BKM.dark,0,0.55,f+0.02,g);bkb(0.29,0.035,0.035,BKM.dark,0,0.34,f+0.02,g);
+  const bil=new THREE.Group();bil.name="billets";bil.position.set(0,0.34,f+0.028);bkb(0.19,0.026,0.05,BKM.bill,0,0.034,0.025,bil);bil.visible=false;g.add(bil);
+  bkb(0.44,0.035,0.19,BKM.canopy,0,1.91,f+0.08,g);
+  const logo=new THREE.Mesh(geo("bkLogoP",()=>new THREE.PlaneGeometry(0.38,0.095)),bkSign("Banque Azur","#123e59","#ffffff",512,128));logo.position.set(0,borne?1.68:1.75,f+0.025);g.add(logo);
+  g.userData.size={x:0.9,y:1.9,z:borne?0.58:0.55};return g;
+}
+// ---------------------------------------------------------------- guichet (côté client vers +Z, employé côté -Z)
+function model_guichet(){
+  const g=new THREE.Group();
+  bkb(4,0.88,0.72,BKM.wood,0,0.44,0.18,g);bkb(4.08,0.12,0.82,BKM.metal,0,0.94,0.18,g);bkb(3.94,0.07,0.76,BKM.wood,0,1.035,0.18,g);
+  bkb(3.8,0.08,0.08,BKM.metal,0,2.05,0.28,g);bkb(0.08,1.08,0.08,BKM.metal,-1.86,1.51,0.28,g);bkb(0.08,1.08,0.08,BKM.metal,1.86,1.51,0.28,g);bkb(3.72,1.02,0.025,BKM.glass,0,1.52,0.28,g);
+  for(const x of [-1.05,1.05]){bkb(0.72,0.48,0.045,BKM.metal,x,1.37,-0.2,g);bkb(0.62,0.36,0.018,BKM.screen,x,1.39,-0.165,g);bkb(0.72,0.045,0.42,BKM.metal,x,1.08,-0.22,g);}
+  for(const x of [-1.05,1.05]){bkb(0.52,0.12,0.48,BKM.seat,x,0.52,-1.05,g);bkb(0.52,0.68,0.12,BKM.seat,x,0.91,-1.23,g);bkb(0.08,0.52,0.08,BKM.metal,x,0.26,-1.05,g);}
+  g.userData.size={x:4.08,y:2.12,z:1.95};return g;
+}
+// ---------------------------------------------------------------- porte de coffre ronde (devant +Z) : "porte" (charnière à gauche) et "volant"
+function model_coffre(){
+  const g=new THREE.Group(),R=Math.PI/2;
+  const tun=new THREE.Mesh(geo("bkTun",()=>new THREE.CylinderGeometry(1.2,1.2,0.3,20,1,true)),bkm("tun",{color:0x3a464c,roughness:0.4,metalness:0.6,side:THREE.DoubleSide}));tun.rotation.x=R;tun.position.set(0,1.15,-0.14);g.add(tun);
+  const fr=new THREE.Mesh(geo("bkTorF",()=>new THREE.TorusGeometry(1.18,0.12,8,20)),BKM.brass);fr.position.set(0,1.15,0.02);g.add(fr);
+  for(const y of [0.45,1.15,1.85])bkc(0.09,0.09,0.34,10,BKM.brass,-1.27,y,0.02,g,R);
+  const porte=new THREE.Group();porte.name="porte";porte.position.set(-1.08,1.15,0.06);
+  bkc(1.1,1.1,0.2,20,BKM.steel,1.08,0,0,porte,R);
+  const rim=new THREE.Mesh(geo("bkTorR",()=>new THREE.TorusGeometry(1.0,0.045,6,20)),BKM.steelD);rim.position.set(1.08,0,0.12);porte.add(rim);
+  for(let i=0;i<8;i++){const a=i*Math.PI/4,b=new THREE.Mesh(geo("bkBolt",()=>new THREE.SphereGeometry(0.055,8,6)),BKM.brass);b.position.set(1.08+Math.cos(a)*0.82,Math.sin(a)*0.82,0.15);porte.add(b);}
+  const vol=new THREE.Group();vol.name="volant";vol.position.set(1.08,0,0.19);
+  vol.add(new THREE.Mesh(geo("bkTorV",()=>new THREE.TorusGeometry(0.29,0.035,6,14)),BKM.brass));bkc(0.09,0.09,0.07,10,BKM.brass,0,0,0,vol,R);
+  for(let i=0;i<6;i++){const a=i*Math.PI/3,s=bkb(0.035,0.27,0.035,BKM.brass,Math.cos(a)*0.135,Math.sin(a)*0.135,0,vol);s.rotation.z=a-Math.PI/2;}
+  porte.add(vol);g.add(porte);g.userData.size={x:2.65,y:2.45,z:0.6};return g;
+}
+// ---------------------------------------------------------------- mur de casiers (30 portes ; "casier0..2" s'ouvrent)
+function model_casiers(){
+  const g=new THREE.Group();bkb(3,2.2,0.5,BKM.steelD,0,1.1,0,g);
+  for(let c=0;c<=6;c++)bkb(0.025,2.2,0.025,BKM.locker,-1.5+c*0.5,1.1,0.255,g);for(let r=0;r<=5;r++)bkb(3,0.025,0.025,BKM.locker,0,r*0.44,0.255,g);
+  let n=0;for(let row=0;row<5;row++)for(let col=0;col<6;col++,n++){
+    const xl=-1.5+col*0.5+0.0125,y=0.22+(4-row)*0.44,piv=n<3;let p=g,cx=xl+0.2375,yy=y,zz=0.27;
+    if(piv){p=new THREE.Group();p.name="casier"+n;p.position.set(xl,y,0.27);g.add(p);cx=0.2375;yy=0;zz=0;}
+    bkb(0.475,0.415,0.035,BKM.locker,cx,yy,zz,p);bkb(0.035,0.09,0.045,BKM.steelD,cx+0.16,yy,zz+0.035,p);
+    const lab=new THREE.Mesh(geo("bkLab",()=>new THREE.PlaneGeometry(0.12,0.07)),bkSign(String(n+1).padStart(2,"0"),"#203d4d","#f2f5f6",96,56));lab.position.set(cx-0.06,yy+0.1,zz+0.019);p.add(lab);}
+  g.userData.size={x:3,y:2.2,z:0.5};return g;
+}
+// ---------------------------------------------------------------- file d'attente (3 × 1 m, ouverte d'un côté)
+function model_file_attente(){
+  const g=new THREE.Group(),P=[[-1.46,-0.46],[1.46,-0.46],[1.46,0.46],[-1.46,0.46]];
+  for(const [x,z] of P){bkc(0.105,0.12,0.045,12,BKM.metal,x,0.0225,z,g);bkc(0.032,0.042,0.91,8,BKM.chrome,x,0.5,z,g);}
+  for(let i=0;i<3;i++){const a=new V3(P[i][0],0.78,P[i][1]),b=new V3(P[i+1][0],0.78,P[i+1][1]),m=a.clone().add(b).multiplyScalar(0.5);m.y-=0.12;
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a,m,b),8,0.022,5,false),BKM.cord));}
+  g.userData.size={x:3,y:1,z:1};return g;
+}
+// ---------------------------------------------------------------- caméra de surveillance (tête "tete" qui pivote)
+function model_camera_securite(){
+  const g=new THREE.Group();bkb(0.09,0.16,0.025,BKM.metal,0,0.15,-0.12,g);bkc(0.022,0.022,0.11,8,BKM.metal,0,0.15,-0.06,g,Math.PI/2);
+  const t=new THREE.Group();t.name="tete";t.position.set(0,0.15,-0.01);bkb(0.17,0.095,0.12,BKM.housing,0,0.015,0.055,t);bkc(0.034,0.042,0.045,10,BKM.metal,0,0.015,0.135,t,Math.PI/2);
+  const led=new THREE.Mesh(geo("bkLed",()=>new THREE.SphereGeometry(0.014,6,4)),BKM.led);led.position.set(0.06,0.052,0.12);t.add(led);g.add(t);g.userData.size={x:0.3,y:0.3,z:0.3};return g;
+}
+// ---------------------------------------------------------------- liasse de billets, sac d'argent, carte bancaire
+function model_liasse(){const g=new THREE.Group();bkb(0.15,0.02,0.07,BKM.paper,0,0.01,0,g);bkb(0.033,0.022,0.073,BKM.band,0,0.01,0,g);g.userData.size={x:0.15,y:0.02,z:0.07};return g;}
+function model_sac_argent(){
+  const g=new THREE.Group(),s=new THREE.Mesh(geo("bkSac",()=>new THREE.SphereGeometry(0.155,10,8)),BKM.cloth);s.scale.set(1,1.12,0.88);s.position.y=0.18;g.add(s);
+  bkc(0.085,0.12,0.12,8,BKM.cloth,0,0.335,0,g);const k=new THREE.Mesh(geo("bkKnot",()=>new THREE.SphereGeometry(0.035,6,5)),BKM.tie);k.position.y=0.41;g.add(k);
+  const e=new THREE.Mesh(geo("bkEuroP",()=>new THREE.PlaneGeometry(0.14,0.14)),BKM.euro);e.position.set(0,0.2,0.137);g.add(e);g.userData.size={x:0.34,y:0.43,z:0.31};return g;
+}
+function model_carte_bancaire(){const g=new THREE.Group();bkb(0.085,0.054,0.001,BKM.card,0,0.027,0,g);bkb(0.014,0.011,0.0006,BKM.gold,-0.022,0.031,0.0008,g);
+  const l=new THREE.Mesh(geo("bkPayP",()=>new THREE.PlaneGeometry(0.043,0.0215)),bkSign("Azur Pay","#183f62","#f6f8fa",256,128));l.position.set(0.018,0.034,0.0011);g.add(l);return g;}
+// ---------------------------------------------------------------- fourgon blindé « Azur Transfert » (nez vers +Z)
+function model_fourgon(){
+  const g=new THREE.Group(),P=BKM.van,D=BKM.steelD,G=BKM.glassD;
+  bkb(2.05,1.83,4.0,P,0,1.56,-0.43,g);                 // caisse blindée
+  bkb(2.0,1.25,1.25,P,0,1.27,2.18,g);                   // cabine (capot plus bas)
+  bkb(1.96,0.12,4.1,P,0,2.53,-0.43,g);bkb(2.08,0.34,5.3,D,0,0.42,-0.02,g);  // toit, bas de caisse / pare-chocs
+  bkb(1.7,0.6,0.04,G,0,1.66,2.81,g);                   // pare-brise
+  for(const s of [-1,1]){bkb(0.04,0.5,0.95,G,s*1.005,1.6,2.2,g);bkb(0.04,0.3,0.5,G,s*1.03,1.95,-0.3,g);bkb(0.05,0.08,1.1,D,s*1.04,1.05,2.2,g);}
+  bkb(0.9,0.28,0.05,D,0,0.95,2.82,g);for(const x of [-0.72,0.72]){bkb(0.26,0.15,0.05,bkm("headB",{color:0xfff6d0,emissive:0xfff0c0,emissiveIntensity:0.3}),x,1.1,2.82,g);bkb(0.22,0.12,0.05,bkm("tailB",{color:0xc81e1e,emissive:0x600000}),x,1.15,-2.47,g);}
+  [[-1.06,1.9],[1.06,1.9],[-1.06,-1.7],[1.06,-1.7]].forEach(([x,z],i)=>{const r=new THREE.Group();r.name="roue"+i;r.position.set(x,0.43,z);bkc(0.41,0.41,0.24,12,BKM.rubber,0,0,0,r,0,Math.PI/2);bkc(0.22,0.22,0.25,10,BKM.hub,0,0,0,r,0,Math.PI/2);g.add(r);});
+  for(const s of [-1,1]){const d=new THREE.Group();d.name=s<0?"porteArrG":"porteArrD";d.position.set(s*1.0,0.64,-2.45);bkb(1.0,1.6,0.07,P,-s*0.5,0.8,0,d);bkb(0.06,0.6,0.035,D,-s*0.86,0.82,-0.055,d);g.add(d);}
+  bkb(0.34,0.05,0.24,D,0,2.61,1.6,g);const bc=bkc(0.11,0.14,0.18,10,BKM.orange,0,2.72,1.6,g);bc.name="gyro";
+  const lm=bkSign("AZUR TRANSFERT","#173f58","#ffffff",640,160);
+  for(const s of [-1,1]){const l=new THREE.Mesh(geo("bkVanL",()=>new THREE.PlaneGeometry(2.2,0.5)),lm);l.rotation.y=s*Math.PI/2;l.position.set(s*1.03,1.45,-0.6);g.add(l);}
+  g.userData.size={x:2.2,y:2.8,z:5.6};return g;
+}
+// ---------------------------------------------------------------- où sont les agences
+function bankList(){
+  if(BANK_LIST)return BANK_LIST;
+  const L=[[-2,2,"Agence Centrale"],[4,-4,"Agence Bellevue"],[-7,6,"Agence Coral"],[9,4,"Agence des Plages"]];
+  try{for(const T of TOWNS){const ci=Math.round((T.i0+T.i1)/2),cj=Math.round((T.j0+T.j1)/2),bi=ci+1<=T.i1?ci+1:ci-1;L.push([bi,cj,"Agence "+(/^Les /.test(T.name)?"des "+T.name.slice(4):/^Le /.test(T.name)?"du "+T.name.slice(3):/^[AEIOUÉ]/.test(T.name)?"d'"+T.name:"de "+T.name)]);}}catch(e){}
+  BANK_LIST=L.map(([cx,cz,name],k)=>{const bcx=cx*40+4,bz0=cz*40-12;return {id:k,cx,cz,name,x:bcx,doorX:bcx,doorZ:bz0+9,x0:bcx-9,x1:bcx+9,z0:bz0+9,z1:bz0+23,refs:null};});
+  BANK_MAP=new Map(BANK_LIST.map(B=>[B.cx+","+B.cz,B]));return BANK_LIST;
+}
+function bankChunkAt(cx,cz){if(!BANK_MAP)bankList();return BANK_MAP.get(cx+","+cz)||null;}
+// ---------------------------------------------------------------- constructeur d'îlot « banque »
+BUILDERS.banque=function(ch,C){const {bx0,bz0,bx1,bz1,bcx,bcz,base,mid,detail,prop,r,X,Z,cx,cz}=C;
+  const B=bankChunkAt(cx,cz)||{name:"Agence",id:-1},x0=bcx-9,x1=bcx+9,z0=bz0+9,z1=bz0+23,h=7.5,y=SIDEWALK;
+  walls(x0,z0,x1,z1,0,h,FACADES[1],base,4,3.2);box(x0,z0,x1,z1,h,h+0.5,KM.stone,base);
+  addObstacle({type:"box",x:bcx,z:(z0+z1)/2,hx:9,hz:7,tall:true,bld:true,bankDoor:{x:bcx,z:z0+0.25,side:"n"}});
+  // façade : soubassement, colonnes, entablement, enseigne, vitrages
+  box(x0-0.2,z0-0.35,x1+0.2,z0,0,0.5,BKM.stone,base);box(x0-0.3,z0-0.5,x1+0.3,z0,h-1.3,h-0.7,BKM.stone,base);
+  for(const dx of [-8.2,-4.3,4.3,8.2]){put(CY(0.3,0.34,h-1.8,12),BKM.stone,bcx+dx,(h-1.8)/2+0.5,z0-0.4,base);addObstacle({type:"circle",x:bcx+dx,z:z0-0.4,r:0.36});}
+  put(BX(5.6,0.85,0.12),signMat("BANQUE AZUR","#114865","#ffffff",{w:768,h:116,glow:true}),bcx,h-1.0,z0-0.57,base);
+  put(BX(2.2,0.12,0.16),BKM.metal,bcx,2.42,z0-0.08,base);for(const s of [-1,1])put(BX(0.12,2.4,0.16),BKM.metal,bcx+s*1.0,1.2,z0-0.08,base);
+  put(BX(1.9,0.04,1.6),bkm("mat",{color:0x2a2f36,roughness:1}),bcx,y+0.02,z0-1.0,detail);
+  // portes vitrées animées (non fusionnées)
+  const doors=new THREE.Group();doors.userData.keep=true;const legs=[];
+  for(const s of [-1,1]){const d=new THREE.Group();d.position.set(bcx+s*0.9,y,z0-0.06);put(BX(0.88,2.28,0.05),BKM.metal,-s*0.44,1.14,0,d);put(BX(0.74,2.0,0.06),BKM.glass,-s*0.44,1.16,0,d);put(BX(0.04,0.4,0.06),BKM.chrome,-s*0.78,1.1,-0.05,d);doors.add(d);legs.push(d);}
+  const back=put(BX(1.76,2.3,0.02),bkm("vest",{color:0x0d141a,roughness:1}),bcx,y+1.15,z0-0.02,doors);base.add(doors);
+  // distributeurs de façade
+  for(const s of [-1,1]){const a=model_distributeur({variant:"mur"});a.position.set(bcx+s*3.3,y,z0-0.2);a.rotation.y=Math.PI;a.userData.keep=true;base.add(a);addObstacle({type:"box",x:bcx+s*3.3,z:z0-0.2,hx:0.46,hz:0.22,atm:true});}
+  // fourgon blindé garé sur le parvis (zone de livraison)
+  const fx=bx0+6.2,fz=bz0+5.6;plane(6.4,2.8,bkm("livr",{color:0xd8c25a,roughness:0.9}),fx,y+0.012,fz,detail);put(BX(3,0.5,0.02),signMat("LIVRAISON","#d8c25a","#222",{w:256,h:48}),fx,y+0.016,fz,detail,0).rotation.x=-Math.PI/2;
+  const van=model_fourgon();van.position.set(fx,y,fz);van.rotation.y=Math.PI/2;van.userData.keep=true;base.add(van);
+  const vo=addObstacle({type:"box",x:fx,z:fz,hx:2.8,hz:1.12,tall:true,van:true});
+  for(const x of [bx0+22,bx1-3])prop("bench",x,bz0+4.2,Math.PI);
+  for(const x of [bx0+12,bx1-1.5])treeAt(x,bz0+7.4,"palm",1,mid);
+  if(B.id>=0)B.refs={doors:legs,back,atms:[...base.children].filter(o=>o.userData.size&&o.userData.size.x===0.9),van,vo,fx,fz,t:0,open:0};
+};
 // ================================================================ module 16 : la mer, les îles, la nage
 // À l'est de la plage (x > 588) : fond marin en pente, quatre îles, un pont piéton, un ponton pour plonger.
 // On peut nager partout ; la police ne nage pas.
@@ -5017,7 +5169,7 @@ function updateWallets(dt){
     if(W.t>0.4&&!player.ko&&hdist(W.m.position,player.root)<0.65){
       money+=W.amount;moneyEl.textContent=money+" €";
       // voler un porte-monnaie devant quelqu'un = délit
-      {let src=null;
+      if(!W.bank){let src=null;
         if(walkers.some(w=>w.isCop&&!w.ko&&canSee(w,player,25,260)))src="cop";
         else if(cams.some(c=>camSees(c,player.root)))src="cctv";
         else{const wit=walkers.find(w=>w!==player&&!w.isCop&&!w.ko&&!w.isMedic&&w.brain.witness&&hdist(w.root,player.root)<9&&canSee(w,player,9,170));if(wit){src="witness";bark(wit,["Hé ! Il vole son portefeuille !","Au voleur !"],3);}}
@@ -5384,7 +5536,7 @@ function arrestPlayer(){
   arrestEl.style.display="flex";koEl.style.display="none";
   let fine=Math.min(money,Math.round(money*0.5+wanted.level*25));if(player.handsUp)fine=Math.round(fine*0.4);
   if(player.handsUp){player.handsUp=false;for(const a of player.arms)a.rFn=null;}money-=fine;moneyEl.textContent=money+" €";
-  arrestEl.querySelector("small").textContent=(fine?`Amende : -${fine} €`:"Tu passes la nuit au poste.")+(wanted.surrendered?" (réduite : tu t'es rendu)":"");wanted.surrendered=false;
+  arrestEl.querySelector("small").textContent=(fine?`Amende : -${fine} €`:"Tu passes la nuit au poste.")+(typeof BANK!=="undefined"&&BANK.card&&BANK.acc>0?" · ton compte Banque Azur est intact":"")+(wanted.surrendered?" (réduite : tu t'es rendu)":"");wanted.surrendered=false;
   setTimeout(()=>{
     wanted.level=0;wanted.heat=0;wanted.evidence={cctv:false,clothes:false,face:false};wanted.escapedT=-999;
     if(player.ko)player.endKO();
@@ -5944,6 +6096,7 @@ class PlayerBrain{
     if(sitRequest&&EV.canAccept&&acceptEvent()){sitRequest=false;return;}
     if(sitRequest&&theftAction()){sitRequest=false;return;}
     if(sitRequest&&tryArmory()){sitRequest=false;return;}
+    if(sitRequest&&tryBank()){sitRequest=false;return;}
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
@@ -7141,7 +7294,7 @@ function stepVehicle(V,dt,inp){
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
   updateBoatSpots(dt);updateSails(dt);updateDamage(dt);updateRadio(dt);
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=!drive&&nearArmory()?`E : ${ARMORY.name} (armes, munitions)`:drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":nearestCar(player.root,3.2).V&&!nearestCar(player.root,3.2).V.locked?"E : conduire":"E : voler la voiture"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const bh0=!drive?bankHint():null;const t=!drive&&nearArmory()?`E : ${ARMORY.name} (armes, munitions)`:bh0?bh0[0]:drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":nearestCar(player.root,3.2).V&&!nearestCar(player.root,3.2).V.locked?"E : conduire":"E : voler la voiture"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
@@ -7167,6 +7320,7 @@ function updateVehicles(dt){
 function driveCtx(sit){
   if(TH.cur){sit.style.display="none";return true;}
   if(!drive&&!player.ko&&nearArmory()){sit.style.display="block";sit.textContent="Armurerie";document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";return true;}
+  if(!drive&&!player.ko){const bh=bankHint();if(bh&&bh[1]){sit.style.display="block";sit.textContent=bh[1];document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";return true;}}
   if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
   document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";
   {const ih=!player.swim&&player.sit.state==="none"?interiorHint():null;if(ih&&ih[1]&&!nearStoppedCar()&&!nearestCar(player.root,3.2)){sit.style.display="block";sit.textContent=ih[1];return true;}}
@@ -7445,7 +7599,8 @@ function bldInfo(o){
   const country=!grid,forest=country&&["foret","pinede","jungle","bayou","bambou","mangrove"].includes(biomeAt(o.x,o.z));
   const h=DAY.t,day=h>=8&&h<21;
   let kind="maison",str=3,pub=false,res=[1,3];
-  if(/cabanes|paillotes|lieu_maison_abandon|lieu_tour_guet/.test(t)){kind=t==="lieu_maison_abandon"?"abandon":"cabane";str=t==="cabanes"||t==="paillotes"?2:1;res=t==="lieu_maison_abandon"?[0,0]:[0,1];}
+  if(t==="banque"){kind="banque";str=99;pub=day;res=[0,0];}
+  else if(/cabanes|paillotes|lieu_maison_abandon|lieu_tour_guet/.test(t)){kind=t==="lieu_maison_abandon"?"abandon":"cabane";str=t==="cabanes"||t==="paillotes"?2:1;res=t==="lieu_maison_abandon"?[0,0]:[0,1];}
   else if(/^lieu_hameau|^lieu_caravanes|ferme|^ranch|^lavande/.test(t)){kind=big?"grange":"maison";str=forest?1:2;res=[0,big?0:2];}
   else if(country&&!t.startsWith("lieu_")&&!t.startsWith("station")&&!["motel","diner","relais","aire","camping","aeroport"].includes(t)){kind=big?"grange":"cabane";str=forest?1:2;res=[0,1];}
   else if(/maisons|villas|chalets|adobe|pop_rue/.test(t)){kind="maison";str=t==="villas"?4:3;res=[1,3];}
@@ -7509,6 +7664,7 @@ function furnish(I,g,r){
       B(2,1,0.8,IM.white,cx,0.5,z1-1.2);O(cx,z1-1.2,1,0.4);for(const s of [-0.7,0.7])put(CY(0.04,0.04,0.3,6),IM.white,cx+s,fy+1.15,z1-1.2,g);loot(cx,z1-2,"le tronc des offrandes");break;}
     case "hopital":{for(let x=x0+1.5;x<x1-1;x+=2.6){bed(x,z1-1.4,0);B(0.05,2,2.2,IM.wallH[1],x+1.25,1,z1-1.4);}B(3,1.1,0.8,IM.white,cx,0.55,z0+1.5);O(cx,z0+1.5,1.5,0.4);plant(x0+0.6,z0+0.6);break;}
     case "commissariat":{for(let k=0;k<3;k++)table(x0+2+k*2.6,cz,1.4,0.8);const cx2=x1-2.2;for(let z=z0+1;z<z1-1;z+=0.25)put(BX(0.05,2.6,0.05),IM.bars,cx2,fy+1.3,z,g);obs.push(addObstacle({type:"box",x:cx2,z:cz,hx:0.05,hz:D/2-1,inner:true,bld:true,tall:true}));break;}
+    case "banque":{bankFurnish(I,g,r,O,B,plant,sofa);break;}
     case "ecole":{for(let x=x0+1.6;x<x1-1;x+=1.8)for(let z=z0+2;z<z1-2;z+=1.6)table(x,z,1,0.6);B(W-2,1.2,0.05,IM.dark,cx,1.5,z1-0.1);break;}
   }
   if(kind!=="abandon"&&kind!=="grange"&&kind!=="entrepot")for(let k=0;k<2;k++){const z=z0+1.5+r()*(D-3);B(0.05,0.6,0.8,IM.prod[Math.floor(r()*7)],x0+0.05,1.6,z);}
@@ -7531,10 +7687,10 @@ function openInterior(o,door){
       I.obs.push(addObstacle(ax==="x"?{type:"box",x:mid,z:fixed-face*0.12,hx:len/2,hz:0.12,inner:true,bld:true,tall:true}:{type:"box",x:fixed-face*0.12,z:mid,hx:0.12,hz:len/2,inner:true,bld:true,tall:true}));};
     const sides={n:["x",z0,x0,x1,1],s:["x",z1,x0,x1,-1],w:["z",x0,z0,z1,1],e:["z",x1,z0,z1,-1]};
     for(const [k,[ax,fixed,a,b,face]] of Object.entries(sides)){if(k===side){const c=ax==="x"?door.x:door.z;wall(ax,fixed,a,c-dg,face);wall(ax,fixed,c+dg,b,face);put(BX(ax==="x"?dg*2:0.1,H-2.3,ax==="x"?0.1:dg*2),wm,ax==="x"?c:fixed,fy+2.3+(H-2.3)/2,ax==="x"?fixed:c,g);}else wall(ax,fixed,a,b,face);}
-    furnish(I,g,r);bake(g);scene.add(g);g.visible=false;
+    furnish(I,g,r);bake(g);if(I.kind==="banque")bankInterior(I);scene.add(g);g.visible=false;
     // l'encadrement de porte vu de dehors
     const dx=side==="w"?-1:side==="e"?1:0,dz=side==="n"?-1:side==="s"?1:0,ox=door.x+dx*(0.26+inset),oz=door.z+dz*(0.26+inset);
-    const hole=new THREE.Mesh(geo("ihole",()=>new THREE.PlaneGeometry(1.5,2.3)),IM.hole);hole.position.set(ox,fy+1.15,oz);hole.rotation.y=dz?(dz>0?0:Math.PI):(dx>0?Math.PI/2:-Math.PI/2);I.deco.add(hole);scene.add(I.deco);
+    const hole=new THREE.Mesh(geo("ihole",()=>new THREE.PlaneGeometry(1.5,2.3)),IM.hole);hole.position.set(ox,fy+1.15,oz);hole.rotation.y=dz?(dz>0?0:Math.PI):(dx>0?Math.PI/2:-Math.PI/2);if(!o.bankDoor)I.deco.add(hole);scene.add(I.deco);
     INT.list.push(I);if(INT.list.length>4){const old=INT.list.find(q=>q!==I&&!q.active);if(old)disposeInterior(old);}
     // habitants
     const [a,b]=info.res,night=DAY.night>0.5,n=info.pub?Math.min(1,b):Math.floor(a+(b-a)*(night?0.8:Math.random()));
@@ -7565,7 +7721,7 @@ class ResidentBrain extends NpcBrain{
   }
 }
 // ---------------------------------------------------------------- interaction : entrer, enfoncer, fouiller
-function doorFromWall(o,nx,nz){const p=player.root,side=Math.abs(nx)>Math.abs(nz)?(nx>0?"e":"w"):(nz>0?"s":"n");
+function doorFromWall(o,nx,nz){if(o.bankDoor)return {...o.bankDoor};const p=player.root,side=Math.abs(nx)>Math.abs(nz)?(nx>0?"e":"w"):(nz>0?"s":"n");
   const x=side==="w"?o.x-o.hx+0.25:side==="e"?o.x+o.hx-0.25:clamp(p.x,o.x-o.hx+1.3,o.x+o.hx-1.3),z=side==="n"?o.z-o.hz+0.25:side==="s"?o.z+o.hz-0.25:clamp(p.z,o.z-o.hz+1.3,o.z+o.hz-1.3);return {x,z,side};}
 function canOpenSmall(o){return o.hx>=1.6&&o.hz>=1.6;}
 function tryEnterBuilding(){
@@ -7574,6 +7730,7 @@ function tryEnterBuilding(){
   const I0=INT.cur;if(I0&&inRoom(I0,player.root))for(const L of I0.loot){if(INT.looted.has(L.id))continue;if(Math.hypot(L.x-player.root.x,L.z-player.root.z)<1.6){INT.looted.add(L.id);const m=I0.kind==="abandon"?Math.round(rand(5,60)):Math.round(rand(20,260)*(I0.kind==="bureau"||I0.kind==="boutique"?2:1));giveMoney(m);floatText(player,"+"+m+" € ("+L.label+")","#7dffa1");playSound("slap",0.05);I0.residents.forEach(w=>w.brain.alarm&&w.brain.alarm(w,true));return true;}}
   const W=wallInFront();if(!W||!canOpenSmall(W.o))return false;
   const info=bldInfo(W.o),key=bldKey(W.o);
+  if(info.kind==="banque"){if(!info.pub){hudMsg("Banque Azur fermée : ouverte de 8 h à 21 h");return true;}if(W.nz>-0.5){hudMsg("L'entrée de la banque est sur la façade (côté enseigne)");return true;}}
   if(info.pub||INT.broken.has(key)){const I=openInterior(W.o,doorFromWall(W.o,W.nx,W.nz));activateInterior(I);hudMsg(info.pub&&!INT.broken.has(key)?"Tu entres.":"La porte est enfoncée, tu entres.");return true;}
   if(info.str>=99){hudMsg("Porte blindée : impossible de l'enfoncer.");return true;}
   hudMsg(`Porte verrouillée (${info.kind==="cabane"||info.kind==="abandon"?"fragile":info.str<=3?"normale":info.str<=5?"solide":"très solide"}) : donne des coups de pied pour l'enfoncer`);return true;
@@ -7603,7 +7760,7 @@ function updateInteriors(dt){
   const I=INT.cur;intLight.intensity=I&&inRoom(I,player.root,0.5)?1.6:0;if(I)intLight.position.set((I.x0+I.x1)/2,I.ceil-0.4,(I.z0+I.z1)/2);
 }
 function interiorHint(){const I=INT.cur;if(I&&inRoom(I,player.root))for(const L of I.loot)if(!INT.looted.has(L.id)&&Math.hypot(L.x-player.root.x,L.z-player.root.z)<1.6)return ["E : fouiller "+L.label,"Fouiller"];
-  if(INT.near){const info=bldInfo(INT.near.o),key=bldKey(INT.near.o);if(info.pub||INT.broken.has(key))return ["E : entrer","Entrer"];if(info.str>=99)return ["Porte blindée",""];const h=INT.hits.get(key)||0;return [`Porte verrouillée — coups de pied pour l'enfoncer (${Math.round(h/info.str*100)} %)`,"Porte"];}
+  if(INT.near){const info=bldInfo(INT.near.o),key=bldKey(INT.near.o);if(info.pub||INT.broken.has(key))return ["E : entrer","Entrer"];if(info.kind==="banque")return [info.pub?"E : entrer dans la banque":"Banque fermée (8 h – 21 h)",info.pub?"Entrer":""];if(info.str>=99)return ["Porte blindée",""];const h=INT.hits.get(key)||0;return [`Porte verrouillée — coups de pied pour l'enfoncer (${Math.round(h/info.str*100)} %)`,"Porte"];}
   return null;}
 // ================================================================ VOL DE VOITURE (façon GTA)
 // E près d'une voiture garée : on ne monte plus direct. Trois façons de la voler :
@@ -8162,7 +8319,7 @@ function gunSound(k,dist=0){const c=actx;if(!c)return;try{const W=WEAPONS[k]||WE
 // premier obstacle le long du segment a→b : murs/arbres/voitures (hauts) toujours ; obstacles bas jusqu'à ~1 m du sol
 function bulletBlock(a,b){const d=b.clone().sub(a),L=d.length();if(L<0.01)return null;d.divideScalar(L);const q=new V3();
   for(let s=0.4;s<L;s+=0.35){q.copy(a).addScaledVector(d,s);const g=groundAt(q.x,q.z);if(q.y<g)return q.clone();
-    for(const o of obsAt(q)){if(o.veh===drive&&drive)continue;const c=obstacleClosest(o,q);if(c.d>0.02)continue;const h=o.tall||o.bld?99:o.top!==undefined?o.top:g+1.05;if(q.y<h)return q.clone();}}
+    for(const o of obsAt(q)){if(o.veh===drive&&drive)continue;if((o.atm||o.van)&&q.distanceTo(b)<3.2)continue;const c=obstacleClosest(o,q);if(c.d>0.02)continue;const h=o.tall||o.bld?99:o.top!==undefined?o.top:g+1.05;if(q.y<h)return q.clone();}}
   return null;}
 // cible touchée par un rayon (origine o, direction d) : passants/policiers (tronc + tête), véhicules
 function rayHit(o,d,maxD,ignore){let best=null,bd=maxD;const a=new V3(),b=new V3(),tmp=new V3();
@@ -8175,6 +8332,7 @@ function rayHit(o,d,maxD,ignore){let best=null,bd=maxD;const a=new V3(),b=new V3
     const r=tc>0.86?0.13:0.24;if(dist<r&&sc<bd){bd=sc;best={w,t:sc,zone:tc>0.86?"head":tc>0.55?"chest":tc>0.3?"belly":"legs",p:p1.clone()};}}
   const veh=[...VEH.filter(V=>!V.boat&&!V.dead&&V!==drive).map(V=>({V,x:V.x,y:V.y,z:V.z})),...PCH.list.filter(P=>!P.dead).map(P=>({P,x:P.x,y:P.y,z:P.z}))];
   for(const c of veh){const cx=c.x-o.x,cy=c.y+0.8-o.y,cz=c.z-o.z,t=cx*d.x+cy*d.y+cz*d.z;if(t<0||t>bd)continue;const px=o.x+d.x*t-c.x,py=o.y+d.y*t-(c.y+0.8),pz=o.z+d.z*t-c.z;if(px*px+pz*pz<1.7&&Math.abs(py)<0.8){bd=t;best={car:c,t,p:new V3(o.x+d.x*t,o.y+d.y*t,o.z+d.z*t)};}}
+  {const bt=rayTargets(o,d,bd);if(bt)best=bt;}
   return best;}
 // ---------------------------------------------------------------- tir du joueur
 const _rc=new THREE.Raycaster();
@@ -8201,6 +8359,7 @@ function pwFire(){
     if(h&&h.w){PW.stats.hits++;const dmg=Math.round(W.dmg*(h.zone==="head"?2.2:h.zone==="legs"?0.7:1)*(1-h.t/W.range*0.4));h.w.takeHit(player,h.zone,dmg,false,false);
       if(h.w.hp<=0&&!h.w.ko)h.w.startKO(dir.clone().setY(0).normalize(),player,{fast:true});xhair.classList.add("hit");setTimeout(()=>xhair.classList.remove("hit"),90);
       if(h.w.isCop)wanted.armedT=clockT;}
+    else if(h&&h.tgt){h.tgt.hit(W.dmg,h.p);puff(h.p.x,h.p.y,h.p.z,0,0.3);}
     else if(h&&h.car){const C=h.car;if(C.V){C.V.hp-=W.dmg*0.35;}else if(C.P){C.P.hp-=W.dmg*0.5;}puff(h.p.x,h.p.y,h.p.z,0,0.3);}
   }
   gunSound(k,0);cam.shake=Math.min(1,cam.shake+(k==="pompe"?0.18:0.05));rumble(60,k==="pompe"?0.8:0.35);
@@ -8296,6 +8455,220 @@ function updateWeapons(dt){
 function pwSave(){return {cur:PW.cur,owned:{...PW.owned},clip:{...PW.clip},ammo:{...PW.ammo}};}
 function pwLoad(d){if(!d)return;for(const k of ["pistolet","smg","pompe"]){PW.owned[k]=!!(d.owned&&d.owned[k]);PW.clip[k]=clamp(+(d.clip&&d.clip[k])||0,0,WEAPONS[k].mag);PW.ammo[k]=clamp(+(d.ammo&&d.ammo[k])||0,0,999);}
   PW.cur=WEAPON_ORDER.includes(d.cur)&&(d.cur==="poings"||PW.owned[d.cur])?d.cur:"poings";pwHud();}
+// ================================================================ MODULE 32 (2/2) : économie — Banque Azur
+// Compte en banque (l'argent déposé est à l'abri : une arrestation ne prend que les espèces), carte « Azur Pay »
+// obtenue au guichet, intérêts chaque jour (1 %, 500 € max), distributeurs dans les rues et sur les agences.
+// Côté crime : casser un distributeur (les billets tombent), attaquer le fourgon blindé « Azur Transfert » garé
+// devant chaque agence, braquer la banque arme à la main (caisse, puis coffre et casiers ; 4 étoiles).
+const BANK={acc:0,card:false,day:0,lastT:null,robbed:{},atmBroken:{},vanRobbed:{},stats:{dep:0,wd:0,heists:0,atm:0,vans:0},init:false,ck:0,ui:null};
+const ATMS=[];
+let HEIST=null;
+// ---------------------------------------------------------------- interface
+{const st=document.createElement("style");st.textContent=`
+#bankui{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);width:min(390px,92vw);display:none;background:rgba(12,22,34,.93);color:#fff;border-radius:14px;padding:10px 12px;font:600 14px system-ui;z-index:30;border:1px solid rgba(120,190,255,.25)}
+.touch #bankui{bottom:auto;top:56px}
+#bankui h3{margin:0 0 4px;font:800 15px system-ui}#bankui .sub{font:500 12.5px system-ui;opacity:.85;margin-bottom:8px}#bankui .sub b{color:#7dffa1}
+#bankui .row{display:flex;gap:6px;margin:5px 0;align-items:center;flex-wrap:wrap}#bankui .row span{width:58px;font:700 12px system-ui;opacity:.8}
+#bankui button{all:unset;cursor:pointer;background:#22405c;border-radius:9px;padding:7px 10px;font:700 13px system-ui;color:#fff;border:1px solid rgba(255,255,255,.18);touch-action:manipulation}
+#bankui button.off{opacity:.4}#bankui button.big{display:block;width:calc(100% - 22px);margin:6px 0;text-align:center}#bankui button.red{background:#7a1e1e}#bankui button.ok{background:#1f6a4a}
+#bankBal{position:fixed;left:50%;top:0;color:#8fd0ff;font:800 13px system-ui;text-shadow:0 2px 4px #000;pointer-events:none;display:none}
+.touch #bankBal{font-size:11.5px}
+#heist{position:fixed;left:50%;top:70px;transform:translateX(-50%);display:none;background:rgba(90,10,10,.85);color:#fff;font:800 13px system-ui;padding:6px 12px;border-radius:10px;z-index:25;pointer-events:none;text-align:center;min-width:220px}
+#heist i{display:block;height:5px;margin-top:5px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}#heist i b{display:block;height:100%;background:#ffd23a;width:0}
+.touch #heist{top:96px;font-size:12px;min-width:180px}`;document.head.appendChild(st);}
+const bankEl=document.createElement("div");bankEl.id="bankui";document.body.appendChild(bankEl);
+const bankBalEl=document.createElement("div");bankBalEl.id="bankBal";document.body.appendChild(bankBalEl);
+const heistEl=document.createElement("div");heistEl.id="heist";heistEl.innerHTML="<span></span><i><b></b></i>";document.body.appendChild(heistEl);
+function fmtE(n){return Math.round(n).toLocaleString("fr-FR").replace(/ | /g," ")+" €";}
+function setCash(n){money=Math.max(0,Math.round(n));moneyEl.textContent=money+" €";}
+function bankHud(){bankBalEl.style.display=BANK.card?"block":"none";bankBalEl.textContent="🏦 "+fmtE(BANK.acc);
+  if(BANK.card){const r=moneyEl.getBoundingClientRect();bankBalEl.style.left=Math.round(r.right+10)+"px";bankBalEl.style.top=Math.round(r.top+(r.height-bankBalEl.offsetHeight)/2)+"px";}}
+function bankBtn(par,html,fn,cls){const b=document.createElement("button");b.innerHTML=html;if(cls)b.className=cls;b.onclick=e=>{e.stopPropagation();fn();};par.appendChild(b);return b;}
+function bankOpenUI(mode,ref){BANK.ui={mode,ref};bankRender();}
+function bankCloseUI(){BANK.ui=null;bankEl.style.display="none";}
+function bankRender(){const U=BANK.ui;if(!U){bankEl.style.display="none";return;}bankEl.style.display="block";
+  const atm=U.mode==="atm",B=U.ref&&U.ref.bank;
+  bankEl.innerHTML=`<h3>${atm?"🏧 Distributeur Banque Azur":"🏦 Banque Azur — "+(B?B.name:"Agence")}</h3><div class="sub">Espèces : <b>${fmtE(money)}</b> · Compte : <b>${BANK.card?fmtE(BANK.acc):"aucun"}</b></div><div class="body"></div>`;
+  const body=bankEl.querySelector(".body");
+  if(!BANK.card){
+    if(atm){const d=document.createElement("div");d.className="sub";d.textContent="Il te faut une carte Azur Pay : ouvre un compte au guichet d'une agence Banque Azur (🏦 sur la carte).";body.appendChild(d);}
+    else bankBtn(body,"💳 Ouvrir un compte (gratuit) et recevoir la carte Azur Pay",()=>{BANK.card=true;playCoin();hudMsg("Compte ouvert ! Carte Azur Pay reçue : dépose ton argent pour le mettre à l'abri",3.5);bankRender();bankHud();},"big ok");
+  }else{
+    const row=(lab,fn,can)=>{const r=document.createElement("div");r.className="row";r.innerHTML=`<span>${lab}</span>`;for(const v of [50,200,1000,"Tout"]){const n=v==="Tout"?can():v;bankBtn(r,v==="Tout"?"Tout":v+" €",()=>fn(v==="Tout"?can():v),n<=0||n>can()?"off":"");}body.appendChild(r);};
+    row("Retirer",v=>bankMove(-v),()=>Math.floor(BANK.acc));row("Déposer",v=>bankMove(v),()=>money);
+    const d=document.createElement("div");d.className="sub";d.style.margin="6px 0 0";d.textContent="💳 Azur Pay · intérêts : 1 % par jour (500 € max). L'argent du compte est à l'abri si tu es arrêté.";body.appendChild(d);}
+  if(!atm&&B&&U.ref.inside){const ok=!BANK.robbed[B.id]||BANK.robbed[B.id]<BANK.day;
+    if(HEIST&&HEIST.B===B)null;else if(pwArmed()&&ok)bankBtn(body,"🔫 Braquer la banque",()=>{bankCloseUI();startHeist(B);},"big red");
+    else if(pwArmed())bankBtn(body,"Le coffre a déjà été vidé aujourd'hui",()=>{},"big off");}
+  bankBtn(body,"Fermer",bankCloseUI,"big");}
+function bankMove(v){v=Math.round(v);if(!v)return;if(v>0){v=Math.min(v,money);if(v<=0)return;setCash(money-v);BANK.acc+=v;BANK.stats.dep+=v;hudMsg(`Dépôt : ${fmtE(v)} sur ton compte`,1.8);}
+  else{v=Math.min(-v,Math.floor(BANK.acc));if(v<=0)return;BANK.acc-=v;setCash(money+v);BANK.stats.wd+=v;hudMsg(`Retrait : ${fmtE(v)}`,1.8);const A=BANK.ui&&BANK.ui.ref;if(A&&A.g)atmCashAnim(A);}
+  playCoin();bankRender();bankHud();}
+// ---------------------------------------------------------------- distributeurs
+function atmKey(x,z){return Math.round(x)+"|"+Math.round(z);}
+function bankInit(){
+  for(const B of bankList()){try{POIS.push({type:"banque",x:B.x,z:B.z0-2,name:"Banque Azur — "+B.name});}catch(e){}
+    for(const s of [-1,1])ATMS.push({x:B.x+s*3.3,z:B.z0-0.2,nx:0,nz:-1,key:"b"+B.id+(s<0?"g":"d"),bank:B,s,facade:true,g:null,hp:6});}
+  // dans les rues : îlots commerçants d'Azuria, stations, centres des villes
+  const want=new Set(["commerces","tours","place","foodtrucks","marche","station","supermarche","pop_marche","pop_place"]);
+  for(let cx=-14;cx<=14;cx++)for(let cz=-14;cz<=14;cz++){const t=chunkType(cx,cz);if(!want.has(t))continue;if(t!=="station"&&hash(cx*3.71+cz*11.3+7)>0.42)continue;
+    ATMS.push({x:cx*40-2,z:cz*40-12+1.45,nx:0,nz:-1,key:"s"+cx+","+cz,g:null,o:null,hp:6});}
+  try{for(const T of TOWNS){const ci=Math.round((T.i0+T.i1)/2),cj=Math.round((T.j0+T.j1)/2);ATMS.push({x:ci*40-4,z:cj*40-12+1.45,nx:0,nz:-1,key:"t"+T.id,g:null,o:null,hp:6});}}catch(e){}
+  for(const A of ATMS)if(!A.facade)try{POIS.push({type:"atm",x:A.x,z:A.z,name:"Distributeur Banque Azur"});}catch(e){}
+  try{POI_ICON.banque=["🏦","#5fb0e0"];POI_ICON.atm=["🏧","#8fd0ff"];}catch(e){}
+}
+function atmFree(x,z){for(const o of obsAt(new V3(x,0,z))){const c=obstacleClosest(o,new V3(x,0,z));if(c.d<0.75)return false;}return true;}
+function atmStream(){const p=player.root;
+  for(const A of ATMS){if(A.facade){const R=A.bank.refs;A.g=R?R.atms[A.s<0?0:1]||null:null;if(A.g&&!A._applied){A._applied=true;if(BANK.atmBroken[A.key]>=BANK.day)atmBreakLook(A);}if(!R)A._applied=false;continue;}
+    const d=Math.hypot(p.x-A.x,p.z-A.z);
+    if(!A.g&&d<120){if(!chunks.has(ckey(Math.round((A.x-4)/40),Math.round((A.z-4)/40))))continue;
+      let x=A.x;for(let k=0;k<4&&!atmFree(x,A.z);k++)x+=2.6;if(!atmFree(x,A.z))continue;A.bx=x;
+      const g=model_distributeur({variant:"borne"});g.position.set(x,groundAt(x,A.z),A.z);g.rotation.y=Math.PI;scene.add(g);A.g=g;A.o=addObstacle({type:"box",x,z:A.z,hx:0.45,hz:0.3,atm:true});A.hp=6;if(BANK.atmBroken[A.key]>=BANK.day)atmBreakLook(A);}
+    else if(A.g&&d>200){scene.remove(A.g);A.g=null;if(A.o){removeObstacle(A.o);A.o=null;}}}}
+function atmPos(A){return {x:A.facade?A.x:(A.bx??A.x),z:A.z};}
+function atmBroken(A){return (BANK.atmBroken[A.key]||-1)>=BANK.day;}
+function nearATM(){if(drive||player.ko)return null;const p=player.root;let best=null,bd=1.7;
+  for(const A of ATMS){if(!A.g)continue;const q=atmPos(A),fx=q.x+A.nx*0.7,fz=q.z+A.nz*0.7,d=Math.hypot(p.x-fx,p.z-fz);if(d<bd){bd=d;best=A;}}return best;}
+function atmBreakLook(A){if(!A.g)return;A.g.traverse(o=>{if(o.name==="dalle")o.material=BKM.glowOff;if(o.name==="billets")o.visible=true;});}
+function atmCashAnim(A){const b=A.g&&A.g.getObjectByName("billets");if(!b)return;b.visible=true;setTimeout(()=>{if(!atmBroken(A))b.visible=false;},1400);}
+// billets / sacs qui tombent (ramassés en passant dessus, comme les porte-monnaie)
+function dropLoot(x,y,z,amount,kind){const m=kind==="sac"?model_sac_argent():model_liasse();m.position.set(x,y,z);scene.add(m);
+  const k=kind==="sac"?0.5:1.6;wallets.push({bank:true,m,v:new V3(rand(-k,k),rand(1.4,2.6),rand(-k,k)),spin:new V3(rand(-6,6),rand(-6,6),rand(-6,6)),amount:Math.round(amount),rest:false,t:0});}
+function bankAlarmSound(d){const c=actx;if(!c)return;try{const v=clamp01(1-d/80)*0.16;if(v<0.01)return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type="square";o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(660,t+0.25);
+  g.gain.setValueAtTime(v,t);g.gain.setValueAtTime(0.0001,t+0.5);o.connect(g).connect(sfxOut());o.start(t);o.stop(t+0.52);}catch(e){}}
+function bankCrime(pos,R,why,key,pts,sev,direct){if(CREA.on&&CREA.noCops)return;noisyCrime(pos,R,why,key);const v=TH_VICT.get(key);const c=v&&v._crime;if(c){c.pts=Math.max(c.pts,pts);c.sev=Math.max(c.sev,sev);if(direct){reportCrime(c,why,"cctv");wanted.lastSeenPos.copy(player.root);}else if(c.reported)reportCrime(c,null,"update");}}
+function hitATM(A,dmg){if(atmBroken(A))return;const q=atmPos(A),pos=new V3(q.x,0,q.z);A.hp-=dmg;playSound("thud",0.5);puff(q.x,groundAt(q.x,q.z)+1.2,q.z,0,0.25);
+  if(!A._hitT||clockT-A._hitT>20){A._hitT=clockT;bankCrime(pos,12,"Il casse un distributeur !","atm"+A.key,2,1);}
+  if(A.hp>0){floatText(player,`Distributeur ${Math.round((1-A.hp/6)*100)} %`,"#ffd08a");return;}
+  BANK.atmBroken[A.key]=BANK.day;BANK.stats.atm++;atmBreakLook(A);const y=groundAt(q.x,q.z)+0.5;
+  const n=4+Math.floor(Math.random()*3);for(let i=0;i<n;i++)dropLoot(q.x+A.nx*0.5,y,q.z+A.nz*0.5,rand(40,140),"liasse");
+  hudMsg("Le distributeur crache ses billets ! Ramasse-les vite",2.6);floatText(player,"CRAC !","#ffb07a");A.alarmT=10;
+  bankCrime(pos,30,"Alarme du distributeur ! La police est prévenue","atm"+A.key,4,2,true);}
+// ---------------------------------------------------------------- fourgon blindé
+function vanOf(B){return B.refs&&B.refs.van?B.refs:null;}
+function hitVan(B,dmg){const R=vanOf(B);if(!R||BANK.vanRobbed[B.id]>=BANK.day)return;R.hp=(R.hp??16)-dmg;playSound("thud",0.6);puff(R.fx-2.7,0.9,R.fz,0,0.3);
+  if(!R._hitT||clockT-R._hitT>20){R._hitT=clockT;bankCrime(new V3(R.fx,0,R.fz),20,"Il attaque le fourgon blindé !","van"+B.id,3,2);}
+  if(R.hp>0){floatText(player,`Portes du fourgon ${Math.round((1-R.hp/16)*100)} %`,"#ffd08a");return;}
+  BANK.vanRobbed[B.id]=BANK.day;BANK.stats.vans++;R.vanOpen=0.001;R.alarmT=14;
+  for(let i=0;i<2;i++)dropLoot(R.fx-3.1,1.1,R.fz+(i-0.5)*0.6,rand(1500,3000),"sac");
+  hudMsg("Les portes du fourgon cèdent : deux sacs d'argent !",2.8);floatText(player,"BOUM !","#ffb07a");
+  bankCrime(new V3(R.fx,0,R.fz),40,"Attaque du fourgon blindé Azur Transfert ! La police arrive","van"+B.id,6,3,true);}
+// ---------------------------------------------------------------- cibles (coups et balles)
+function bankTargets(){const L=[];
+  for(const A of ATMS)if(A.g&&!atmBroken(A)){const q=atmPos(A);L.push({x:q.x,z:q.z,y0:groundAt(q.x,q.z),y1:groundAt(q.x,q.z)+1.9,r:0.5,hit:d=>hitATM(A,d/12)});}
+  for(const B of BANK_LIST||[]){const R=vanOf(B);if(R&&!(BANK.vanRobbed[B.id]>=BANK.day)&&Math.hypot(player.root.x-R.fx,player.root.z-R.fz)<80)for(const dx of [-1.8,0,1.8])L.push({x:R.fx+dx,z:R.fz,y0:SIDEWALK,y1:SIDEWALK+2.6,r:1.15,hit:d=>hitVan(B,d/14)});}
+  return L;}
+function rayTargets(o,d,bd){let best=null;for(const T of bankTargets()){const h2=d.x*d.x+d.z*d.z;if(h2<1e-6)continue;const t=((T.x-o.x)*d.x+(T.z-o.z)*d.z)/h2;if(t<0||t>bd)continue;
+  const px=o.x+d.x*t,py=o.y+d.y*t,pz=o.z+d.z*t;if(Math.hypot(px-T.x,pz-T.z)<T.r&&py>T.y0&&py<T.y1){bd=t;best={tgt:T,t,p:new V3(px,py,pz)};}}return best;}
+function bankMelee(){const a=player.atk;if(!a||a._bank||a.t<a.impactT)return;a._bank=true;const p=player.root,f=fwdOf(player.yaw),dmg=a.type==="kick"?1.6:1;
+  for(const A of ATMS){if(!A.g||atmBroken(A))continue;const q=atmPos(A),dx=q.x-p.x,dz=q.z-p.z,L=Math.hypot(dx,dz);if(L<1.35&&(dx*f.x+dz*f.z)/L>0.3){hitATM(A,dmg);return;}}
+  for(const B of BANK_LIST||[]){const R=vanOf(B);if(!R)continue;const rx=R.fx-2.8,dx=rx-p.x,dz=R.fz-p.z,L=Math.hypot(dx,dz);if(L<1.7&&(dx*f.x+dz*f.z)/L>0.2){hitVan(B,dmg);return;}}}
+// ---------------------------------------------------------------- intérieur de l'agence (appelé par l'intérieur générique)
+function bankOfObstacle(o){return (BANK_LIST||bankList()).find(B=>Math.abs(B.x-o.x)<1&&Math.abs((B.z0+B.z1)/2-o.z)<1)||null;}
+function bankFurnish(I,g,r,O,B,plant,sofa){
+  const {x0,x1,z0,z1,fy}=I,cx=(x0+x1)/2,cz=(z0+z1)/2,zc=cz-0.3,zV=z1-4,H=3.3;
+  put(geo("imarble",()=>new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2)),IM.marble,cx,fy+0.045,(z0+zc)/2,g,0,x1-x0,1,zc-z0);
+  // guichet (côté clients vers la porte) + cloisons basses, passage à l'est
+  const gu=model_guichet();gu.position.set(cx,fy,zc);gu.rotation.y=Math.PI;g.add(gu);O(cx,zc-0.18,2.05,0.42);
+  B(cx-2.05-x0,1.1,0.12,IM.wood,(x0+cx-2.05)/2,0.55,zc-0.18);O((x0+cx-2.05)/2,zc-0.18,(cx-2.05-x0)/2,0.08);
+  const e0=cx+2.05,e1=x1-1.3;B(e1-e0,1.1,0.12,IM.wood,(e0+e1)/2,0.55,zc-0.18);O((e0+e1)/2,zc-0.18,(e1-e0)/2,0.08);
+  put(BX(3.2,0.5,0.06),signMat("Banque Azur","#114865","#ffffff",{w:512,h:80}),cx,fy+2.75,zV-0.16,g);
+  // mur du coffre avec la porte ronde
+  for(const [a,b] of [[x0,cx-1.3],[cx+1.3,x1]]){put(BX(b-a,H,0.24),IM.wallH[3],(a+b)/2,fy+H/2,zV,g);I.obs.push(addObstacle({type:"box",x:(a+b)/2,z:zV,hx:(b-a)/2,hz:0.12,inner:true,bld:true,tall:true}));}
+  put(BX(2.6,H-2.45,0.24),IM.wallH[3],cx,fy+2.45+(H-2.45)/2,zV,g);
+  const cf=model_coffre();cf.position.set(cx,fy,zV-0.16);cf.rotation.y=Math.PI;g.add(cf);const porte=cf.getObjectByName("porte");porte.userData.keep=true;
+  const vo=addObstacle({type:"box",x:cx,z:zV,hx:1.3,hz:0.2,inner:true,bld:true,tall:true});I.obs.push(vo);
+  I.vault={porte,vol:porte.getObjectByName("volant"),o:vo,open:0,spin:0,state:"ferme",zV,cx};
+  // casiers au fond du coffre
+  I.lockers=[];for(const dx of [-5,0,5]){const ca=model_casiers();ca.position.set(cx+dx,fy,z1-0.3);ca.rotation.y=Math.PI;g.add(ca);O(cx+dx,z1-0.3,1.5,0.27);
+    for(let k=0;k<3;k++){const p=ca.getObjectByName("casier"+k);p.userData.keep=true;ca.updateMatrixWorld(true);const w=new V3();p.getWorldPosition(w);I.lockers.push({p,x:w.x-0.24,z:z1-0.9,y:w.y,id:I.key+"|L"+dx+k,open:0,done:false});}}
+  // file d'attente, salon, plantes, caméras
+  const q=model_file_attente();q.position.set(cx-4.6,fy,zc-2.4);g.add(q);for(const [a,b] of [[-1.46,-0.46],[1.46,-0.46],[1.46,0.46],[-1.46,0.46]])I.obs.push(addObstacle({type:"circle",x:cx-4.6+a,z:zc-2.4+b,r:0.12,inner:true}));
+  sofa(x1-1.3,z0+3.4,-Math.PI/2);plant(x0+0.6,z0+0.6);plant(x1-0.6,z0+0.6);plant(x0+0.6,zc-0.8);
+  I.camHeads=[];for(const [x,z] of [[x0+0.35,z0+0.35],[x1-0.35,z0+0.35],[x0+0.35,zV-0.35]]){const c=model_camera_securite();c.position.set(x,fy+2.65,z);c.rotation.y=Math.atan2(cx-x,cz-z);g.add(c);const t=c.getObjectByName("tete");t.userData.keep=true;I.camHeads.push(t);}
+  I.counter={x:cx,z:zc-1.1};I.teller={x:cx,z:zc+0.85};
+}
+// caissier immobile derrière le guichet ; il lève les mains pendant un braquage
+class TellerBrain extends NpcBrain{
+  constructor(I){super();this.I=I;}
+  update(w,dt,time){if(this.fight||this.flee||this.react||this.cuffed){super.update(w,dt,time);return;}
+    const S=this.I.teller,d=new V3(S.x-w.root.x,0,S.z-w.root.z);if(d.length()>0.35){w.wish.copy(d.normalize()).multiplyScalar(0.5);w.run=false;}else w.wish.set(0,0,0);
+    const hs=HEIST&&HEIST.I===this.I&&HEIST.phase!=="fini";w.faceYaw=hs?Math.atan2(player.root.x-w.root.x,-(player.root.z-w.root.z))/D2R:0;
+    if(hs&&!w._hands){w._hands=true;for(const a of w.arms)a.rFn=(ww,sh,arm)=>({target:sh.clone().add(local(ww.chestRot,arm.side*0.25,0.35,0.05)),w:1,wrist:-30});}
+    else if(!hs&&w._hands){w._hands=false;for(const a of w.arms)a.rFn=null;}}
+}
+// clients : restent dans le hall
+class BankClientBrain extends ResidentBrain{
+  pick(w){const I=this.I;this.target.set(I.x0+1.2+Math.random()*(I.x1-I.x0-2.4),0,I.z0+1.4+Math.random()*Math.max(0.5,I.counter.z-I.z0-2.2));this.path=[this.target.clone()];}
+}
+function bankInterior(I){I.bank=bankOfObstacle(I.o);
+  const T=spawnSpecial(randomPerson(rng),new TellerBrain(I),new V3(I.teller.x,0,I.teller.z),0);T.isMission=true;T.resident=I;T.teller=true;I.residents.push(T);
+  const n=1+Math.floor(Math.random()*3);for(let k=0;k<n;k++){const p=new V3(I.x0+2+Math.random()*(I.x1-I.x0-4),0,I.z0+3+Math.random()*1.5);
+    const w=spawnSpecial(randomPerson(rng),new BankClientBrain(I),p,Math.random()*360);w.isMission=true;w.resident=I;I.residents.push(w);}}
+function bankInside(){const I=INT.cur;return I&&I.kind==="banque"&&inRoom(I,player.root)?I:null;}
+// ---------------------------------------------------------------- braquage
+function startHeist(B){const I=bankInside();if(!I||HEIST)return;if(!pwArmed()){hudMsg("Il te faut une arme en main pour braquer la banque",2.2);return;}
+  HEIST={B,I,phase:"caisse",t:0,prog:0,loot:0,alarmK:0};BANK.robbed[B.id]=BANK.day;BANK.stats.heists++;
+  const T=I.residents.find(w=>w.teller);if(T&&!T.ko)say(T,pick(["Ne tirez pas ! Je vous donne tout !","D'accord, d'accord… je remplis le sac !","Pitié, j'ai des enfants !"]));
+  for(const w of I.residents)if(!w.teller&&w.brain.alarm){w.brain.alarm(w,true);w.brain.state="peur";try{showPhone(w,false);}catch(e){}}
+  H0=HEIST;HEIST.copT=12;
+  hudMsg("Braquage ! Reste près du guichet : la police arrive dans 12 s",3);}
+let H0=null;
+function heistAlert(){if(CREA.on&&CREA.noCops)return;const c={t0:clockT,pts:9,counted:0,reported:false,sev:4};reportCrime(c,"L'alarme de la Banque Azur a prévenu la police !","cctv");wanted.lastSeenPos.copy(player.root);}
+function heistUpdate(dt){const H=HEIST;if(!H)return;const I=H.I;H.alarmK-=dt;if(H.copT>0){H.copT-=dt;if(H.copT<=0)heistAlert();}
+  if(H.alarmK<=0&&H.t<60){H.alarmK=0.55;bankAlarmSound(Math.hypot(player.root.x-I.counter.x,player.root.z-I.counter.z));}H.t+=dt;
+  const inside=INT.list.includes(I)&&inRoom(I,player.root,0.4);
+  if(H.phase==="caisse"){const d=Math.hypot(player.root.x-I.counter.x,player.root.z-I.counter.z);if(d<6&&!player.ko)H.prog=Math.min(1,H.prog+dt/10);
+    heistShow(`Le caissier remplit le sac… ${Math.round(H.prog*100)} %${H.copT>0?" · police dans "+Math.ceil(H.copT)+" s":""}`,H.prog);
+    if(H.prog>=1||!inside){const amt=Math.round(H.prog*rand(1800,3200));if(amt>0)dropLoot(I.counter.x,I.fy+1.1,I.counter.z+0.2,amt,"sac");
+      if(!inside){H.phase="fini";hudMsg("Tu as quitté la banque",2);}else{H.phase="coffre";H.t2=0;I.vault.state="ouvre";hudMsg("Le sac est sur le comptoir ! Le coffre s'ouvre…",2.6);}}}
+  else if(H.phase==="coffre"){H.t2+=dt;heistShow(I.vault.open>=1?"Le coffre est ouvert : prends les sacs et force les casiers (E)":"Le coffre s'ouvre…",Math.min(1,H.t2/4));
+    if(I.vault.open>=1&&!H.bags){H.bags=true;for(let k=0;k<3;k++)dropLoot(I.vault.cx-2+k*2,I.fy+0.6,I.vault.zV+1.6,rand(2500,4500),"sac");}
+    if(!inside){H.phase="fini";}}
+  if(H.phase==="fini"){heistEl.style.display="none";if(H.copT>0){H.copT=0;heistAlert();}if(!inside||H.t>240){HEIST=null;}}
+}
+function heistShow(txt,k){heistEl.style.display="block";heistEl.querySelector("span").textContent=txt;heistEl.querySelector("b").style.width=Math.round(clamp01(k)*100)+"%";}
+function vaultUpdate(I,dt){const V=I.vault;if(!V)return;
+  if(V.state==="ouvre"){if(V.spin<1){V.spin=Math.min(1,V.spin+dt/2.2);if(V.vol)V.vol.rotation.z=V.spin*Math.PI*4;if(V.spin>=1)playSound("thud",0.7);}
+    else{V.open=Math.min(1,V.open+dt/2);V.porte.rotation.y=-V.open*1.85;if(V.open>=1){V.state="ouvert";removeObstacle(V.o);const i=I.obs.indexOf(V.o);if(i>=0)I.obs.splice(i,1);}}}
+  for(const L of I.lockers||[])if(L.open>0&&L.open<1){L.open=Math.min(1,L.open+dt*2.5);L.p.rotation.y=-L.open*1.6;}
+  for(const t of I.camHeads||[])t.rotation.y=Math.sin(clockT*0.4+t.id)*0.6;}
+function nearLocker(){const I=bankInside();if(!I||!I.vault||I.vault.state!=="ouvert")return null;for(const L of I.lockers)if(!L.done&&Math.hypot(player.root.x-L.x,player.root.z-L.z)<1.3)return L;return null;}
+function openLocker(L){L.done=true;L.open=0.01;playSound("thud",0.7);const m=Math.round(rand(400,1200));giveMoney(m);floatText(player,`+${m} € (casier)`,"#7dffa1");playCoin();}
+// ---------------------------------------------------------------- entrée automatique (portes vitrées)
+function bankDoors(dt){for(const B of BANK_LIST||[]){const R=B.refs;if(!R)continue;const p=player.root,dd=Math.hypot(p.x-B.doorX,p.z-B.doorZ);if(dd>40)continue;
+    const open=bldInfoOpen(B),want=open&&dd<3.2&&!drive?1:0;R.open+=(want-R.open)*Math.min(1,dt*5);
+    R.doors.forEach((d,i)=>{d.rotation.y=(i===0?1:-1)*1.35*R.open;});R.back.visible=R.open<0.08;
+    if(open&&!drive&&dd<2.4&&p.z<B.z0+0.1&&!(INT.cur&&INT.cur.bank===B&&INT.cur.active)){const o=obsAt(new V3(B.x,0,(B.z0+B.z1)/2)).find(q=>q.bankDoor);if(o){const I=openInterior(o,{...o.bankDoor});activateInterior(I);}}
+    if(R.vanOpen>0&&R.vanOpen<1){R.vanOpen=Math.min(1,R.vanOpen+dt*1.5);const g1=R.van.getObjectByName("porteArrG"),g2=R.van.getObjectByName("porteArrD");if(g1)g1.rotation.y=R.vanOpen*1.9;if(g2)g2.rotation.y=-R.vanOpen*1.9;}
+    if(R.alarmT>0){R.alarmT-=dt;R._k=(R._k||0)-dt;if(R._k<=0){R._k=0.55;bankAlarmSound(dd);const gy=R.van.getObjectByName("gyro");if(gy)gy.visible=!gy.visible;}}else{const gy=R.van.getObjectByName("gyro");if(gy)gy.visible=true;}
+    if(!R._applied){R._applied=true;if(BANK.vanRobbed[B.id]>=BANK.day){R.vanOpen=0.999;R.hp=0;}}}}
+function bldInfoOpen(B){const h=DAY.t;return h>=8&&h<21;}
+// ---------------------------------------------------------------- aide à l'écran + action (E)
+function bankHint(){if(drive||player.ko)return null;
+  const L=nearLocker();if(L)return ["E : forcer le casier","Casier"];
+  const I=bankInside();if(I&&I.counter&&Math.hypot(player.root.x-I.counter.x,player.root.z-I.counter.z)<1.9)return [`E : guichet Banque Azur${pwArmed()&&!HEIST?" (ou braquer)":""}`,"Guichet"];
+  const A=nearATM();if(A)return atmBroken(A)?["Distributeur hors service",""]:["E : distributeur Banque Azur (retirer, déposer)","Distributeur"];
+  return null;}
+function tryBank(){if(drive||player.ko)return false;
+  const L=nearLocker();if(L){openLocker(L);return true;}
+  const I=bankInside();if(I&&I.counter&&Math.hypot(player.root.x-I.counter.x,player.root.z-I.counter.z)<1.9){if(BANK.ui)bankCloseUI();else bankOpenUI("guichet",{bank:I.bank,inside:true});return true;}
+  const A=nearATM();if(A){if(atmBroken(A)){hudMsg("Distributeur hors service",1.5);return true;}if(BANK.ui)bankCloseUI();else bankOpenUI("atm",A);return true;}
+  return false;}
+// ---------------------------------------------------------------- boucle
+function updateBank(dt){
+  if(!BANK.init){BANK.init=true;bankInit();bankHud();}
+  if(BANK.lastT!==null&&DAY.t<BANK.lastT-12){BANK.day++;const gain=Math.min(500,Math.floor(BANK.acc*0.01));if(BANK.card&&gain>0){BANK.acc+=gain;hudMsg(`Banque Azur : +${fmtE(gain)} d'intérêts`,2.5);}bankHud();}
+  BANK.lastT=DAY.t;
+  BANK.ck-=dt;if(BANK.ck<=0){BANK.ck=0.8;atmStream();}BANK.hk=(BANK.hk||0)-dt;if(BANK.hk<=0){BANK.hk=0.25;bankHud();}
+  bankMelee();bankDoors(dt);heistUpdate(dt);
+  for(const I of INT.list)if(I.kind==="banque"&&I.active)vaultUpdate(I,dt);
+  for(const A of ATMS)if(A.alarmT>0&&A.g){A.alarmT-=dt;A._k=(A._k||0)-dt;if(A._k<=0){A._k=0.6;const q=atmPos(A);bankAlarmSound(Math.hypot(player.root.x-q.x,player.root.z-q.z));}}
+  if(BANK.ui){const U=BANK.ui;const far=U.mode==="atm"?nearATM()!==U.ref:!bankInside()||Math.hypot(player.root.x-bankInside().counter.x,player.root.z-bankInside().counter.z)>2.6;if(far)bankCloseUI();}
+}
+function bankSave(){return {acc:Math.round(BANK.acc),card:BANK.card,day:BANK.day,robbed:{...BANK.robbed},atm:{...BANK.atmBroken},van:{...BANK.vanRobbed}};}
+function bankLoad(d){if(!d)return;BANK.acc=clamp(Math.round(+d.acc||0),0,1e9);BANK.card=!!d.card;BANK.day=Math.max(0,Math.round(+d.day||0));
+  const num=o=>{const r={};if(o&&typeof o==="object")for(const k of Object.keys(o).slice(0,400))r[k]=Math.round(+o[k]||0);return r;};BANK.robbed=num(d.robbed);BANK.atmBroken=num(d.atm);BANK.vanRobbed=num(d.van);bankHud();}
 // ================================================================ module 13 : noms de rues, GPS, grande carte
 // --- noms de rues (inventés) : avenues nord-sud, rues est-ouest
 const AVENUES=[],RUES=[];for(let i=-NCH;i<=NCH;i++){AVENUES.push("Avenue "+AV_N[(i+14)%AV_N.length]);RUES.push("Rue "+RU_N[(i+14)%RU_N.length]);}
@@ -9424,7 +9797,7 @@ function gatherSave(){
     player:{x:+player.root.x.toFixed(3),z:+player.root.z.toFixed(3),yaw:+player.yaw.toFixed(1),hp:Math.max(20,Math.round(player.hp)),stamina:Math.round(player.stamina??100),hand:player.hand,look:playerLook,endu:player.enduBoost||0},
     money,jog:jogOn,npc:npcTarget,voice:voiceOn,prints:showPrints,
     wanted:{level:wanted.level,heat:wanted.heat,x:wanted.lastSeenPos.x,z:wanted.lastSeenPos.z,ev:{...wanted.evidence}},
-    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),day:+DAY.t.toFixed(2),taken:[...TAKEN].slice(-300),tools:{...TOOLS},weapons:pwSave()};
+    cam:{yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},missions:missionSave(),secrets:secretSave(),day:+DAY.t.toFixed(2),taken:[...TAKEN].slice(-300),tools:{...TOOLS},weapons:pwSave(),bank:bankSave()};
 }
 function saveGame(force){
   if(window.__noSave||galleryOn||(arrestEl.style.display==="flex"&&!force))return false;
@@ -9437,7 +9810,7 @@ function applySave(d){
   if(P.look)try{setPlayerLook(P.look);}catch(e){}
   const x=clamp(+P.x||0,W_MIN+40,W_MAX-40),z=clamp(+P.z||0,W_MIN+40,W_MAX-40);
   if(d.day!=null)DAY.t=clamp(+d.day||9.5,0,23.99);
-  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));if(d.tools){TOOLS.crochet=!!d.tools.crochet;TOOLS.prog=!!d.tools.prog;}pwLoad(d.weapons);}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
+  missionLoad(d.missions);try{secretLoad(d.secrets);(d.taken||[]).forEach(k=>TAKEN.add(String(k)));if(d.tools){TOOLS.crochet=!!d.tools.crochet;TOOLS.prog=!!d.tools.prog;}pwLoad(d.weapons);bankLoad(d.bank);}catch(e){}player.enduBoost=clamp(+P.endu||0,0,4);
   player.root.set(x,0,z);pushOutOfObstacles(player.root,0.3);
   player.yaw=player.targetYaw=+P.yaw||0;player.vel.set(0,0,0);player.setRig(player.rig,true);
   player.hp=clamp(+P.hp||100,1,100);player.stamina=clamp(+P.stamina||100,0,100);
@@ -9692,7 +10065,7 @@ updateCamera(1);
 loadingEl.style.display="none";
 function tick(dt,time){
   clockT+=dt;
-  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateInteriors(dt);updateTheft(dt);updatePursuit(dt);updateWeapons(dt);mpUpdate(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAmbience(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
+  pollPad(dt);updateContextButtons(dt);updateGPS(dt);updateLights(dt);updateSea(dt);updateSeaLife(dt);updateCountry(dt);updateTraffic(dt);updateCityTraffic(dt);updateInteriors(dt);updateTheft(dt);updatePursuit(dt);updateWeapons(dt);updateBank(dt);mpUpdate(dt);updateBasket(dt);updateMissions(dt);updateEvents(dt);updateMusic(dt);updateSkyline();updateCreative(dt);updateAmbient(dt);updateShops(dt);updateStreet(dt);updatePort(dt);updateFar(dt);updateDay(dt);updateAmbience(dt);updateAnimals(dt);updateSecrets(dt);if(!galleryOn)updateLoot(dt);
   if(galleryOn){for(const w of gallery){w.think(dt,time);w.animate(dt,time);}updateCamera(dt);updateBubbles(dt);return;}
     for(const w of walkers){if(w===player&&drive)continue;w.think(dt,time);}
     resolveCollisions();updateVehicles(dt);
@@ -9729,7 +10102,7 @@ function tick(dt,time){
     const L=player.L,R=player.R;
     window.__air=(window.__air||0)+((player.L.stepping&&player.R.stepping)?1:0);window.__maxH=Math.max(window.__maxH||0,player.height/(player.LEG*player.P.standRatio+player.P.ankleHeight));window.__dbg={fd:hdist(L.footPos,R.footPos),L:hdist(L.footPos,player.pelvisPos),R:hdist(R.footPos,player.pelvisPos),h:player.height,hMax:player.LEG*player.P.standRatio+player.P.ankleHeight,steps:player.stepCount,cross:new V3().subVectors(R.footPos,L.footPos).dot(rightOf(player.yaw)),spd:player.speed,n:walkers.length};
   }
-window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__INT=INT;window.__enterBld=()=>tryEnterBuilding();window.__doorHit=f=>doorHit(f);window.__wallFront=()=>{const w=wallInFront();return w&&{x:w.o.x,z:w.o.z,hx:w.o.hx,hz:w.o.hz,info:bldInfo(w.o)};};window.__bldInfo=o=>bldInfo(o);window.__TH=TH;window.__PW=PW;window.__ARMORY=ARMORY;window.__ARMS=ARMS;window.__tryArmory=()=>tryArmory();window.__pwSelect=k=>pwSelect(k);window.__pwFire=()=>pwFire();window.__armBuy=(k,w)=>armBuy(k,w);window.__PCH=PCH;window.__pchBlock=()=>pchBlock();window.__punch=k=>{atkRequest=k||"punch";atkReqT=clockT;};window.__MP=MP;window.__mpHost=()=>mpHost();window.__mpJoin=c=>mpJoin(c);window.__mpOpen=()=>mpOpen();window.__mpSay=t=>mpSay(t);window.__mpGoTo=()=>mpGoTo();window.__giveMoney=n=>giveMoney(n);window.__TOOLS=TOOLS;window.__theftHit=()=>theftHit();window.__chooseTheft=m=>chooseTheft(m);window.__carSec=pc=>carSecurity(pc);window.__mkVeh=(x,z,y,k)=>makeVehicle(x,z,y,paintMat(carPaintHex(carModelOf(k),Math.random())),k);window.__rmVeh=V=>removeVehicle(V);window.__enterVeh=V=>enterVehicle(V);window.__chunkLoaded=(cx,cz)=>chunks.has(ckey(cx,cz));window.__ANIMALS=ANIMALS;window.__HERDS=HERDS;window.__zone=(x,z)=>zoneAt(x,z);window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
+window.__save=()=>saveGame(true);window.__load=()=>loadGame();window.__newGame=()=>newGame();window.__saveData=()=>gatherSave();window.__perf=perf;window.__cars=cars;window.__balls=balls;window.__hoops=hoops;window.__bstats=bstats;window.__shoot=shoot;window.__chunkType=chunkType;window.__signal=signal;window.__crossSignal=crossSignal;window.__crossStats=crossStats;window.__setWP=setWaypoint;window.__gps=()=>({wp:waypoint,route:route&&route.map(p=>[+p.x.toFixed(1),+p.z.toFixed(1)]),len:routeLen,map:mapOpen});window.__look=()=>playerLook;window.__SET=()=>SET;window.__menu=()=>({open:menuOpen,tab:menuTab,loadR:LOAD_R,fov:camera.fov,shadows:renderer.shadowMap.enabled,pr:renderer.getPixelRatio(),npc:npcTarget,fogFar:scene.fog.far});window.__obstacles=obstacles;window.__camPos=()=>camera.position.clone();window.__printIM=printIM;window.__pad=pad;window.__camObj=cam;window.__cameraBlocked=cameraBlocked;window.__blockOf=blockOf;window.__groundAt=groundAt;window.__falls=fallStats;window.__world=()=>({chunks:chunks.size,queue:buildQueue.length,obs:obstacles.length,cams:cams.length,spots:benchSpots.length,...worldStats});window.__render=()=>({calls:renderer.info.render.calls,tris:renderer.info.render.triangles,geos:renderer.info.memory.geometries,tex:renderer.info.memory.textures});window.__setDebug=v=>{debug=v;};window.__keys=keys;window.__suspects=suspects;window.__social=k=>playerSocial(k);window.__noteFight=p=>noteFight(p);window.__spar=()=>toggleSpar();window.__cstats=()=>({...combatStats,log:combatLog.slice()});window.__crowd=crowdStats;window.__galList=()=>gallery.map(w=>({h:+w.height.toFixed(2),hMax:+(w.LEG*w.P.standRatio+w.P.ankleHeight).toFixed(2),pel:+w.pelvisPos.y.toFixed(2),Lf:[+w.L.footPos.x.toFixed(2),+w.L.footPos.z.toFixed(2)],Rf:[+w.R.footPos.x.toFixed(2),+w.R.footPos.z.toFixed(2)],root:[+w.root.x.toFixed(2),+w.root.z.toFixed(2)],sit:w.sit.state,ko:!!w.ko}));window.__gal=()=>toggleGallery();window.__galStep=d=>galStep(d);window.__spawnHeli=()=>spawnHeli();window.__clock=()=>clockT;window.__wanted=wanted;window.__pcars=policeCars;window.__cams=cams;window.__vans=vans;window.__wallets=wallets;window.__money=()=>money;window.__atk=(t)=>{atkRequest=t;};window.__react=(w,type,o)=>{clearReaction(w);w.brain.react=makeReaction(type,w,o,w.brain.hand);};window.__spots=benchSpots;window.__sitReq=()=>{sitRequest=true;};window.__walkers=walkers;window.__MIS=MIS;window.__NAV=NAV;window.__localPath=localPath;window.__EV=EV;window.__sky=skyline;window.__camera=camera;window.__CREA=CREA;window.__toggleCreative=toggleCreative;window.__toggleFly=toggleFly;window.__teleportTo=teleportTo;window.__amb=ambSpots;window.__V3=V3;window.__startVoleur=startVoleur;window.__startCourse=startCourse;window.__acceptEvent=acceptEvent;window.__shops=shopSpots;window.__shopStats=shopStats;window.__tryBuy=tryBuy;window.__shopNear=()=>shopNear;window.__missionTalk=missionTalk;window.__startMission=startMission;window.__obs=obstacles;window.__oc=obstacleClosest;window.__port=()=>({secs:PORT_SEC.map(S=>!!S.g),cranes:portCranes.length,forks:portFork.map(f=>[+f.F.position.x.toFixed(1),+f.F.position.z.toFixed(1)]),boats:portBoats.length,...portStats});window.__portHidden=p=>portHidden(p||player.root);window.__portStream=()=>updatePortStream(0,true);window.__los=los;window.__INT=INT;window.__enterBld=()=>tryEnterBuilding();window.__doorHit=f=>doorHit(f);window.__wallFront=()=>{const w=wallInFront();return w&&{x:w.o.x,z:w.o.z,hx:w.o.hx,hz:w.o.hz,info:bldInfo(w.o)};};window.__bldInfo=o=>bldInfo(o);window.__TH=TH;window.__BANK=BANK;window.__ATMS=ATMS;window.__BANKS=()=>bankList();window.__HEIST=()=>HEIST;window.__tryBank=()=>tryBank();window.__bankMove=v=>bankMove(v);window.__startHeist=B=>startHeist(B);window.__bankOpen=(m,r)=>bankOpenUI(m,r);window.__PW=PW;window.__ARMORY=ARMORY;window.__ARMS=ARMS;window.__tryArmory=()=>tryArmory();window.__pwSelect=k=>pwSelect(k);window.__pwFire=()=>pwFire();window.__armBuy=(k,w)=>armBuy(k,w);window.__PCH=PCH;window.__pchBlock=()=>pchBlock();window.__punch=k=>{atkRequest=k||"punch";atkReqT=clockT;};window.__MP=MP;window.__mpHost=()=>mpHost();window.__mpJoin=c=>mpJoin(c);window.__mpOpen=()=>mpOpen();window.__mpSay=t=>mpSay(t);window.__mpGoTo=()=>mpGoTo();window.__giveMoney=n=>giveMoney(n);window.__TOOLS=TOOLS;window.__theftHit=()=>theftHit();window.__chooseTheft=m=>chooseTheft(m);window.__carSec=pc=>carSecurity(pc);window.__mkVeh=(x,z,y,k)=>makeVehicle(x,z,y,paintMat(carPaintHex(carModelOf(k),Math.random())),k);window.__rmVeh=V=>removeVehicle(V);window.__enterVeh=V=>enterVehicle(V);window.__chunkLoaded=(cx,cz)=>chunks.has(ckey(cx,cz));window.__ANIMALS=ANIMALS;window.__HERDS=HERDS;window.__zone=(x,z)=>zoneAt(x,z);window.__ccars=ccars;window.__carjack=()=>tryCarjack();window.__DAY=DAY;window.__STARS=STARS;window.__SECRET=SECRET;window.__LANDMARKS=LANDMARKS;window.__trySecret=()=>trySecret();window.__drive=()=>drive;window.__VEH=VEH;window.__enterCar=()=>tryEnterVehicle();window.__exitCar=f=>exitVehicle(f);window.__nearCar=()=>!!nearestCar(player.root);window.__WMAP=WMAP;window.__route=(x,z)=>{const t=performance.now();setWaypoint(x,z);return {ms:Math.round(performance.now()-t),len:Math.round(routeLen),pts:route.length};};window.__openMap=()=>openMap();window.__closeMap=()=>closeMap();window.__MAP=MAP;window.__biome=(x,z)=>biomeAt(x,z);window.__TOWNS=TOWNS;window.__HWYS=HWYS;window.__FAR=FAR;window.__WV=WORLDV;window.__ROADSIDE=ROADSIDE;window.__region=(x,z)=>regionName(x,z);window.__waterDepth=(x,z)=>waterDepth(x,z);window.__portFork=portFork;let simT=0;window.__sim=(n,dt)=>{for(let i=0;i<n;i++){simT+=dt;window.__simT=simT;tick(dt,1000+simT);}};
 function loop(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
   const time=now/1000;

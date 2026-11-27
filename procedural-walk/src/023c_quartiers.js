@@ -11,6 +11,7 @@ function district(cx,cz){
   return "residentiel";
 }
 function chunkType(cx,cz){
+  if(bankChunkAt(cx,cz))return "banque";
   if(!cityAt(cx,cz)){const T=townAt(cx,cz);return T?townTypeFor(T,cx,cz):countryTypeAt(cx,cz);}
   if(cx===0&&cz===0)return "place";
   if(inPort(cx,cz))return portType(cx,cz);
@@ -25,7 +26,7 @@ function chunkType(cx,cz){
   if(d==="industrie")return pickT([["entrepots",0.5],["conteneurs",0.22],["parking",0.1],["terrain_vague",0.12],["parc",0.06]]);
   return pickT([["maisons",0.44],["parc",0.14],["terrain_vague",0.08],["jardin",0.07],["immeubles",0.07],["place",0.05],["commerces",0.06],["parking",0.03],["terrain",0.04],["skatepark",0.02]]);
 }
-const PRIVATE=new Set(["pop_rue","zenith","hotels","maisons","entrepots","conteneurs","commissariat","hopital","ecole","tours","commerces","supermarche"]);
+const PRIVATE=new Set(["banque","pop_rue","zenith","hotels","maisons","entrepots","conteneurs","commissariat","hopital","ecole","tours","commerces","supermarche"]);
 // rectangles accessibles aux passants (sinon ils restent sur le trottoir périphérique)
 function publicRects(type,bx0,bz0){const ring=[[bx0,bz0,bx0+32,bz0+2.6],[bx0,bz0+29.4,bx0+32,bz0+32],[bx0,bz0,bx0+2.6,bz0+32],[bx0+29.4,bz0,bx0+32,bz0+32]];
   return PRIVATE.has(type)?ring:null;}
@@ -388,8 +389,8 @@ const BUILDERS={
     edgeTrees(X,Z,mid,r,"palm");
   }
 };
-const QUARTIER_NOMS={pop_rue:"Barrio Coral",pop_marche:"Mercado Coral",pop_place:"Place des Dominos",zenith:"Quartier des affaires",foire:"Fête foraine",etang_urbain:"Étang",terrain_vague:"Terrain vague",jardin:"Jardins partagés",skatepark:"Skatepark",foodtrucks:"Food trucks",hotels:"Front de mer",place:"Place",parc:"Parc",immeubles:"Quartier résidentiel",tours:"Quartier des affaires",commerces:"Rue commerçante",maisons:"Quartier pavillonnaire",parking:"Parking",terrain:"Terrain de sport",entrepots:"Zone industrielle",conteneurs:"Dépôt de conteneurs",plage:"Plage",commissariat:"Commissariat",hopital:"Hôpital",ecole:"École",station:"Station-service",eglise:"Chapelle",supermarche:"Supermarché",marche:"Marché"};
-const TYPE_COLOR={pop_rue:"#e8927c",pop_marche:"#e0b04a",pop_place:"#2a9d8f",zenith:"#2b3f57",foire:"#d86ab0",etang_urbain:"#4f8a9a",terrain_vague:"#8a7356",jardin:"#6f9a46",skatepark:"#a3a39d",foodtrucks:"#d8a04a",hotels:"#e8a6b8",place:"#a3a39d",parc:"#5c7d4c",immeubles:"#8f8d86",tours:"#7f8fa8",commerces:"#a89580",maisons:"#9aa58a",parking:"#5a5e66",terrain:"#b35a37",entrepots:"#7b7f86",conteneurs:"#6f6a5f",plage:"#d8c49a",commissariat:"#3a5a9a",hopital:"#d8d8d8",ecole:"#c9a650",station:"#2f7a52",eglise:"#b8ad98",supermarche:"#c06a5a",marche:"#c99a5a"};
+const QUARTIER_NOMS={banque:"Banque Azur",pop_rue:"Barrio Coral",pop_marche:"Mercado Coral",pop_place:"Place des Dominos",zenith:"Quartier des affaires",foire:"Fête foraine",etang_urbain:"Étang",terrain_vague:"Terrain vague",jardin:"Jardins partagés",skatepark:"Skatepark",foodtrucks:"Food trucks",hotels:"Front de mer",place:"Place",parc:"Parc",immeubles:"Quartier résidentiel",tours:"Quartier des affaires",commerces:"Rue commerçante",maisons:"Quartier pavillonnaire",parking:"Parking",terrain:"Terrain de sport",entrepots:"Zone industrielle",conteneurs:"Dépôt de conteneurs",plage:"Plage",commissariat:"Commissariat",hopital:"Hôpital",ecole:"École",station:"Station-service",eglise:"Chapelle",supermarche:"Supermarché",marche:"Marché"};
+const TYPE_COLOR={banque:"#2f6f9a",pop_rue:"#e8927c",pop_marche:"#e0b04a",pop_place:"#2a9d8f",zenith:"#2b3f57",foire:"#d86ab0",etang_urbain:"#4f8a9a",terrain_vague:"#8a7356",jardin:"#6f9a46",skatepark:"#a3a39d",foodtrucks:"#d8a04a",hotels:"#e8a6b8",place:"#a3a39d",parc:"#5c7d4c",immeubles:"#8f8d86",tours:"#7f8fa8",commerces:"#a89580",maisons:"#9aa58a",parking:"#5a5e66",terrain:"#b35a37",entrepots:"#7b7f86",conteneurs:"#6f6a5f",plage:"#d8c49a",commissariat:"#3a5a9a",hopital:"#d8d8d8",ecole:"#c9a650",station:"#2f7a52",eglise:"#b8ad98",supermarche:"#c06a5a",marche:"#c99a5a"};
 // la mer à l'est (on ne peut pas encore y entrer : la nage arrive au module 16)
 const seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(1400,2600).rotateX(-Math.PI/2),KM.water);seaMesh.position.set(588+700,0.07,0);scene.add(seaMesh);
 function updateSea(dt){KM.water.map.offset.x=(clockT*0.004)%1;KM.water.map.offset.y=Math.sin(clockT*0.2)*0.01;}

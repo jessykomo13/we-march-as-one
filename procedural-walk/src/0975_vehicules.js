@@ -169,7 +169,7 @@ function stepVehicle(V,dt,inp){
 function vehicleAhead(c,laneC,ns){if(!drive)return 999;const V=drive,o=ns?V.x:V.z,s=ns?V.z:V.x;if(Math.abs(o-laneC)>2)return 999;const d=(s-c.s)*c.dir;return d>0?Math.max(0,d-5):999;}
 function updateVehicles(dt){
   updateBoatSpots(dt);updateSails(dt);updateDamage(dt);updateRadio(dt);
-  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const t=!drive&&nearArmory()?`E : ${ARMORY.name} (armes, munitions)`:drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":nearestCar(player.root,3.2).V&&!nearestCar(player.root,3.2).V.locked?"E : conduire":"E : voler la voiture"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
+  hintCk-=dt;if(hintCk<=0){hintCk=0.25;const bh0=!drive?bankHint():null;const t=!drive&&nearArmory()?`E : ${ARMORY.name} (armes, munitions)`:bh0?bh0[0]:drive?(Math.abs(drive.v)<4?"E : descendre · F : klaxon · Espace : frein à main":""):(player.sit.state==="none"&&!player.ko&&nearStoppedCar()?"E : braquer la voiture":player.sit.state==="none"&&!player.ko&&nearestCar(player.root,3.2)?(nearestCar(player.root,3.2).V?.boat?"E : piloter":nearestCar(player.root,3.2).V&&!nearestCar(player.root,3.2).V.locked?"E : conduire":"E : voler la voiture"):"");const ih=!drive&&!t?interiorHint():null;const t2=t||(!drive&&secretNear()?"E : fouiller":ih?ih[0]:"");hintEl.style.display=t2?"block":"none";hintEl.textContent=t2;if(0)hintEl.textContent=t;}
   if(drive){
     const V=drive;
     if(player.ko||player.hp<=0){exitVehicle(true);return;}
@@ -195,6 +195,7 @@ function updateVehicles(dt){
 function driveCtx(sit){
   if(TH.cur){sit.style.display="none";return true;}
   if(!drive&&!player.ko&&nearArmory()){sit.style.display="block";sit.textContent="Armurerie";document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";return true;}
+  if(!drive&&!player.ko){const bh=bankHint();if(bh&&bh[1]){sit.style.display="block";sit.textContent=bh[1];document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";return true;}}
   if(drive){sit.style.display="block";sit.textContent=drive.boat?"Débarquer":"Descendre";document.getElementById("punchBtn").textContent="Klaxon";document.getElementById("guardBtn").textContent="Frein à main";return true;}
   document.getElementById("punchBtn").textContent=pwArmed()?"Tirer":"Poing";document.getElementById("guardBtn").textContent="Garde";
   {const ih=!player.swim&&player.sit.state==="none"?interiorHint():null;if(ih&&ih[1]&&!nearStoppedCar()&&!nearestCar(player.root,3.2)){sit.style.display="block";sit.textContent=ih[1];return true;}}

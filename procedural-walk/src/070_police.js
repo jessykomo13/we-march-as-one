@@ -161,7 +161,7 @@ function arrestPlayer(){
   arrestEl.style.display="flex";koEl.style.display="none";
   let fine=Math.min(money,Math.round(money*0.5+wanted.level*25));if(player.handsUp)fine=Math.round(fine*0.4);
   if(player.handsUp){player.handsUp=false;for(const a of player.arms)a.rFn=null;}money-=fine;moneyEl.textContent=money+" €";
-  arrestEl.querySelector("small").textContent=(fine?`Amende : -${fine} €`:"Tu passes la nuit au poste.")+(wanted.surrendered?" (réduite : tu t'es rendu)":"");wanted.surrendered=false;
+  arrestEl.querySelector("small").textContent=(fine?`Amende : -${fine} €`:"Tu passes la nuit au poste.")+(typeof BANK!=="undefined"&&BANK.card&&BANK.acc>0?" · ton compte Banque Azur est intact":"")+(wanted.surrendered?" (réduite : tu t'es rendu)":"");wanted.surrendered=false;
   setTimeout(()=>{
     wanted.level=0;wanted.heat=0;wanted.evidence={cctv:false,clothes:false,face:false};wanted.escapedT=-999;
     if(player.ko)player.endKO();

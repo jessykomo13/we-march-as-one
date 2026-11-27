@@ -88,7 +88,7 @@ function gunSound(k,dist=0){const c=actx;if(!c)return;try{const W=WEAPONS[k]||WE
 // premier obstacle le long du segment a→b : murs/arbres/voitures (hauts) toujours ; obstacles bas jusqu'à ~1 m du sol
 function bulletBlock(a,b){const d=b.clone().sub(a),L=d.length();if(L<0.01)return null;d.divideScalar(L);const q=new V3();
   for(let s=0.4;s<L;s+=0.35){q.copy(a).addScaledVector(d,s);const g=groundAt(q.x,q.z);if(q.y<g)return q.clone();
-    for(const o of obsAt(q)){if(o.veh===drive&&drive)continue;const c=obstacleClosest(o,q);if(c.d>0.02)continue;const h=o.tall||o.bld?99:o.top!==undefined?o.top:g+1.05;if(q.y<h)return q.clone();}}
+    for(const o of obsAt(q)){if(o.veh===drive&&drive)continue;if((o.atm||o.van)&&q.distanceTo(b)<3.2)continue;const c=obstacleClosest(o,q);if(c.d>0.02)continue;const h=o.tall||o.bld?99:o.top!==undefined?o.top:g+1.05;if(q.y<h)return q.clone();}}
   return null;}
 // cible touchée par un rayon (origine o, direction d) : passants/policiers (tronc + tête), véhicules
 function rayHit(o,d,maxD,ignore){let best=null,bd=maxD;const a=new V3(),b=new V3(),tmp=new V3();
@@ -101,6 +101,7 @@ function rayHit(o,d,maxD,ignore){let best=null,bd=maxD;const a=new V3(),b=new V3
     const r=tc>0.86?0.13:0.24;if(dist<r&&sc<bd){bd=sc;best={w,t:sc,zone:tc>0.86?"head":tc>0.55?"chest":tc>0.3?"belly":"legs",p:p1.clone()};}}
   const veh=[...VEH.filter(V=>!V.boat&&!V.dead&&V!==drive).map(V=>({V,x:V.x,y:V.y,z:V.z})),...PCH.list.filter(P=>!P.dead).map(P=>({P,x:P.x,y:P.y,z:P.z}))];
   for(const c of veh){const cx=c.x-o.x,cy=c.y+0.8-o.y,cz=c.z-o.z,t=cx*d.x+cy*d.y+cz*d.z;if(t<0||t>bd)continue;const px=o.x+d.x*t-c.x,py=o.y+d.y*t-(c.y+0.8),pz=o.z+d.z*t-c.z;if(px*px+pz*pz<1.7&&Math.abs(py)<0.8){bd=t;best={car:c,t,p:new V3(o.x+d.x*t,o.y+d.y*t,o.z+d.z*t)};}}
+  {const bt=rayTargets(o,d,bd);if(bt)best=bt;}
   return best;}
 // ---------------------------------------------------------------- tir du joueur
 const _rc=new THREE.Raycaster();
@@ -127,6 +128,7 @@ function pwFire(){
     if(h&&h.w){PW.stats.hits++;const dmg=Math.round(W.dmg*(h.zone==="head"?2.2:h.zone==="legs"?0.7:1)*(1-h.t/W.range*0.4));h.w.takeHit(player,h.zone,dmg,false,false);
       if(h.w.hp<=0&&!h.w.ko)h.w.startKO(dir.clone().setY(0).normalize(),player,{fast:true});xhair.classList.add("hit");setTimeout(()=>xhair.classList.remove("hit"),90);
       if(h.w.isCop)wanted.armedT=clockT;}
+    else if(h&&h.tgt){h.tgt.hit(W.dmg,h.p);puff(h.p.x,h.p.y,h.p.z,0,0.3);}
     else if(h&&h.car){const C=h.car;if(C.V){C.V.hp-=W.dmg*0.35;}else if(C.P){C.P.hp-=W.dmg*0.5;}puff(h.p.x,h.p.y,h.p.z,0,0.3);}
   }
   gunSound(k,0);cam.shake=Math.min(1,cam.shake+(k==="pompe"?0.18:0.05));rumble(60,k==="pompe"?0.8:0.35);

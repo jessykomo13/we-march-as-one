@@ -21,7 +21,7 @@ function updateWallets(dt){
     if(W.t>0.4&&!player.ko&&hdist(W.m.position,player.root)<0.65){
       money+=W.amount;moneyEl.textContent=money+" €";
       // voler un porte-monnaie devant quelqu'un = délit
-      {let src=null;
+      if(!W.bank){let src=null;
         if(walkers.some(w=>w.isCop&&!w.ko&&canSee(w,player,25,260)))src="cop";
         else if(cams.some(c=>camSees(c,player.root)))src="cctv";
         else{const wit=walkers.find(w=>w!==player&&!w.isCop&&!w.ko&&!w.isMedic&&w.brain.witness&&hdist(w.root,player.root)<9&&canSee(w,player,9,170));if(wit){src="witness";bark(wit,["Hé ! Il vole son portefeuille !","Au voleur !"],3);}}

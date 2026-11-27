@@ -28,7 +28,8 @@ function bldInfo(o){
   const country=!grid,forest=country&&["foret","pinede","jungle","bayou","bambou","mangrove"].includes(biomeAt(o.x,o.z));
   const h=DAY.t,day=h>=8&&h<21;
   let kind="maison",str=3,pub=false,res=[1,3];
-  if(/cabanes|paillotes|lieu_maison_abandon|lieu_tour_guet/.test(t)){kind=t==="lieu_maison_abandon"?"abandon":"cabane";str=t==="cabanes"||t==="paillotes"?2:1;res=t==="lieu_maison_abandon"?[0,0]:[0,1];}
+  if(t==="banque"){kind="banque";str=99;pub=day;res=[0,0];}
+  else if(/cabanes|paillotes|lieu_maison_abandon|lieu_tour_guet/.test(t)){kind=t==="lieu_maison_abandon"?"abandon":"cabane";str=t==="cabanes"||t==="paillotes"?2:1;res=t==="lieu_maison_abandon"?[0,0]:[0,1];}
   else if(/^lieu_hameau|^lieu_caravanes|ferme|^ranch|^lavande/.test(t)){kind=big?"grange":"maison";str=forest?1:2;res=[0,big?0:2];}
   else if(country&&!t.startsWith("lieu_")&&!t.startsWith("station")&&!["motel","diner","relais","aire","camping","aeroport"].includes(t)){kind=big?"grange":"cabane";str=forest?1:2;res=[0,1];}
   else if(/maisons|villas|chalets|adobe|pop_rue/.test(t)){kind="maison";str=t==="villas"?4:3;res=[1,3];}
@@ -92,6 +93,7 @@ function furnish(I,g,r){
       B(2,1,0.8,IM.white,cx,0.5,z1-1.2);O(cx,z1-1.2,1,0.4);for(const s of [-0.7,0.7])put(CY(0.04,0.04,0.3,6),IM.white,cx+s,fy+1.15,z1-1.2,g);loot(cx,z1-2,"le tronc des offrandes");break;}
     case "hopital":{for(let x=x0+1.5;x<x1-1;x+=2.6){bed(x,z1-1.4,0);B(0.05,2,2.2,IM.wallH[1],x+1.25,1,z1-1.4);}B(3,1.1,0.8,IM.white,cx,0.55,z0+1.5);O(cx,z0+1.5,1.5,0.4);plant(x0+0.6,z0+0.6);break;}
     case "commissariat":{for(let k=0;k<3;k++)table(x0+2+k*2.6,cz,1.4,0.8);const cx2=x1-2.2;for(let z=z0+1;z<z1-1;z+=0.25)put(BX(0.05,2.6,0.05),IM.bars,cx2,fy+1.3,z,g);obs.push(addObstacle({type:"box",x:cx2,z:cz,hx:0.05,hz:D/2-1,inner:true,bld:true,tall:true}));break;}
+    case "banque":{bankFurnish(I,g,r,O,B,plant,sofa);break;}
     case "ecole":{for(let x=x0+1.6;x<x1-1;x+=1.8)for(let z=z0+2;z<z1-2;z+=1.6)table(x,z,1,0.6);B(W-2,1.2,0.05,IM.dark,cx,1.5,z1-0.1);break;}
   }
   if(kind!=="abandon"&&kind!=="grange"&&kind!=="entrepot")for(let k=0;k<2;k++){const z=z0+1.5+r()*(D-3);B(0.05,0.6,0.8,IM.prod[Math.floor(r()*7)],x0+0.05,1.6,z);}
@@ -114,10 +116,10 @@ function openInterior(o,door){
       I.obs.push(addObstacle(ax==="x"?{type:"box",x:mid,z:fixed-face*0.12,hx:len/2,hz:0.12,inner:true,bld:true,tall:true}:{type:"box",x:fixed-face*0.12,z:mid,hx:0.12,hz:len/2,inner:true,bld:true,tall:true}));};
     const sides={n:["x",z0,x0,x1,1],s:["x",z1,x0,x1,-1],w:["z",x0,z0,z1,1],e:["z",x1,z0,z1,-1]};
     for(const [k,[ax,fixed,a,b,face]] of Object.entries(sides)){if(k===side){const c=ax==="x"?door.x:door.z;wall(ax,fixed,a,c-dg,face);wall(ax,fixed,c+dg,b,face);put(BX(ax==="x"?dg*2:0.1,H-2.3,ax==="x"?0.1:dg*2),wm,ax==="x"?c:fixed,fy+2.3+(H-2.3)/2,ax==="x"?fixed:c,g);}else wall(ax,fixed,a,b,face);}
-    furnish(I,g,r);bake(g);scene.add(g);g.visible=false;
+    furnish(I,g,r);bake(g);if(I.kind==="banque")bankInterior(I);scene.add(g);g.visible=false;
     // l'encadrement de porte vu de dehors
     const dx=side==="w"?-1:side==="e"?1:0,dz=side==="n"?-1:side==="s"?1:0,ox=door.x+dx*(0.26+inset),oz=door.z+dz*(0.26+inset);
-    const hole=new THREE.Mesh(geo("ihole",()=>new THREE.PlaneGeometry(1.5,2.3)),IM.hole);hole.position.set(ox,fy+1.15,oz);hole.rotation.y=dz?(dz>0?0:Math.PI):(dx>0?Math.PI/2:-Math.PI/2);I.deco.add(hole);scene.add(I.deco);
+    const hole=new THREE.Mesh(geo("ihole",()=>new THREE.PlaneGeometry(1.5,2.3)),IM.hole);hole.position.set(ox,fy+1.15,oz);hole.rotation.y=dz?(dz>0?0:Math.PI):(dx>0?Math.PI/2:-Math.PI/2);if(!o.bankDoor)I.deco.add(hole);scene.add(I.deco);
     INT.list.push(I);if(INT.list.length>4){const old=INT.list.find(q=>q!==I&&!q.active);if(old)disposeInterior(old);}
     // habitants
     const [a,b]=info.res,night=DAY.night>0.5,n=info.pub?Math.min(1,b):Math.floor(a+(b-a)*(night?0.8:Math.random()));
@@ -148,7 +150,7 @@ class ResidentBrain extends NpcBrain{
   }
 }
 // ---------------------------------------------------------------- interaction : entrer, enfoncer, fouiller
-function doorFromWall(o,nx,nz){const p=player.root,side=Math.abs(nx)>Math.abs(nz)?(nx>0?"e":"w"):(nz>0?"s":"n");
+function doorFromWall(o,nx,nz){if(o.bankDoor)return {...o.bankDoor};const p=player.root,side=Math.abs(nx)>Math.abs(nz)?(nx>0?"e":"w"):(nz>0?"s":"n");
   const x=side==="w"?o.x-o.hx+0.25:side==="e"?o.x+o.hx-0.25:clamp(p.x,o.x-o.hx+1.3,o.x+o.hx-1.3),z=side==="n"?o.z-o.hz+0.25:side==="s"?o.z+o.hz-0.25:clamp(p.z,o.z-o.hz+1.3,o.z+o.hz-1.3);return {x,z,side};}
 function canOpenSmall(o){return o.hx>=1.6&&o.hz>=1.6;}
 function tryEnterBuilding(){
@@ -157,6 +159,7 @@ function tryEnterBuilding(){
   const I0=INT.cur;if(I0&&inRoom(I0,player.root))for(const L of I0.loot){if(INT.looted.has(L.id))continue;if(Math.hypot(L.x-player.root.x,L.z-player.root.z)<1.6){INT.looted.add(L.id);const m=I0.kind==="abandon"?Math.round(rand(5,60)):Math.round(rand(20,260)*(I0.kind==="bureau"||I0.kind==="boutique"?2:1));giveMoney(m);floatText(player,"+"+m+" € ("+L.label+")","#7dffa1");playSound("slap",0.05);I0.residents.forEach(w=>w.brain.alarm&&w.brain.alarm(w,true));return true;}}
   const W=wallInFront();if(!W||!canOpenSmall(W.o))return false;
   const info=bldInfo(W.o),key=bldKey(W.o);
+  if(info.kind==="banque"){if(!info.pub){hudMsg("Banque Azur fermée : ouverte de 8 h à 21 h");return true;}if(W.nz>-0.5){hudMsg("L'entrée de la banque est sur la façade (côté enseigne)");return true;}}
   if(info.pub||INT.broken.has(key)){const I=openInterior(W.o,doorFromWall(W.o,W.nx,W.nz));activateInterior(I);hudMsg(info.pub&&!INT.broken.has(key)?"Tu entres.":"La porte est enfoncée, tu entres.");return true;}
   if(info.str>=99){hudMsg("Porte blindée : impossible de l'enfoncer.");return true;}
   hudMsg(`Porte verrouillée (${info.kind==="cabane"||info.kind==="abandon"?"fragile":info.str<=3?"normale":info.str<=5?"solide":"très solide"}) : donne des coups de pied pour l'enfoncer`);return true;
@@ -186,5 +189,5 @@ function updateInteriors(dt){
   const I=INT.cur;intLight.intensity=I&&inRoom(I,player.root,0.5)?1.6:0;if(I)intLight.position.set((I.x0+I.x1)/2,I.ceil-0.4,(I.z0+I.z1)/2);
 }
 function interiorHint(){const I=INT.cur;if(I&&inRoom(I,player.root))for(const L of I.loot)if(!INT.looted.has(L.id)&&Math.hypot(L.x-player.root.x,L.z-player.root.z)<1.6)return ["E : fouiller "+L.label,"Fouiller"];
-  if(INT.near){const info=bldInfo(INT.near.o),key=bldKey(INT.near.o);if(info.pub||INT.broken.has(key))return ["E : entrer","Entrer"];if(info.str>=99)return ["Porte blindée",""];const h=INT.hits.get(key)||0;return [`Porte verrouillée — coups de pied pour l'enfoncer (${Math.round(h/info.str*100)} %)`,"Porte"];}
+  if(INT.near){const info=bldInfo(INT.near.o),key=bldKey(INT.near.o);if(info.pub||INT.broken.has(key))return ["E : entrer","Entrer"];if(info.kind==="banque")return [info.pub?"E : entrer dans la banque":"Banque fermée (8 h – 21 h)",info.pub?"Entrer":""];if(info.str>=99)return ["Porte blindée",""];const h=INT.hits.get(key)||0;return [`Porte verrouillée — coups de pied pour l'enfoncer (${Math.round(h/info.str*100)} %)`,"Porte"];}
   return null;}

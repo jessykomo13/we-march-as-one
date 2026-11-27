@@ -40,6 +40,7 @@ class PlayerBrain{
     if(sitRequest&&EV.canAccept&&acceptEvent()){sitRequest=false;return;}
     if(sitRequest&&theftAction()){sitRequest=false;return;}
     if(sitRequest&&tryArmory()){sitRequest=false;return;}
+    if(sitRequest&&tryBank()){sitRequest=false;return;}
     if(sitRequest&&shopNear&&!w.ball&&tryBuy()){sitRequest=false;return;}
     if(sitRequest&&w.ball){sitRequest=false;dropBall(w);return;}
     if(sitRequest&&tryLoot()){sitRequest=false;return;}
